@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>数智链海 · 出海金融需求雷达</title>
+<link rel="stylesheet" href="assets/style.css">
+</head>
+<body>
+
+<header>
+  <div class="hd">
+    <div class="logo">数智链海<small>MINIMUM LOOP · kb-2023</small></div>
+    <div class="filters">
+      <select id="f-province"><option value="">全部省份</option></select>
+      <select id="f-year"><option value="">全部年份</option></select>
+      <select id="f-industry"><option>电气设备</option></select>
+      <button id="btn-radar">雷达名单</button>
+      <span class="health" id="health">连接中…</span>
+    </div>
+  </div>
+</header>
+
+<main>
+  <!-- 视图 1：雷达名单 -->
+  <div class="view on" id="view-radar">
+    <div class="card">
+      <h3>辖区出海线索名单 <span class="hint">窗口期优先 → 落地层 > 筹备层 → 强度分降序 · 点击行查看企业详情</span></h3>
+      <div style="overflow-x:auto">
+        <table class="radar">
+          <thead><tr>
+            <th>#</th><th>企业</th><th>省份</th><th>年份</th><th>窗口类型</th><th>分层</th><th>出海方向</th><th>目标国/地区</th><th>部署/意图</th><th>强度分</th>
+          </tr></thead>
+          <tbody id="radar-body"></tbody>
+        </table>
+      </div>
+      <p class="muted" id="radar-note" style="margin-top:10px"></p>
+    </div>
+  </div>
+
+  <!-- 视图 2：企业详情 -->
+  <div class="view" id="view-company">
+    <span class="back" id="back-radar">← 返回名单</span>
+    <div class="co-head">
+      <h1 id="co-name">—</h1>
+      <div id="co-tags"></div>
+      <div class="sub" id="co-sub"></div>
+    </div>
+    <div class="co-grid">
+      <div>
+        <div class="card">
+          <h3>能力画像 <span class="hint">辅助判断 · 不替代人工尽调</span></h3>
+          <div id="radar-svg"></div>
+          <div class="grade-box"><div class="g" id="cap-grade">—</div><div class="d" id="cap-desc"></div></div>
+          <div class="kpi" id="cap-kpi" style="margin-top:10px"></div>
+        </div>
+        <div class="card">
+          <h3>供应链 <span class="hint">演示样例 · 全量数据为 P2 扩展</span></h3>
+          <div id="sc-svg"></div>
+          <p class="muted" id="sc-note"></p>
+        </div>
+      </div>
+      <div>
+        <div class="card">
+          <h3>营销方案推理链 <span class="hint">规则引擎生成 · 每步可回溯</span></h3>
+          <div class="steps" id="chain-steps"></div>
+        </div>
+        <div class="card">
+          <h3>出海信号 <span class="hint">点击查看原文证据</span></h3>
+          <div class="sig-list" id="sig-list"></div>
+        </div>
+        <div class="card" id="country-card" style="display:none">
+          <h3>目标国别信息 <span class="hint">银行内部规则占位</span></h3>
+          <div id="country-body"></div>
+        </div>
+        <div style="text-align:right">
+          <button class="tab on" id="btn-briefing" style="cursor:pointer">生成访前简报 →</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 视图 3：简报 -->
+  <div class="view" id="view-briefing">
+    <span class="back" id="back-company">← 返回企业详情</span>
+    <div class="brief">
+      <div class="co-head"><h1 id="brief-title">访前简报</h1></div>
+      <div id="brief-sections"></div>
+      <div class="brief-actions">
+        <button onclick="window.print()">打印 / 导出 PDF</button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<!-- 证据弹窗 -->
+<div class="modal-bg" id="modal-bg">
+  <div class="modal">
+    <div class="mh">
+      <h3 id="modal-title">原文证据</h3>
+      <span class="close" id="modal-close">✕</span>
+    </div>
+    <p class="muted" id="modal-meta"></p>
+    <div class="evtext" id="modal-text"></div>
+  </div>
+</div>
+
+<script src="config.js"></script>
+<script src="assets/app.js"></script>
+</body>
+</html>

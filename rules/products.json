@@ -1,0 +1,51 @@
+{
+  "catalog": {
+    "account_setup":       { "name": "账户方案",           "category": "前置服务" },
+    "settlement_arch":     { "name": "跨境结算架构",       "category": "前置服务" },
+    "guarantee_prequal":   { "name": "保函预授信",         "category": "前置服务" },
+    "settlement":          { "name": "跨境人民币结算",     "category": "人民币清算结算" },
+    "clearing_path":       { "name": "清算行网络接入",     "category": "人民币清算结算" },
+    "hedging":             { "name": "汇率避险（远期/期权）", "category": "人民币清算结算" },
+    "treasury":            { "name": "工银全球司库",       "category": "司库" },
+    "project_loan":        { "name": "境外项目贷款",       "category": "出海金融" },
+    "neibaowaidai":        { "name": "内保外贷",           "category": "出海金融" },
+    "ma_loan":             { "name": "跨境并购融资",       "category": "出海金融" },
+    "bid_bond":            { "name": "投标保函",           "category": "跨境保函" },
+    "performance_bond":    { "name": "履约保函",           "category": "跨境保函" },
+    "advance_bond":        { "name": "预付款保函",         "category": "跨境保函" },
+    "offshore":            { "name": "离岸账户（OSA/NRA）", "category": "离岸金融" },
+    "offshore_cny":        { "name": "离岸人民币融资",     "category": "离岸金融" }
+  },
+  "direction_map": {
+    "capacity_production":          { "mode": "绿地建厂",   "products": ["project_loan", "neibaowaidai", "performance_bond", "guarantee_prequal"] },
+    "market_expansion":             { "mode": "市场开拓",   "products": ["account_setup", "settlement_arch", "settlement", "hedging"] },
+    "channel_supply_chain":         { "mode": "渠道进入",   "products": ["account_setup", "treasury", "settlement"] },
+    "local_organization_readiness": { "mode": "本地准备",   "products": ["account_setup", "settlement_arch", "guarantee_prequal"] },
+    "rd_localization":              { "mode": "研发本地化", "products": ["account_setup", "treasury"] },
+    "investment_ma":                { "mode": "投资并购",   "products": ["ma_loan", "offshore", "offshore_cny", "guarantee_prequal"] }
+  },
+  "anchor_extra": {
+    "project_or_base":        ["bid_bond", "performance_bond"],
+    "investment_or_contract": ["ma_loan", "advance_bond"],
+    "certification_or_access":["guarantee_prequal"],
+    "overseas_entity":        ["offshore", "treasury"]
+  },
+  "window_extra": {
+    "first":       ["account_setup", "settlement_arch", "guarantee_prequal"],
+    "new_country": ["account_setup", "clearing_path", "hedging"],
+    "expansion":   ["treasury", "settlement"]
+  },
+  "country_extra": ["clearing_path", "hedging"],
+  "prereq": {
+    "project_loan":     "前置：开立外汇账户与跨境结算账户",
+    "neibaowaidai":     "前置：境外主体设立与行内担保额度",
+    "ma_loan":          "前置：并购标的确立与行内审批",
+    "performance_bond": "前置：行内保函授信额度",
+    "bid_bond":         "前置：保函授信额度（投标阶段）",
+    "treasury":         "前置：主结算账户绑定",
+    "clearing_path":    "前置：目标国清算行网络覆盖确认",
+    "hedging":          "前置：结算账户与交易背景材料",
+    "offshore":         "前置：境外主体注册完成",
+    "settlement":       "前置：跨境人民币结算账户开立"
+  }
+}

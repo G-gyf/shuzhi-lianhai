@@ -1,0 +1,18 @@
+{
+  "step_order": [
+    { "key": "window",    "label": "窗口期判定" },
+    { "key": "direction", "label": "出海方向与模式" },
+    { "key": "product",   "label": "产品匹配" },
+    { "key": "prereq",    "label": "前置条件" }
+  ],
+  "window_label": {
+    "first":       "首次出海窗口期",
+    "new_country": "新国别进入期",
+    "expansion":   "出海扩张期"
+  },
+  "stage_label": {
+    "landing": "落地层",
+    "prep":    "筹备层"
+  },
+  "note": "推理链由规则引擎按 方向×锚点×窗口类型 生成结构化步骤，每步携带证据 claim 引用；LLM 不参与判定，仅用于简报文字润色。"
+}

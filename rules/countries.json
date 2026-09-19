@@ -1,0 +1,30 @@
+{
+  "default": {
+    "clearing": "目标国清算行覆盖待行内配置（占位）",
+    "treasury": "司库服务说明待行内产品库接入（占位）",
+    "hedging": "支持远期/期权等汇率避险产品（公开信息）"
+  },
+  "countries": {
+    "越南":   { "region": "东南亚", "clearing_note": "越南盾交易参考 CNH/VND 交叉盘（占位）" },
+    "泰国":   { "region": "东南亚", "clearing_note": "工行（泰国）本地服务网络（占位）" },
+    "新加坡": { "region": "东南亚", "clearing_note": "新加坡为境外人民币清算行所在地（公开信息，待核）" },
+    "印度尼西亚": { "region": "东南亚", "clearing_note": "印尼本地开户与结算路径（占位）" },
+    "马来西亚": { "region": "东南亚", "clearing_note": "马来西亚本地服务网络（占位）" },
+    "印度":   { "region": "南亚", "clearing_note": "印度本地服务网络（占位）" },
+    "德国":   { "region": "欧洲", "clearing_note": "欧元区结算路径（占位）" },
+    "法国":   { "region": "欧洲", "clearing_note": "欧元区结算路径（占位）" },
+    "英国":   { "region": "欧洲", "clearing_note": "伦敦离岸人民币市场（占位）" },
+    "俄罗斯": { "region": "欧洲", "clearing_note": "卢布清算行网络（占位）" },
+    "美国":   { "region": "北美", "clearing_note": "美元结算路径（占位）" },
+    "墨西哥": { "region": "北美", "clearing_note": "墨西哥本地服务网络（占位）" },
+    "巴西":   { "region": "南美", "clearing_note": "巴西清算行所在地（公开信息，待核）" },
+    "日本":   { "region": "东亚", "clearing_note": "日元结算路径（占位）" },
+    "韩国":   { "region": "东亚", "clearing_note": "韩元结算路径（占位）" },
+    "土耳其": { "region": "中东", "clearing_note": "2025 年新设土耳其清算行（公开信息，待核）" },
+    "阿联酋": { "region": "中东", "clearing_note": "中东区域服务网络（占位）" },
+    "沙特":   { "region": "中东", "clearing_note": "中东区域服务网络（占位）" },
+    "埃及":   { "region": "非洲", "clearing_note": "非洲区域服务网络（占位）" },
+    "南非":   { "region": "非洲", "clearing_note": "非洲区域服务网络（占位）" }
+  },
+  "note": "国别卡片为占位数据：清算行与司库等银行内部规则待行内产品库接入；区域归属为公开地理信息。"
+}
