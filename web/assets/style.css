@@ -123,3 +123,59 @@ svg text { font-family: "Microsoft YaHei", sans-serif; }
   body { background: #fff; color: #222; }
   .brief .sec, .brief .sec p, .brief .sec h4 { color: #222; border-color: #ccc; background: #fff; }
 }
+
+/* ============================================================
+   移动端适配层（<=768px）——桌面样式保持不变，仅追加覆盖规则
+   ============================================================ */
+@media (max-width: 768px) {
+  /* 顶栏：logo 占整行，筛选器换行均分 */
+  .hd { padding: 10px 14px; gap: 8px; }
+  .hd .logo { font-size: 16px; letter-spacing: 3px; width: 100%; }
+  .hd .filters { margin-left: 0; width: 100%; flex-wrap: wrap; gap: 6px; }
+  .hd select, .hd button { flex: 1 1 42%; font-size: 12.5px; padding: 9px 8px; }
+  .hd .health { font-size: 11px; width: 100%; }
+
+  main { padding: 12px 10px; }
+  .card { padding: 13px 12px; margin-bottom: 12px; }
+  .card h3 { font-size: 13.5px; }
+
+  /* 产业链条：单列 */
+  #chain-strip { grid-template-columns: 1fr; gap: 4px; }
+  .chainbar { padding: 7px 8px; }
+  .chainbar .cn { width: 76px; font-size: 12px; }
+  .chainbar .cv { font-size: 11px; min-width: 84px; }
+
+  /* 名单表格：横向滚动 + 冻结首列（实色背景防文字重叠） */
+  table.radar { min-width: 760px; }
+  table.radar th, table.radar td { padding: 9px 8px; font-size: 12px; white-space: nowrap; }
+  table.radar th:first-child, table.radar td:first-child {
+    position: sticky; left: 0; z-index: 1;
+    background: #141f33;
+  }
+  table.radar thead th:first-child { background: #1a2942; }
+
+  /* 详情页：双列改单列堆叠 */
+  .co-grid { grid-template-columns: 1fr; }
+  .co-head h1 { font-size: 20px; }
+
+  /* 推理链：4 列改 1 列 */
+  .steps { grid-template-columns: 1fr; }
+  .step { padding: 10px 12px; }
+
+  /* SVG 自适应缩放 */
+  #radar-svg, #sc-svg { text-align: center; }
+  #radar-svg svg, #sc-svg svg { width: 100%; max-width: 340px; height: auto; }
+
+  /* 弹窗 */
+  .modal { padding: 15px 13px; max-height: 88vh; border-radius: 10px; }
+  .evtext { font-size: 12.5px; }
+
+  /* 简报 */
+  .brief { max-width: none; }
+  .brief-actions button { width: 100%; }
+
+  /* 触控反馈（hover 在触屏无效，用 active 补偿） */
+  table.radar tbody tr:active { background: rgba(212,175,106,.16); }
+  .sig:active, .chainbar:active, .tabs .tab:active { background: rgba(212,175,106,.12); }
+  .nav button:active, .hd button:active { background: rgba(212,175,106,.16); }
+}
