@@ -15,10 +15,12 @@ async function jget(url) {
 async function init() {
   try {
     const m = await jget("/api/meta");
-    const p = $("f-province"), y = $("f-year");
+    const p = $("f-province"), y = $("f-year"), ind = $("f-industry");
     m.provinces.forEach((v) => p.add(new Option(v, v)));
     m.years.forEach((v) => y.add(new Option(String(v), String(v))));
-    $("health").textContent = "● 知识库 kb-2023 在线（" + m.provinces.length + " 省份）";
+    ind.innerHTML = "";
+    m.industries.forEach((v) => ind.add(new Option(v, v)));
+    $("health").textContent = "● 知识库 kb-2023 在线（" + m.provinces.length + " 省份 · 光伏成分 " + m.pv_overlap + "/" + m.pv_full + "）";
     await loadRadar();
   } catch (e) {
     $("health").textContent = "● 服务连接失败";
@@ -37,6 +39,7 @@ async function loadRadar() {
   const q = new URLSearchParams();
   if ($("f-province").value) q.set("province", $("f-province").value);
   if ($("f-year").value) q.set("year", $("f-year").value);
+  if ($("f-industry").value && $("f-industry").value !== "全部") q.set("industry", $("f-industry").value);
   q.set("sort", $("f-sort").value || "window");
   const d = await jget("/api/radar?" + q.toString() + "&limit=200");
   const body = $("radar-body");
@@ -45,7 +48,9 @@ async function loadRadar() {
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td class="muted">${i + 1}</td>
-      <td><b style="color:var(--head)">${esc(it.coname)}</b><br><span class="muted">${esc(it.scode)}</span></td>
+      <td><b style="color:var(--head)">${esc(it.coname)}</b>
+          ${it.industry_tags && it.industry_tags.includes("光伏") ? '<span class="tag" style="margin-left:6px">光伏</span>' : ""}
+          <br><span class="muted">${esc(it.scode)}</span></td>
       <td>${esc(it.province)}</td>
       <td class="muted">${it.year}</td>
       <td><span class="tag w-${it.window_type}">${esc(it.window_label)}</span></td>
@@ -254,6 +259,7 @@ $("btn-briefing").onclick = showBriefing;
 $("f-province").onchange = loadRadar;
 $("f-year").onchange = loadRadar;
 $("f-sort").onchange = loadRadar;
+$("f-industry").onchange = loadRadar;
 $("modal-close").onclick = () => $("modal-bg").classList.remove("on");
 $("modal-bg").onclick = (e) => { if (e.target === $("modal-bg")) $("modal-bg").classList.remove("on"); };
 

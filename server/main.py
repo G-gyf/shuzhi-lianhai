@@ -33,10 +33,12 @@ app.add_middleware(
 def api_meta():
     return {
         "kb_version": "kb-2023",
-        "industry": "电气设备（双行业扩展中）",
+        "industries": ["全部", "电气设备", "光伏"],
+        "pv_overlap": len(logic.industry_tags()["pv"]),
+        "pv_full": len(logic.industry_tags()["pv_full"]),
         "provinces": logic.provinces(),
         "years": logic.years(),
-        "note": "最小闭环：单行业冻结快照；光伏为增量接入。",
+        "note": "光伏=申万2021 6305xx 成分；重叠企业双标签复用，沪深增量待补标，北交所待第二轮。",
     }
 
 

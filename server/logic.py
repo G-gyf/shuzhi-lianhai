@@ -32,6 +32,24 @@ def rules():
         "scoring": _load_json("scoring.json"),
         "chains": _load_json("chains.json"),
         "countries": _load_json("countries.json"),
+        "pv_list": _load_json("pv_list.json"),
+    }
+
+
+@lru_cache(maxsize=1)
+def industry_tags():
+    """多标签：电气设备（全部 317 家）+ 光伏（申万 6305xx 重叠部分）。
+
+    增量光伏企业（new_shsz/new_bse）尚未入样本，标注后并入。
+    """
+    pv = rules()["pv_list"]
+    pv_codes = set(pv["overlap"]) | set(pv["new_shsz"]) | set(pv["new_bse"])
+    con = _conn()
+    all_codes = {r[0] for r in con.execute("SELECT DISTINCT scode FROM chunks")}
+    return {
+        "all": sorted(all_codes),
+        "pv": sorted(pv_codes & all_codes),   # 当前样本内可标光伏的企业
+        "pv_full": sorted(pv_codes),          # 申万口径全量（含待补标）
     }
 
 
@@ -135,6 +153,12 @@ def radar(province=None, industry=None, year=None, limit=200, sort_mode="window"
     """
     g = agg()
     g = g[g["window_type"].notna()].copy()
+    if industry == "光伏":
+        pv = set(industry_tags()["pv"])
+        g = g[g["scode"].isin(pv)]
+    elif industry == "电气设备":
+        pv = set(industry_tags()["pv"])
+        g = g[~g["scode"].isin(pv)]
     if province:
         g = g[g["province"] == province]
     if year:
@@ -151,13 +175,15 @@ def radar(province=None, industry=None, year=None, limit=200, sort_mode="window"
                           ascending=[True, True, False, False])
     names = _coname_map()
     chain_rules = rules()["chains"]
+    pv = set(industry_tags()["pv"])
     out = []
     for _, r in g.head(limit).iterrows():
         out.append({
             "scode": r["scode"],
             "coname": names.get(r["scode"], ""),
             "province": r["province"],
-            "industry": "电气设备",
+            "industry": "光伏" if r["scode"] in pv else "电气设备",
+            "industry_tags": (["电气设备", "光伏"] if r["scode"] in pv else ["电气设备"]),
             "year": int(r["year"]),
             "window_type": r["window_type"],
             "window_label": chain_rules["window_label"][r["window_type"]],
@@ -218,7 +244,7 @@ def company_detail(scode):
         "scode": scode,
         "coname": names.get(scode, ""),
         "province": row["province"],
-        "industry": "电气设备",
+        "industry": "光伏" if scode in set(industry_tags()["pv"]) else "电气设备",
         "year": int(row["year"]),
         "assets": float(row["assets"]) if pd.notna(row["assets"]) else None,
         "roa": float(row["roa"]) if pd.notna(row["roa"]) else None,
