@@ -119,13 +119,15 @@ def agg():
 
     p = _panel()[["scode", "year", "overseas_demand", "overseas_sub_count",
                   "overseas_rev_share", "province"]].copy()
-    g = g.merge(p, on=["scode", "year"], how="inner")
+    g = g.merge(p, on=["scode", "year"], how="left")
 
     # 已进入国家集合（全期口径）
     subs = _sub_countries()
     entered = subs.groupby("scode")["country"].apply(set).to_dict()
 
     def window_type(row):
+        if pd.isna(row["overseas_demand"]):
+            return "pv_text"   # 光伏新增企业：结构数据待补，仅文本信号
         if row["overseas_demand"] != 1:
             return None
         if (row["overseas_sub_count"] or 0) == 0 and (row["overseas_rev_share"] or 0) <= 0:
@@ -163,7 +165,7 @@ def radar(province=None, industry=None, year=None, limit=200, sort_mode="window"
         g = g[g["province"] == province]
     if year:
         g = g[g["year"] == int(year)]
-    w_order = {"first": 0, "new_country": 1, "expansion": 2}
+    w_order = {"first": 0, "new_country": 1, "expansion": 2, "pv_text": 3}
     s_order = {"landing": 0, "prep": 1}
     g["_w"] = g["window_type"].map(w_order)
     g["_s"] = g["stage_layer"].map(s_order)
@@ -181,7 +183,7 @@ def radar(province=None, industry=None, year=None, limit=200, sort_mode="window"
         out.append({
             "scode": r["scode"],
             "coname": names.get(r["scode"], ""),
-            "province": r["province"],
+            "province": r["province"] if pd.notna(r["province"]) else "待补",
             "industry": "光伏" if r["scode"] in pv else "电气设备",
             "industry_tags": (["电气设备", "光伏"] if r["scode"] in pv else ["电气设备"]),
             "year": int(r["year"]),
@@ -215,9 +217,9 @@ def company_detail(scode):
     names = _coname_map()
     p = _panel()
     row = p[p["scode"] == scode]
-    if row.empty:
-        return None
-    row = row.sort_values("year", ascending=False).iloc[0]
+    has_panel = not row.empty
+    if has_panel:
+        row = row.sort_values("year", ascending=False).iloc[0]
     g = agg()
     gy = g[(g["scode"] == scode)].sort_values("year", ascending=False)
     sigs = cl[(cl["scode"] == scode) &
@@ -240,21 +242,27 @@ def company_detail(scode):
             "evidence_quote": (c["evidence_quote"] or "")[:200],
         })
 
+    def gv(field, to_type=float):
+        if not has_panel or field not in row.index or pd.isna(row[field]):
+            return None
+        return to_type(row[field])
+
     return {
         "scode": scode,
         "coname": names.get(scode, ""),
-        "province": row["province"],
+        "province": str(row["province"]) if has_panel and pd.notna(row["province"]) else "待补",
         "industry": "光伏" if scode in set(industry_tags()["pv"]) else "电气设备",
-        "year": int(row["year"]),
-        "assets": float(row["assets"]) if pd.notna(row["assets"]) else None,
-        "roa": float(row["roa"]) if pd.notna(row["roa"]) else None,
-        "leverage": float(row["leverage"]) if pd.notna(row["leverage"]) else None,
-        "rd_intensity": float(row["rd_intensity"]) if pd.notna(row["rd_intensity"]) else None,
-        "overseas_sub_count": int(row["overseas_sub_count"]) if pd.notna(row["overseas_sub_count"]) else 0,
-        "overseas_rev_share": float(row["overseas_rev_share"]) if pd.notna(row["overseas_rev_share"]) else 0,
-        "overseas_demand": int(row["overseas_demand"]) if pd.notna(row["overseas_demand"]) else 0,
-        "soe": int(row["soe"]) if pd.notna(row["soe"]) else 0,
-        "firm_age": float(row["firm_age"]) if pd.notna(row["firm_age"]) else None,
+        "year": int(gy.iloc[0]["year"]) if not gy.empty else None,
+        "assets": gv("assets"),
+        "roa": gv("roa"),
+        "leverage": gv("leverage"),
+        "rd_intensity": gv("rd_intensity"),
+        "overseas_sub_count": int(gv("overseas_sub_count", float) or 0) if has_panel else None,
+        "overseas_rev_share": gv("overseas_rev_share"),
+        "overseas_demand": int(gv("overseas_demand", float) or 0) if has_panel else None,
+        "soe": int(gv("soe", float) or 0) if has_panel else None,
+        "firm_age": gv("firm_age"),
+        "panel_status": "full" if has_panel else "text_only",
         "window": {
             "year": int(gy.iloc[0]["year"]),
             "window_type": gy.iloc[0]["window_type"],
@@ -269,15 +277,22 @@ def company_detail(scode):
 
 
 def capability_score(scode):
-    """能力评分卡：行业分位归一 + 加权。"""
+    """能力评分卡：行业分位归一 + 加权。无面板（光伏新增）时返回占位。"""
     sc_rules = rules()["scoring"]
     p = _panel()
+    sub = p[p["scode"] == scode]
+    if sub.empty:
+        dims = [{"key": d["key"], "label": d["label"], "value": 0.5, "raw": None}
+                for d in sc_rules["dimensions"]]
+        return {"score": None, "grade": "待补", "desc": "结构化数据未接入（仅文本信号）",
+                "dims": dims}
+
     def pct(s):
         if s is None or pd.isna(s):
             return 0.5
         return float((p[p[field].notna()][field] <= s).mean()) if p[field].notna().any() else 0.5
 
-    row = p[p["scode"] == scode].sort_values("year", ascending=False).iloc[0]
+    row = sub.sort_values("year", ascending=False).iloc[0]
     dims = []
     total = 0.0
     for d in sc_rules["dimensions"]:

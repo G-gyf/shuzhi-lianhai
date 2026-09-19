@@ -8,7 +8,8 @@
   "window_label": {
     "first":       "首次出海窗口期",
     "new_country": "新国别进入期",
-    "expansion":   "出海扩张期"
+    "expansion":   "出海扩张期",
+    "pv_text":     "结构数据待补（仅文本信号）"
   },
   "stage_label": {
     "landing": "落地层",
