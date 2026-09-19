@@ -1,0 +1,1587 @@
+{
+ "000049": {
+  "segment": "风电设备",
+  "pv_stage": null,
+  "sw": "630701"
+ },
+ "000333": {
+  "segment": "家电消费",
+  "pv_stage": null,
+  "sw": "330102"
+ },
+ "000400": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630803"
+ },
+ "000521": {
+  "segment": "家电消费",
+  "pv_stage": null,
+  "sw": "330106"
+ },
+ "000533": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630801"
+ },
+ "000541": {
+  "segment": "家电消费",
+  "pv_stage": null,
+  "sw": "330501"
+ },
+ "000586": {
+  "segment": "其他",
+  "pv_stage": null,
+  "sw": "730205"
+ },
+ "000651": {
+  "segment": "家电消费",
+  "pv_stage": null,
+  "sw": "330102"
+ },
+ "000720": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630805"
+ },
+ "000809": {
+  "segment": "储能与电源",
+  "pv_stage": null,
+  "sw": "630602"
+ },
+ "000921": {
+  "segment": "家电消费",
+  "pv_stage": null,
+  "sw": "330102"
+ },
+ "000922": {
+  "segment": "储能与电源",
+  "pv_stage": null,
+  "sw": "630101"
+ },
+ "001208": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630805"
+ },
+ "001259": {
+  "segment": "家电消费",
+  "pv_stage": null,
+  "sw": "330301"
+ },
+ "001283": {
+  "segment": "风电设备",
+  "pv_stage": null,
+  "sw": "630701"
+ },
+ "001326": {
+  "segment": "家电消费",
+  "pv_stage": null,
+  "sw": "330501"
+ },
+ "001387": {
+  "segment": "家电消费",
+  "pv_stage": null,
+  "sw": "330106"
+ },
+ "002005": {
+  "segment": "家电消费",
+  "pv_stage": null,
+  "sw": "330301"
+ },
+ "002026": {
+  "segment": "其他",
+  "pv_stage": null,
+  "sw": "640108"
+ },
+ "002028": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630801"
+ },
+ "002032": {
+  "segment": "家电消费",
+  "pv_stage": null,
+  "sw": "330301"
+ },
+ "002035": {
+  "segment": "家电消费",
+  "pv_stage": null,
+  "sw": "330401"
+ },
+ "002056": {
+  "segment": "光伏主链",
+  "pv_stage": "电池组件",
+  "sw": "630502"
+ },
+ "002074": {
+  "segment": "风电设备",
+  "pv_stage": null,
+  "sw": "630701"
+ },
+ "002076": {
+  "segment": "家电消费",
+  "pv_stage": null,
+  "sw": "330501"
+ },
+ "002090": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630803"
+ },
+ "002112": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630801"
+ },
+ "002129": {
+  "segment": "光伏主链",
+  "pv_stage": "硅料硅片",
+  "sw": "630501"
+ },
+ "002137": {
+  "segment": "其他",
+  "pv_stage": null,
+  "sw": "270302"
+ },
+ "002139": {
+  "segment": "其他",
+  "pv_stage": null,
+  "sw": "270504"
+ },
+ "002141": {
+  "segment": "其他",
+  "pv_stage": null,
+  "sw": "270202"
+ },
+ "002150": {
+  "segment": "光伏主链",
+  "pv_stage": "逆变器",
+  "sw": "630503"
+ },
+ "002168": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630802"
+ },
+ "002169": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630803"
+ },
+ "002184": {
+  "segment": "工业控制",
+  "pv_stage": null,
+  "sw": "640702"
+ },
+ "002196": {
+  "segment": "储能与电源",
+  "pv_stage": null,
+  "sw": "630101"
+ },
+ "002218": {
+  "segment": "其他",
+  "pv_stage": null,
+  "sw": "410106"
+ },
+ "002227": {
+  "segment": "储能与电源",
+  "pv_stage": null,
+  "sw": "630306"
+ },
+ "002242": {
+  "segment": "家电消费",
+  "pv_stage": null,
+  "sw": "330301"
+ },
+ "002245": {
+  "segment": "风电设备",
+  "pv_stage": null,
+  "sw": "630701"
+ },
+ "002249": {
+  "segment": "储能与电源",
+  "pv_stage": null,
+  "sw": "630101"
+ },
+ "002270": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630801"
+ },
+ "002276": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630805"
+ },
+ "002290": {
+  "segment": "其他",
+  "pv_stage": null,
+  "sw": "330601"
+ },
+ "002296": {
+  "segment": "其他",
+  "pv_stage": null,
+  "sw": "730204"
+ },
+ "002298": {
+  "segment": "其他",
+  "pv_stage": null,
+  "sw": "710401"
+ },
+ "002300": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630805"
+ },
+ "002309": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630805"
+ },
+ "002334": {
+  "segment": "工业控制",
+  "pv_stage": null,
+  "sw": "640702"
+ },
+ "002335": {
+  "segment": "储能与电源",
+  "pv_stage": null,
+  "sw": "630306"
+ },
+ "002339": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630803"
+ },
+ "002346": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630802"
+ },
+ "002350": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630802"
+ },
+ "002358": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630801"
+ },
+ "002364": {
+  "segment": "储能与电源",
+  "pv_stage": null,
+  "sw": "630306"
+ },
+ "002451": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630805"
+ },
+ "002452": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630801"
+ },
+ "002459": {
+  "segment": "光伏主链",
+  "pv_stage": "电池组件",
+  "sw": "630502"
+ },
+ "002471": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630805"
+ },
+ "002491": {
+  "segment": "其他",
+  "pv_stage": null,
+  "sw": "730205"
+ },
+ "002498": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630805"
+ },
+ "002506": {
+  "segment": "光伏主链",
+  "pv_stage": "电池组件",
+  "sw": "630502"
+ },
+ "002508": {
+  "segment": "家电消费",
+  "pv_stage": null,
+  "sw": "330401"
+ },
+ "002513": {
+  "segment": "其他",
+  "pv_stage": null,
+  "sw": "220803"
+ },
+ "002518": {
+  "segment": "储能与电源",
+  "pv_stage": null,
+  "sw": "630306"
+ },
+ "002531": {
+  "segment": "储能与电源",
+  "pv_stage": null,
+  "sw": "630602"
+ },
+ "002533": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630805"
+ },
+ "002543": {
+  "segment": "家电消费",
+  "pv_stage": null,
+  "sw": "330402"
+ },
+ "002560": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630805"
+ },
+ "002576": {
+  "segment": "储能与电源",
+  "pv_stage": null,
+  "sw": "630101"
+ },
+ "002580": {
+  "segment": "风电设备",
+  "pv_stage": null,
+  "sw": "630705"
+ },
+ "002606": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630805"
+ },
+ "002614": {
+  "segment": "其他",
+  "pv_stage": null,
+  "sw": "330701"
+ },
+ "002617": {
+  "segment": "其他",
+  "pv_stage": null,
+  "sw": "410106"
+ },
+ "002638": {
+  "segment": "家电消费",
+  "pv_stage": null,
+  "sw": "330501"
+ },
+ "002668": {
+  "segment": "家电消费",
+  "pv_stage": null,
+  "sw": "330106"
+ },
+ "002677": {
+  "segment": "家电消费",
+  "pv_stage": null,
+  "sw": "330401"
+ },
+ "002692": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630805"
+ },
+ "002705": {
+  "segment": "家电消费",
+  "pv_stage": null,
+  "sw": "330301"
+ },
+ "002706": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630802"
+ },
+ "002723": {
+  "segment": "家电消费",
+  "pv_stage": null,
+  "sw": "330501"
+ },
+ "002724": {
+  "segment": "家电消费",
+  "pv_stage": null,
+  "sw": "330501"
+ },
+ "002733": {
+  "segment": "风电设备",
+  "pv_stage": null,
+  "sw": "630705"
+ },
+ "002745": {
+  "segment": "其他",
+  "pv_stage": null,
+  "sw": "270302"
+ },
+ "002801": {
+  "segment": "储能与电源",
+  "pv_stage": null,
+  "sw": "630101"
+ },
+ "002823": {
+  "segment": "储能与电源",
+  "pv_stage": null,
+  "sw": "630101"
+ },
+ "002851": {
+  "segment": "储能与电源",
+  "pv_stage": null,
+  "sw": "630306"
+ },
+ "002860": {
+  "segment": "其他",
+  "pv_stage": null,
+  "sw": "330601"
+ },
+ "002865": {
+  "segment": "光伏主链",
+  "pv_stage": "电池组件",
+  "sw": "630502"
+ },
+ "002879": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630805"
+ },
+ "002882": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630805"
+ },
+ "002892": {
+  "segment": "储能与电源",
+  "pv_stage": null,
+  "sw": "630101"
+ },
+ "002897": {
+  "segment": "其他",
+  "pv_stage": null,
+  "sw": "730204"
+ },
+ "002922": {
+  "segment": "其他",
+  "pv_stage": null,
+  "sw": "270401"
+ },
+ "002927": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630802"
+ },
+ "002953": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630805"
+ },
+ "002959": {
+  "segment": "家电消费",
+  "pv_stage": null,
+  "sw": "330301"
+ },
+ "003021": {
+  "segment": "储能与电源",
+  "pv_stage": null,
+  "sw": "630101"
+ },
+ "003023": {
+  "segment": "家电消费",
+  "pv_stage": null,
+  "sw": "330303"
+ },
+ "300001": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630801"
+ },
+ "300014": {
+  "segment": "风电设备",
+  "pv_stage": null,
+  "sw": "630701"
+ },
+ "300018": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630803"
+ },
+ "300032": {
+  "segment": "其他",
+  "pv_stage": null,
+  "sw": "270504"
+ },
+ "300048": {
+  "segment": "工业控制",
+  "pv_stage": null,
+  "sw": "640702"
+ },
+ "300062": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630801"
+ },
+ "300068": {
+  "segment": "风电设备",
+  "pv_stage": null,
+  "sw": "630705"
+ },
+ "300069": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630805"
+ },
+ "300080": {
+  "segment": "光伏主链",
+  "pv_stage": "电池组件",
+  "sw": "630502"
+ },
+ "300093": {
+  "segment": "光伏主链",
+  "pv_stage": "电池组件",
+  "sw": "630502"
+ },
+ "300105": {
+  "segment": "其他",
+  "pv_stage": null,
+  "sw": "760201"
+ },
+ "300118": {
+  "segment": "光伏主链",
+  "pv_stage": "电池组件",
+  "sw": "630502"
+ },
+ "300124": {
+  "segment": "工业控制",
+  "pv_stage": null,
+  "sw": "640702"
+ },
+ "300125": {
+  "segment": "其他",
+  "pv_stage": null,
+  "sw": "410106"
+ },
+ "300129": {
+  "segment": "储能与电源",
+  "pv_stage": null,
+  "sw": "630602"
+ },
+ "300141": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630802"
+ },
+ "300153": {
+  "segment": "储能与电源",
+  "pv_stage": null,
+  "sw": "630306"
+ },
+ "300207": {
+  "segment": "风电设备",
+  "pv_stage": null,
+  "sw": "630701"
+ },
+ "300247": {
+  "segment": "其他",
+  "pv_stage": null,
+  "sw": "330701"
+ },
+ "300252": {
+  "segment": "其他",
+  "pv_stage": null,
+  "sw": "650501"
+ },
+ "300265": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630805"
+ },
+ "300272": {
+  "segment": "家电消费",
+  "pv_stage": null,
+  "sw": "330302"
+ },
+ "300274": {
+  "segment": "光伏主链",
+  "pv_stage": "逆变器",
+  "sw": "630503"
+ },
+ "300283": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630802"
+ },
+ "300317": {
+  "segment": "其他",
+  "pv_stage": null,
+  "sw": "410106"
+ },
+ "300345": {
+  "segment": "光伏主链",
+  "pv_stage": "硅料硅片",
+  "sw": "630501"
+ },
+ "300376": {
+  "segment": "储能与电源",
+  "pv_stage": null,
+  "sw": "630306"
+ },
+ "300393": {
+  "segment": "光伏主链",
+  "pv_stage": "电池组件",
+  "sw": "630502"
+ },
+ "300403": {
+  "segment": "其他",
+  "pv_stage": null,
+  "sw": "330601"
+ },
+ "300423": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630801"
+ },
+ "300427": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630803"
+ },
+ "300438": {
+  "segment": "风电设备",
+  "pv_stage": null,
+  "sw": "630701"
+ },
+ "300444": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630801"
+ },
+ "300447": {
+  "segment": "其他",
+  "pv_stage": null,
+  "sw": "650501"
+ },
+ "300477": {
+  "segment": "风电设备",
+  "pv_stage": null,
+  "sw": "630702"
+ },
+ "300484": {
+  "segment": "工业控制",
+  "pv_stage": null,
+  "sw": "640702"
+ },
+ "300490": {
+  "segment": "风电设备",
+  "pv_stage": null,
+  "sw": "630703"
+ },
+ "300491": {
+  "segment": "储能与电源",
+  "pv_stage": null,
+  "sw": "630306"
+ },
+ "300499": {
+  "segment": "其他",
+  "pv_stage": null,
+  "sw": "640209"
+ },
+ "300510": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630803"
+ },
+ "300530": {
+  "segment": "风电设备",
+  "pv_stage": null,
+  "sw": "630701"
+ },
+ "300569": {
+  "segment": "储能与电源",
+  "pv_stage": null,
+  "sw": "630602"
+ },
+ "300593": {
+  "segment": "储能与电源",
+  "pv_stage": null,
+  "sw": "630306"
+ },
+ "300617": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630801"
+ },
+ "300625": {
+  "segment": "家电消费",
+  "pv_stage": null,
+  "sw": "330501"
+ },
+ "300626": {
+  "segment": "储能与电源",
+  "pv_stage": null,
+  "sw": "630101"
+ },
+ "300632": {
+  "segment": "其他",
+  "pv_stage": null,
+  "sw": "270302"
+ },
+ "300660": {
+  "segment": "储能与电源",
+  "pv_stage": null,
+  "sw": "630101"
+ },
+ "300670": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630802"
+ },
+ "300693": {
+  "segment": "储能与电源",
+  "pv_stage": null,
+  "sw": "630306"
+ },
+ "300713": {
+  "segment": "储能与电源",
+  "pv_stage": null,
+  "sw": "630306"
+ },
+ "300750": {
+  "segment": "风电设备",
+  "pv_stage": null,
+  "sw": "630701"
+ },
+ "300763": {
+  "segment": "光伏主链",
+  "pv_stage": "逆变器",
+  "sw": "630503"
+ },
+ "300808": {
+  "segment": "其他",
+  "pv_stage": null,
+  "sw": "270302"
+ },
+ "300820": {
+  "segment": "储能与电源",
+  "pv_stage": null,
+  "sw": "630306"
+ },
+ "300824": {
+  "segment": "家电消费",
+  "pv_stage": null,
+  "sw": "330301"
+ },
+ "300827": {
+  "segment": "光伏主链",
+  "pv_stage": "逆变器",
+  "sw": "630503"
+ },
+ "300833": {
+  "segment": "其他",
+  "pv_stage": null,
+  "sw": "640209"
+ },
+ "300889": {
+  "segment": "其他",
+  "pv_stage": null,
+  "sw": "270302"
+ },
+ "300894": {
+  "segment": "家电消费",
+  "pv_stage": null,
+  "sw": "330401"
+ },
+ "300907": {
+  "segment": "储能与电源",
+  "pv_stage": null,
+  "sw": "630101"
+ },
+ "300911": {
+  "segment": "家电消费",
+  "pv_stage": null,
+  "sw": "330401"
+ },
+ "300913": {
+  "segment": "其他",
+  "pv_stage": null,
+  "sw": "730205"
+ },
+ "300932": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630802"
+ },
+ "300933": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630805"
+ },
+ "301008": {
+  "segment": "其他",
+  "pv_stage": null,
+  "sw": "330601"
+ },
+ "301012": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630801"
+ },
+ "301031": {
+  "segment": "其他",
+  "pv_stage": null,
+  "sw": "270401"
+ },
+ "301082": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630805"
+ },
+ "301120": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630801"
+ },
+ "301121": {
+  "segment": "风电设备",
+  "pv_stage": null,
+  "sw": "630701"
+ },
+ "301155": {
+  "segment": "储能与电源",
+  "pv_stage": null,
+  "sw": "630602"
+ },
+ "301168": {
+  "segment": "光伏主链",
+  "pv_stage": "电池组件",
+  "sw": "630502"
+ },
+ "301187": {
+  "segment": "家电消费",
+  "pv_stage": null,
+  "sw": "330302"
+ },
+ "301210": {
+  "segment": "风电设备",
+  "pv_stage": null,
+  "sw": "630701"
+ },
+ "301222": {
+  "segment": "风电设备",
+  "pv_stage": null,
+  "sw": "630705"
+ },
+ "301226": {
+  "segment": "储能与电源",
+  "pv_stage": null,
+  "sw": "630101"
+ },
+ "301266": {
+  "segment": "光伏主链",
+  "pv_stage": "光伏辅材",
+  "sw": "630504"
+ },
+ "301278": {
+  "segment": "光伏主链",
+  "pv_stage": "电池组件",
+  "sw": "630502"
+ },
+ "301291": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630802"
+ },
+ "301295": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630801"
+ },
+ "301320": {
+  "segment": "工业控制",
+  "pv_stage": null,
+  "sw": "640702"
+ },
+ "301327": {
+  "segment": "风电设备",
+  "pv_stage": null,
+  "sw": "630701"
+ },
+ "301332": {
+  "segment": "家电消费",
+  "pv_stage": null,
+  "sw": "330302"
+ },
+ "301359": {
+  "segment": "其他",
+  "pv_stage": null,
+  "sw": "270401"
+ },
+ "301361": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630802"
+ },
+ "301362": {
+  "segment": "家电消费",
+  "pv_stage": null,
+  "sw": "330501"
+ },
+ "301386": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630802"
+ },
+ "301388": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630802"
+ },
+ "301418": {
+  "segment": "工业控制",
+  "pv_stage": null,
+  "sw": "640702"
+ },
+ "301439": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630805"
+ },
+ "301502": {
+  "segment": "储能与电源",
+  "pv_stage": null,
+  "sw": "630101"
+ },
+ "301525": {
+  "segment": "其他",
+  "pv_stage": null,
+  "sw": "640105"
+ },
+ "600067": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630805"
+ },
+ "600089": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630801"
+ },
+ "600105": {
+  "segment": "其他",
+  "pv_stage": null,
+  "sw": "730205"
+ },
+ "600151": {
+  "segment": "其他",
+  "pv_stage": null,
+  "sw": "280203"
+ },
+ "600152": {
+  "segment": "风电设备",
+  "pv_stage": null,
+  "sw": "630701"
+ },
+ "600192": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630801"
+ },
+ "600212": {
+  "segment": "储能与电源",
+  "pv_stage": null,
+  "sw": "630306"
+ },
+ "600241": {
+  "segment": "风电设备",
+  "pv_stage": null,
+  "sw": "630701"
+ },
+ "600261": {
+  "segment": "家电消费",
+  "pv_stage": null,
+  "sw": "330501"
+ },
+ "600268": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630803"
+ },
+ "600312": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630801"
+ },
+ "600336": {
+  "segment": "家电消费",
+  "pv_stage": null,
+  "sw": "330106"
+ },
+ "600379": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630801"
+ },
+ "600416": {
+  "segment": "储能与电源",
+  "pv_stage": null,
+  "sw": "630101"
+ },
+ "600438": {
+  "segment": "光伏主链",
+  "pv_stage": "硅料硅片",
+  "sw": "630501"
+ },
+ "600468": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630802"
+ },
+ "600478": {
+  "segment": "风电设备",
+  "pv_stage": null,
+  "sw": "630701"
+ },
+ "600487": {
+  "segment": "其他",
+  "pv_stage": null,
+  "sw": "730205"
+ },
+ "600522": {
+  "segment": "其他",
+  "pv_stage": null,
+  "sw": "730205"
+ },
+ "600525": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630801"
+ },
+ "600537": {
+  "segment": "光伏主链",
+  "pv_stage": "电池组件",
+  "sw": "630502"
+ },
+ "600550": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630801"
+ },
+ "600577": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630805"
+ },
+ "600580": {
+  "segment": "储能与电源",
+  "pv_stage": null,
+  "sw": "630101"
+ },
+ "600590": {
+  "segment": "储能与电源",
+  "pv_stage": null,
+  "sw": "630306"
+ },
+ "600651": {
+  "segment": "其他",
+  "pv_stage": null,
+  "sw": "280206"
+ },
+ "600690": {
+  "segment": "家电消费",
+  "pv_stage": null,
+  "sw": "330106"
+ },
+ "600732": {
+  "segment": "光伏主链",
+  "pv_stage": "电池组件",
+  "sw": "630502"
+ },
+ "600847": {
+  "segment": "风电设备",
+  "pv_stage": null,
+  "sw": "630705"
+ },
+ "600854": {
+  "segment": "家电消费",
+  "pv_stage": null,
+  "sw": "330102"
+ },
+ "600869": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630805"
+ },
+ "600885": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630803"
+ },
+ "600973": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630805"
+ },
+ "600983": {
+  "segment": "家电消费",
+  "pv_stage": null,
+  "sw": "330106"
+ },
+ "601012": {
+  "segment": "光伏主链",
+  "pv_stage": "电池组件",
+  "sw": "630502"
+ },
+ "601126": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630803"
+ },
+ "601179": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630801"
+ },
+ "601222": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630804"
+ },
+ "601311": {
+  "segment": "风电设备",
+  "pv_stage": null,
+  "sw": "630705"
+ },
+ "601616": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630802"
+ },
+ "601877": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630802"
+ },
+ "601908": {
+  "segment": "其他",
+  "pv_stage": null,
+  "sw": "410106"
+ },
+ "603016": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630802"
+ },
+ "603031": {
+  "segment": "风电设备",
+  "pv_stage": null,
+  "sw": "630705"
+ },
+ "603045": {
+  "segment": "其他",
+  "pv_stage": null,
+  "sw": "240201"
+ },
+ "603050": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630803"
+ },
+ "603063": {
+  "segment": "储能与电源",
+  "pv_stage": null,
+  "sw": "630602"
+ },
+ "603070": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630802"
+ },
+ "603097": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630801"
+ },
+ "603109": {
+  "segment": "其他",
+  "pv_stage": null,
+  "sw": "280205"
+ },
+ "603150": {
+  "segment": "其他",
+  "pv_stage": null,
+  "sw": "220501"
+ },
+ "603185": {
+  "segment": "光伏主链",
+  "pv_stage": "硅料硅片",
+  "sw": "630501"
+ },
+ "603191": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630801"
+ },
+ "603195": {
+  "segment": "其他",
+  "pv_stage": null,
+  "sw": "360311"
+ },
+ "603215": {
+  "segment": "家电消费",
+  "pv_stage": null,
+  "sw": "330301"
+ },
+ "603219": {
+  "segment": "家电消费",
+  "pv_stage": null,
+  "sw": "330302"
+ },
+ "603303": {
+  "segment": "家电消费",
+  "pv_stage": null,
+  "sw": "330501"
+ },
+ "603312": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630801"
+ },
+ "603333": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630805"
+ },
+ "603344": {
+  "segment": "储能与电源",
+  "pv_stage": null,
+  "sw": "630101"
+ },
+ "603355": {
+  "segment": "家电消费",
+  "pv_stage": null,
+  "sw": "330302"
+ },
+ "603366": {
+  "segment": "家电消费",
+  "pv_stage": null,
+  "sw": "330402"
+ },
+ "603398": {
+  "segment": "光伏主链",
+  "pv_stage": "硅料硅片",
+  "sw": "630501"
+ },
+ "603489": {
+  "segment": "储能与电源",
+  "pv_stage": null,
+  "sw": "630101"
+ },
+ "603507": {
+  "segment": "储能与电源",
+  "pv_stage": null,
+  "sw": "630602"
+ },
+ "603515": {
+  "segment": "家电消费",
+  "pv_stage": null,
+  "sw": "330501"
+ },
+ "603519": {
+  "segment": "其他",
+  "pv_stage": null,
+  "sw": "330601"
+ },
+ "603530": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630805"
+ },
+ "603551": {
+  "segment": "家电消费",
+  "pv_stage": null,
+  "sw": "330402"
+ },
+ "603579": {
+  "segment": "其他",
+  "pv_stage": null,
+  "sw": "330701"
+ },
+ "603583": {
+  "segment": "工业控制",
+  "pv_stage": null,
+  "sw": "640702"
+ },
+ "603606": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630805"
+ },
+ "603618": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630805"
+ },
+ "603628": {
+  "segment": "光伏主链",
+  "pv_stage": "光伏辅材",
+  "sw": "630504"
+ },
+ "603677": {
+  "segment": "其他",
+  "pv_stage": null,
+  "sw": "330601"
+ },
+ "603679": {
+  "segment": "其他",
+  "pv_stage": null,
+  "sw": "270302"
+ },
+ "603685": {
+  "segment": "其他",
+  "pv_stage": null,
+  "sw": "270302"
+ },
+ "603701": {
+  "segment": "其他",
+  "pv_stage": null,
+  "sw": "280203"
+ },
+ "603703": {
+  "segment": "其他",
+  "pv_stage": null,
+  "sw": "270302"
+ },
+ "603728": {
+  "segment": "储能与电源",
+  "pv_stage": null,
+  "sw": "630101"
+ },
+ "603778": {
+  "segment": "光伏主链",
+  "pv_stage": "电池组件",
+  "sw": "630502"
+ },
+ "603819": {
+  "segment": "储能与电源",
+  "pv_stage": null,
+  "sw": "630101"
+ },
+ "603829": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630802"
+ },
+ "603861": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630802"
+ },
+ "603868": {
+  "segment": "家电消费",
+  "pv_stage": null,
+  "sw": "330303"
+ },
+ "603897": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630805"
+ },
+ "603988": {
+  "segment": "储能与电源",
+  "pv_stage": null,
+  "sw": "630101"
+ },
+ "605066": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630802"
+ },
+ "605117": {
+  "segment": "光伏主链",
+  "pv_stage": "逆变器",
+  "sw": "630503"
+ },
+ "605196": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630805"
+ },
+ "605222": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630805"
+ },
+ "605277": {
+  "segment": "其他",
+  "pv_stage": null,
+  "sw": "270504"
+ },
+ "605288": {
+  "segment": "工业控制",
+  "pv_stage": null,
+  "sw": "640702"
+ },
+ "605336": {
+  "segment": "家电消费",
+  "pv_stage": null,
+  "sw": "330401"
+ },
+ "605365": {
+  "segment": "家电消费",
+  "pv_stage": null,
+  "sw": "330501"
+ },
+ "605378": {
+  "segment": "风电设备",
+  "pv_stage": null,
+  "sw": "630705"
+ },
+ "605555": {
+  "segment": "家电消费",
+  "pv_stage": null,
+  "sw": "330302"
+ },
+ "688032": {
+  "segment": "光伏主链",
+  "pv_stage": "逆变器",
+  "sw": "630503"
+ },
+ "688063": {
+  "segment": "风电设备",
+  "pv_stage": null,
+  "sw": "630701"
+ },
+ "688223": {
+  "segment": "光伏主链",
+  "pv_stage": "电池组件",
+  "sw": "630502"
+ },
+ "688226": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630805"
+ },
+ "688303": {
+  "segment": "光伏主链",
+  "pv_stage": "硅料硅片",
+  "sw": "630501"
+ },
+ "688330": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630803"
+ },
+ "688339": {
+  "segment": "风电设备",
+  "pv_stage": null,
+  "sw": "630704"
+ },
+ "688345": {
+  "segment": "风电设备",
+  "pv_stage": null,
+  "sw": "630701"
+ },
+ "688348": {
+  "segment": "光伏主链",
+  "pv_stage": "逆变器",
+  "sw": "630503"
+ },
+ "688349": {
+  "segment": "储能与电源",
+  "pv_stage": null,
+  "sw": "630601"
+ },
+ "688390": {
+  "segment": "光伏主链",
+  "pv_stage": "逆变器",
+  "sw": "630503"
+ },
+ "688395": {
+  "segment": "工业控制",
+  "pv_stage": null,
+  "sw": "640702"
+ },
+ "688408": {
+  "segment": "光伏主链",
+  "pv_stage": "光伏辅材",
+  "sw": "630504"
+ },
+ "688429": {
+  "segment": "光伏主链",
+  "pv_stage": "电池组件",
+  "sw": "630502"
+ },
+ "688472": {
+  "segment": "光伏主链",
+  "pv_stage": "电池组件",
+  "sw": "630502"
+ },
+ "688503": {
+  "segment": "光伏主链",
+  "pv_stage": "光伏辅材",
+  "sw": "630504"
+ },
+ "688517": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630802"
+ },
+ "688567": {
+  "segment": "风电设备",
+  "pv_stage": null,
+  "sw": "630701"
+ },
+ "688599": {
+  "segment": "光伏主链",
+  "pv_stage": "电池组件",
+  "sw": "630502"
+ },
+ "688611": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630803"
+ },
+ "688663": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630803"
+ },
+ "688676": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630801"
+ },
+ "688681": {
+  "segment": "电网设备",
+  "pv_stage": null,
+  "sw": "630803"
+ },
+ "688717": {
+  "segment": "光伏主链",
+  "pv_stage": "逆变器",
+  "sw": "630503"
+ },
+ "688719": {
+  "segment": "储能与电源",
+  "pv_stage": null,
+  "sw": "630306"
+ },
+ "688772": {
+  "segment": "风电设备",
+  "pv_stage": null,
+  "sw": "630701"
+ },
+ "688793": {
+  "segment": "家电消费",
+  "pv_stage": null,
+  "sw": "330303"
+ },
+ "688819": {
+  "segment": "风电设备",
+  "pv_stage": null,
+  "sw": "630705"
+ }
+}

@@ -1,6 +1,7 @@
 /* 数智链海 · 最小闭环前端（零外部依赖：SVG 手绘雷达图与关系图） */
 const API = window.DSH_API_BASE || "";
 let CUR = null; // 当前企业 scode
+let CUR_SEGMENT = null; // 当前产业链环节筛选
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -21,11 +22,34 @@ async function init() {
     ind.innerHTML = "";
     m.industries.forEach((v) => ind.add(new Option(v, v)));
     $("health").textContent = "● 知识库 kb-2023 在线（" + m.provinces.length + " 省份 · 光伏成分 " + m.pv_overlap + "/" + m.pv_full + "）";
+    await loadSegments();
     await loadRadar();
   } catch (e) {
     $("health").textContent = "● 服务连接失败";
     console.error(e);
   }
+}
+
+/* ---------------- 产业链出海 ---------------- */
+async function loadSegments() {
+  const d = await jget("/api/segments");
+  $("chain-strip").innerHTML = d.items.map((s) => `
+    <div class="chainbar ${CUR_SEGMENT === s.segment ? "on" : ""}" onclick="pickSegment('${esc(s.segment)}')"
+         title="${esc(s.desc)}">
+      <span class="cn">${esc(s.segment)}</span>
+      <span class="cbar"><i style="width:${(s.ratio * 100).toFixed(1)}%"></i></span>
+      <span class="cv">${(s.ratio * 100).toFixed(0)}% · ${s.demand_firms}/${s.firms}家 · ${s.deploy + s.intent}信号</span>
+    </div>`).join("");
+  $("chain-active").innerHTML = CUR_SEGMENT
+    ? `当前环节：<b style="color:var(--gold)">${esc(CUR_SEGMENT)}</b>
+       <a class="ev" onclick="pickSegment('')">✕ 清除筛选</a>`
+    : "";
+}
+
+function pickSegment(seg) {
+  CUR_SEGMENT = seg || null;
+  loadSegments();
+  loadRadar();
 }
 
 /* ---------------- 名单 ---------------- */
@@ -40,6 +64,7 @@ async function loadRadar() {
   if ($("f-province").value) q.set("province", $("f-province").value);
   if ($("f-year").value) q.set("year", $("f-year").value);
   if ($("f-industry").value && $("f-industry").value !== "全部") q.set("industry", $("f-industry").value);
+  if (CUR_SEGMENT) q.set("segment", CUR_SEGMENT);
   q.set("sort", $("f-sort").value || "window");
   const d = await jget("/api/radar?" + q.toString() + "&limit=200");
   const body = $("radar-body");

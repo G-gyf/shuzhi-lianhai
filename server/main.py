@@ -45,8 +45,14 @@ def api_meta():
 @app.get("/api/radar")
 def api_radar(province: str | None = None, industry: str | None = None,
               year: int | None = None, limit: int = 200,
-              sort: str = Query("window", pattern="^(window|score)$")):
-    return {"items": logic.radar(province, industry, year, limit, sort)}
+              sort: str = Query("window", pattern="^(window|score)$"),
+              segment: str | None = None):
+    return {"items": logic.radar(province, industry, year, limit, sort, segment)}
+
+
+@app.get("/api/segments")
+def api_segments():
+    return {"items": logic.segments()}
 
 
 @app.get("/api/company/{scode}")

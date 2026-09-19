@@ -33,7 +33,14 @@ def rules():
         "chains": _load_json("chains.json"),
         "countries": _load_json("countries.json"),
         "pv_list": _load_json("pv_list.json"),
+        "chain_map": _load_json("chain_map.json"),
+        "segment_map": _load_json("segment_map.json"),
     }
+
+
+def segment_of(scode):
+    m = rules()["segment_map"].get(scode, {})
+    return m.get("segment", "其他")
 
 
 @lru_cache(maxsize=1)
@@ -145,16 +152,20 @@ def agg():
     return g
 
 
-def radar(province=None, industry=None, year=None, limit=200, sort_mode="window"):
+def radar(province=None, industry=None, year=None, limit=200, sort_mode="window",
+          segment=None):
     """辖区意图强度排行。industry 参数保留（当前仅电气设备）。
 
     sort_mode:
       window — 窗口类型优先（first > new_country > expansion）→ 分层（落地 > 筹备）
                → 强度分 → 年份（业务口径：首次出海账户首绑价值最高）
       score  — 纯强度分降序 → 窗口类型 → 分层
+    segment — 电力产业链环节筛选（光伏主链/风电设备/…，见 chain_map.json）
     """
     g = agg()
     g = g[g["window_type"].notna()].copy()
+    if segment:
+        g = g[g["scode"].map(segment_of) == segment]
     if industry == "光伏":
         pv = set(industry_tags()["pv"])
         g = g[g["scode"].isin(pv)]
@@ -186,6 +197,7 @@ def radar(province=None, industry=None, year=None, limit=200, sort_mode="window"
             "province": r["province"] if pd.notna(r["province"]) else "待补",
             "industry": "光伏" if r["scode"] in pv else "电气设备",
             "industry_tags": (["电气设备", "光伏"] if r["scode"] in pv else ["电气设备"]),
+            "segment": segment_of(r["scode"]),
             "year": int(r["year"]),
             "window_type": r["window_type"],
             "window_label": chain_rules["window_label"][r["window_type"]],
@@ -203,6 +215,30 @@ def radar(province=None, industry=None, year=None, limit=200, sort_mode="window"
 
 def provinces():
     return sorted(agg()["province"].dropna().unique().tolist())
+
+
+def segments():
+    """产业链环节出海需求统计（电力全链）。"""
+    g = agg()
+    chain = rules()["chain_map"]["segments"]
+    out = []
+    for seg, cfg in chain.items():
+        sub = g[g["scode"].map(segment_of) == seg]
+        n = sub["scode"].nunique()
+        nd = int(sub[sub["window_type"].notna()]["scode"].nunique())
+        deploy = int(sub["n_deploy"].sum())
+        intent = int(sub["n_intent"].sum())
+        out.append({
+            "segment": seg,
+            "desc": cfg.get("desc", ""),
+            "firms": n,
+            "demand_firms": nd,
+            "ratio": round(nd / max(n, 1), 3),
+            "deploy": deploy,
+            "intent": intent,
+        })
+    out.sort(key=lambda x: (-x["ratio"], -x["demand_firms"]))
+    return out
 
 
 def years():
