@@ -37,6 +37,7 @@ async function loadRadar() {
   const q = new URLSearchParams();
   if ($("f-province").value) q.set("province", $("f-province").value);
   if ($("f-year").value) q.set("year", $("f-year").value);
+  q.set("sort", $("f-sort").value || "window");
   const d = await jget("/api/radar?" + q.toString() + "&limit=200");
   const body = $("radar-body");
   body.innerHTML = "";
@@ -252,6 +253,7 @@ $("back-company").onclick = () => switchView("view-company");
 $("btn-briefing").onclick = showBriefing;
 $("f-province").onchange = loadRadar;
 $("f-year").onchange = loadRadar;
+$("f-sort").onchange = loadRadar;
 $("modal-close").onclick = () => $("modal-bg").classList.remove("on");
 $("modal-bg").onclick = (e) => { if (e.target === $("modal-bg")) $("modal-bg").classList.remove("on"); };
 

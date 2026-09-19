@@ -42,8 +42,9 @@ def api_meta():
 
 @app.get("/api/radar")
 def api_radar(province: str | None = None, industry: str | None = None,
-              year: int | None = None, limit: int = 200):
-    return {"items": logic.radar(province, industry, year, limit)}
+              year: int | None = None, limit: int = 200,
+              sort: str = Query("window", pattern="^(window|score)$")):
+    return {"items": logic.radar(province, industry, year, limit, sort)}
 
 
 @app.get("/api/company/{scode}")

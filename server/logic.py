@@ -125,8 +125,14 @@ def agg():
     return g
 
 
-def radar(province=None, industry=None, year=None, limit=200):
-    """辖区意图强度排行。industry 参数保留（当前仅电气设备）。"""
+def radar(province=None, industry=None, year=None, limit=200, sort_mode="window"):
+    """辖区意图强度排行。industry 参数保留（当前仅电气设备）。
+
+    sort_mode:
+      window — 窗口类型优先（first > new_country > expansion）→ 分层（落地 > 筹备）
+               → 强度分 → 年份（业务口径：首次出海账户首绑价值最高）
+      score  — 纯强度分降序 → 窗口类型 → 分层
+    """
     g = agg()
     g = g[g["window_type"].notna()].copy()
     if province:
@@ -137,8 +143,12 @@ def radar(province=None, industry=None, year=None, limit=200):
     s_order = {"landing": 0, "prep": 1}
     g["_w"] = g["window_type"].map(w_order)
     g["_s"] = g["stage_layer"].map(s_order)
-    g = g.sort_values(["_w", "_s", "score", "year"],
-                      ascending=[True, True, False, False])
+    if sort_mode == "score":
+        g = g.sort_values(["score", "_w", "_s", "year"],
+                          ascending=[False, True, True, False])
+    else:
+        g = g.sort_values(["_w", "_s", "score", "year"],
+                          ascending=[True, True, False, False])
     names = _coname_map()
     chain_rules = rules()["chains"]
     out = []
