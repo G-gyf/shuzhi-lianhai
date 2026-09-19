@@ -218,24 +218,24 @@ def provinces():
 
 
 def segments():
-    """产业链环节出海需求统计（电力全链）。"""
-    g = agg()
+    """产业链环节出海需求统计（电力全链，claims 口径）。"""
     chain = rules()["chain_map"]["segments"]
+    cl = _claims()
+    dem = cl[cl["program_label"].isin(DEMAND_LABELS)]
+    all_codes = set(rules()["segment_map"].keys())
     out = []
     for seg, cfg in chain.items():
-        sub = g[g["scode"].map(segment_of) == seg]
-        n = sub["scode"].nunique()
-        nd = int(sub[sub["window_type"].notna()]["scode"].nunique())
-        deploy = int(sub["n_deploy"].sum())
-        intent = int(sub["n_intent"].sum())
+        codes = {c for c in all_codes if segment_of(c) == seg}
+        dem_codes = {c for c in codes if c in set(dem["scode"])}
+        sub = dem[dem["scode"].map(segment_of) == seg]
         out.append({
             "segment": seg,
             "desc": cfg.get("desc", ""),
-            "firms": n,
-            "demand_firms": nd,
-            "ratio": round(nd / max(n, 1), 3),
-            "deploy": deploy,
-            "intent": intent,
+            "firms": len(codes),
+            "demand_firms": len(dem_codes),
+            "ratio": round(len(dem_codes) / max(len(codes), 1), 3),
+            "deploy": int((sub["program_label"] == "经营部署").sum()),
+            "intent": int((sub["program_label"] == "战略意图").sum()),
         })
     out.sort(key=lambda x: (-x["ratio"], -x["demand_firms"]))
     return out
