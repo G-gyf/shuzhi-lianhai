@@ -4,7 +4,9 @@
     { "key": "size",       "label": "企业规模",     "field": "assets",             "weight": 0.20, "direction": 1 },
     { "key": "profit",     "label": "盈利能力",     "field": "roa",                "weight": 0.20, "direction": 1 },
     { "key": "rd",         "label": "研发强度",     "field": "rd_intensity",       "weight": 0.15, "direction": 1 },
-    { "key": "safety",     "label": "财务安全",     "field": "leverage",           "weight": 0.20, "direction": -1 }
+    { "key": "safety",     "label": "财务安全",     "field": "leverage",           "weight": 0.20, "direction": -1 },
+    { "key": "cust_dep",   "label": "客户依赖（反向）", "field": "customer_concentration", "weight": 0.10, "direction": -1, "table": "sc",
+      "note": "前五大客户销售占比（CSMAR 供应链集中度），占比越高对单一客户依赖风险越大" }
   ],
   "grades": [
     { "min": 0.70, "label": "就绪", "desc": "能力条件较充分，建议优先上门" },

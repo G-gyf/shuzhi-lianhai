@@ -135,6 +135,15 @@ svg text { font-family: "Microsoft YaHei", sans-serif; }
 .evlink:hover { color: var(--gold); }
 .tiny { font-size: 11px; }
 .hist-note { margin: 12px 0 6px; padding-top: 10px; border-top: 1px dashed var(--line); }
+/* v1.4 供应链：海外占比标签 / 明细列表 */
+.dirchip.ov { border-color: rgba(143,191,168,.55); color: #9fc4ae; }
+.sc-detail { margin-top: 10px; font-size: 12px; }
+.sc-sec { margin-bottom: 8px; }
+.sc-sec > b { color: var(--gold-soft); font-size: 12px; }
+.sc-row { display: flex; justify-content: space-between; gap: 8px; padding: 3px 0;
+          border-bottom: 1px dashed rgba(255,255,255,.06); }
+.sc-nm { color: var(--txt); }
+.sc-val { text-align: right; white-space: nowrap; }
 /* 推理链双栏：左窄（判定/方向）右宽（产品/前置） */
 .chain-cols { display: grid; grid-template-columns: 7fr 13fr; gap: 12px; align-items: start; }
 .chain-col { min-width: 0; }

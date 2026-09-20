@@ -18,6 +18,7 @@ from pathlib import Path
 
 import pandas as pd
 
+from . import sc as scdata
 from .geo import geo_extract, normalize_name
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -252,6 +253,7 @@ def radar(province=None, industry=None, year=None, limit=200, sort_mode="window"
             "top_signal": r["top_signal"],
             "top_chunk": r["top_chunk"],
             "top_quote": (r["top_quote"] or "")[:120],
+            "overseas_cust_share": scdata.overseas_customer_share(r["scode"], int(r["year"])),
         })
     return out
 
@@ -388,6 +390,10 @@ def company_detail(scode, year=None):
         "overseas_demand": gv("overseas_demand"),
         "soe": gv("soe"),
         "firm_age": gv("firm_age"),
+        "customer_concentration": scdata.customer_concentration(scode, top_year),
+        "supplier_concentration": scdata.supplier_concentration(scode, top_year),
+        "overseas_customer_share": (scdata.overseas_customer_share(scode, top_year)
+                                    if top_year is not None else None),
         "capability": cap,
         "signals": [_claim_out(c) for _, c in cur.head(60).iterrows()],
         "history": {
@@ -430,10 +436,19 @@ def capability_score(scode, year=None):
     dims, score, avail_w = [], 0.0, 0.0
     for d in sc_rules["dimensions"]:
         field = d["field"]
-        raw = row[field] if field in row.index else None
-        if raw is not None and pd.isna(raw):
-            raw = None
-        pv = pct(field, raw)
+        if d.get("table") == "sc":
+            # 供应链维度：来自 kb-sc（客户依赖等），按样本分位归一
+            raw = scdata.customer_concentration(scode, year)
+            pv = None
+            if raw is not None:
+                col = scdata.concentration()["CustomerConcentration"].dropna()
+                if not col.empty:
+                    pv = float((col <= raw).mean())
+        else:
+            raw = row[field] if field in row.index else None
+            if raw is not None and pd.isna(raw):
+                raw = None
+            pv = pct(field, raw)
         if pv is None:
             dims.append({"key": d["key"], "label": d["label"], "value": None,
                          "raw": None, "missing": True})
@@ -647,9 +662,17 @@ def briefing(scode, year=None):
             else f"{x['label']} 待核实" for x in cap["dims"])
         cap_line = (f"能力评分 {cap['score']:.2f}，分级「{cap['grade']}」——{cap['desc']}。"
                     f"关键维度：{dims_txt}。本项为辅助判断，不替代人工尽调。")
+    conc = d.get("customer_concentration")
+    if conc is not None:
+        cap_line += (f" 客户依赖：前五大客户集中度 {conc:.0f}%（样本中位 32%），"
+                     + ("偏高，建议关注订单稳定性。" if conc > 50 else "可控。"))
 
     win_ev = win_step.get("evidence") or {}
     ev_txt = f"证据：「{win_ev.get('quote', '')}」" if win_ev.get("quote") else "证据：待核实"
+    osc = d.get("overseas_customer_share")
+    osc_txt = (f"结构化供应链验证：该年度前五大客户中境外主体销售占比 {osc:.1f}%。"
+               if osc is not None
+               else "结构化供应链数据未见境外客户（名称口径），以文本信号为准。")
 
     prod_lines = [f"{x['name']}（{x['reason']}）" for x in prod_step.get("products", [])]
     prod_body = "；".join(prod_lines) if prod_lines else prod_step["title"]
@@ -657,13 +680,13 @@ def briefing(scode, year=None):
     sections = [
         {"heading": "一、能力就绪度",
          "body": cap_line,
-         "rule_ids": ["RULE_CAPABILITY"],
+         "rule_ids": ["RULE_CAPABILITY", "RULE_SC_CONC"],
          "signal_ids": [], "evidence_ids": []},
         {"heading": "二、出海需求判断",
          "body": (f"{w['window_label']}（{w['stage_label']}），强度分 {w['score']}。"
-                  f"{ch['steps'][1]['title']}。{ev_txt}"
+                  f"{ch['steps'][1]['title']}。{ev_txt} {osc_txt}"
                   + (f" {w['window_note']}" if w.get("window_note") else "")),
-         "rule_ids": [win_step.get("rule_id")] +
+         "rule_ids": [win_step.get("rule_id"), "RULE_SC_OVERSEAS"] +
                      [s["rule_id"] for s in ch["steps"][1].get("sources", [])],
          "signal_ids": [win_ev["signal_id"]] if win_ev.get("signal_id") else [],
          "evidence_ids": [win_ev["evidence_id"]] if win_ev.get("evidence_id") else []},
@@ -722,36 +745,68 @@ def evidence(chunk_id):
 
 
 def supply_chain(scode, year=None):
-    """供应链示例（sample）：客户边来自年报披露的 named_customer 锚点；
-    国家边来自子公司国家表（as-of：截至所选年度）。供应商边为 schema 占位（P2）。"""
+    """供应链示例：结构化边（CSMAR 前五大客户/供应商，量化）+ 文本具名锚点
+    + 子公司国家边（as-of）+ 二跳链；供应商边自 v1.4 起为真实数据。"""
     cl = _claims()
     subs = _sub_countries()
     names = _coname_map()
-    cust = cl[(cl["scode"] == scode) &
-              (cl["execution_anchor_type"] == "named_customer")]
+    scinfo = scdata.sc_of(scode, year)
+
     customers = []
-    for _, c in cust.drop_duplicates("execution_anchor").head(6).iterrows():
-        customers.append({"name": c["execution_anchor"],
-                          "evidence": (c["evidence_quote"] or "")[:100]})
+    for c in scinfo["customers"][:3]:
+        customers.append({
+            "name": c["name"], "rank": c["rank"], "proportion": c["proportion"],
+            "overseas": c["overseas"], "source": "structured",
+            "note": f"第 {c['rank']} 大客户 · 销售占比 {c['proportion']}%"
+                    + (" · 境外主体" if c["overseas"] else ""),
+        })
+    text_cust = cl[(cl["scode"] == scode) &
+                   (cl["execution_anchor_type"] == "named_customer")]
+    for _, c in text_cust.drop_duplicates("execution_anchor").head(3).iterrows():
+        if any(x["name"] == c["execution_anchor"] for x in customers):
+            continue
+        customers.append({
+            "name": c["execution_anchor"], "rank": None, "proportion": None,
+            "overseas": None, "source": "text",
+            "note": (c["evidence_quote"] or "")[:80],
+        })
+
+    suppliers = []
+    for c in scinfo["suppliers"][:3]:
+        suppliers.append({
+            "name": c["name"], "rank": c["rank"], "proportion": c["proportion"],
+            "overseas": c["overseas"], "source": "structured",
+            "note": f"第 {c['rank']} 大供应商 · 采购占比 {c['proportion']}%"
+                    + (" · 境外主体" if c["overseas"] else ""),
+        })
+
     sub_c = subs[subs["scode"] == scode]
     if year is not None:
         sub_c = sub_c[sub_c["year"] <= int(year)]
     countries = sorted(set(sub_c["country_canon"].dropna()))
     as_of = f"截至 {int(year)} 年度" if year is not None else "全期口径"
+
     nodes = [{"id": "self", "label": names.get(scode, scode), "type": "企业"}]
     edges = []
     for i, c in enumerate(customers):
         nodes.append({"id": f"cust{i}", "label": c["name"], "type": "客户"})
         edges.append({"source": "self", "target": f"cust{i}",
-                      "rel": "SELLS_TO", "note": c["evidence"]})
+                      "rel": "SELLS_TO", "note": c["note"]})
+    for i, c in enumerate(suppliers):
+        nodes.append({"id": f"sup{i}", "label": c["name"], "type": "供应商"})
+        edges.append({"source": "self", "target": f"sup{i}",
+                      "rel": "BUYS_FROM", "note": c["note"]})
     for i, c in enumerate(countries):
         nodes.append({"id": f"c{i}", "label": c, "type": "国家"})
         edges.append({"source": "self", "target": f"c{i}",
                       "rel": "OWNS_SUB_IN", "note": "子公司所在国"})
+
     return {
         "scode": scode,
-        "sample": True,
-        "note": f"演示样例（{as_of}）：客户边来自年报披露锚点，国家边来自子公司数据；供应商边（SUPPLY_FROM）为 P2 扩展位，全量供应链数据接入后激活。",
+        "sample": bool(scinfo["customers"]),
+        "note": f"演示样例（{as_of}）：客户/供应商边来自 CSMAR 前五大明细（结构化量化），"
+                "具名锚点来自年报文本，国家边来自子公司数据；全量供应链为 P2 扩展。",
         "nodes": nodes,
         "edges": edges,
+        "detail": scinfo,
     }

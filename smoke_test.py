@@ -111,7 +111,7 @@ check("锚点触发规则带 if_directions 守卫", all("if_directions" in t for
 
 print("== 7. 缺失值待核实 ==")
 cap = logic.company_detail("002860", 2023)["capability"]
-check("能力评分含数据完整度", "completeness" in cap and cap["completeness"]["total"] == 5)
+check("能力评分含数据完整度", "completeness" in cap and cap["completeness"]["total"] == 6)
 dims = cap["dims"]
 null_dims = [x["label"] for x in dims if x["value"] is None]
 print(f"   缺失维度（value=None 待核实）: {null_dims if null_dims else '无'}")
@@ -142,6 +142,33 @@ gph = graph.get_company_graph("002860", 2023)
 check("子图返回节点", len(gph["nodes"]) > 0)
 radar = logic.radar(limit=5)
 check("radar 含国别+区域字段", all("countries" in r and "regions" in r for r in radar))
+
+print("== 12. 供应链数据接入（v1.4）==")
+from server import sc as scdata
+
+sale = scdata.top5_sale()
+check("top5_sale 入库且覆盖 317 家", len(sale) > 0 and sale["scode"].nunique() == 317)
+check("集中度入库且覆盖 317 家", scdata.concentration()["scode"].nunique() == 317)
+sc = logic.supply_chain("002860", 2023)
+check("供应链明细含结构化客户", len(sc["detail"]["customers"]) > 0, f"n={len(sc['detail']['customers'])}")
+check("供应链明细含集中度", sc["detail"]["concentration"] is not None)
+check("图中出现供应商节点", any(n["type"] == "供应商" for n in sc["nodes"]))
+check("图中出现 BUYS_FROM 边", any(e["rel"] == "BUYS_FROM" for e in sc["edges"]))
+ovs_rows = int(sale["overseas"].sum())
+check("海外客户识别规则命中", ovs_rows > 0, f"rows={ovs_rows}")
+ovs_names = sale[sale["overseas"]]["name"].unique().tolist()
+check("海外识别无误命中（内蒙古等境内实体）", not any("内蒙古" in n for n in ovs_names), str(ovs_names[:5]))
+check("radar 含海外客户占比列", all("overseas_cust_share" in r for r in radar))
+cap6 = logic.capability_score("002860", 2023)
+dep = next((x for x in cap6["dims"] if x["key"] == "cust_dep"), None)
+check("评分卡含客户依赖维度且不为待核实", dep is not None and dep["value"] is not None,
+      f"value={dep['value'] if dep else None} raw={dep['raw'] if dep else None}")
+bf = logic.briefing("002860", 2023)
+check("简报含客户依赖风险句", "客户依赖" in bf["sections"][0]["body"])
+check("简报含供应链验证句", "结构化供应链" in bf["sections"][1]["body"])
+d2 = logic.company_detail("002860", 2023)
+check("详情含集中度与海外客户占比字段",
+      "customer_concentration" in d2 and "overseas_customer_share" in d2)
 
 print(f"\n结果：{OK} 通过 / {FAIL} 失败")
 sys.exit(1 if FAIL else 0)

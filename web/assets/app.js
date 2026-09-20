@@ -85,6 +85,7 @@ async function loadRadar() {
       <td>${it.countries.slice(0, 4).map((c) => `<span class="dirchip">${esc(c)}</span>`).join("")}
           ${it.regions.slice(0, 2).map((r) => `<span class="dirchip rc">区域·${esc(r)}</span>`).join("")}
           ${(!it.countries.length && !it.regions.length) ? '<span class="muted">—</span>' : ""}</td>
+      <td>${it.overseas_cust_share != null ? `<span class="dirchip ov">${it.overseas_cust_share}%</span>` : '<span class="muted">—</span>'}</td>
       <td class="muted">${it.n_deploy} / ${it.n_intent}</td>
       <td class="score">${it.score}</td>`;
     tr.onclick = () => openCompany(it.scode, it.year);
@@ -138,7 +139,10 @@ function renderCapability(d) {
     <div class="k">杠杆率</div><div class="v">${v(d.leverage, pct)}</div>
     <div class="k">研发强度</div><div class="v">${v(d.rd_intensity, pct)}</div>
     <div class="k">海外子公司</div><div class="v">${v(d.overseas_sub_count, (x) => x + " 家")}</div>
-    <div class="k">海外收入占比</div><div class="v">${v(d.overseas_rev_share, pct)}</div>`;
+    <div class="k">海外收入占比</div><div class="v">${v(d.overseas_rev_share, pct)}</div>
+    <div class="k">前五大客户集中度</div><div class="v">${v(d.customer_concentration, (x) => x.toFixed(1) + "%")}</div>
+    <div class="k">前五大供应商集中度</div><div class="v">${v(d.supplier_concentration, (x) => x.toFixed(1) + "%")}</div>
+    <div class="k">海外客户收入占比</div><div class="v">${v(d.overseas_customer_share, (x) => x.toFixed(1) + "%")}</div>`;
   if (d.data_completeness && d.data_completeness.missing.length) {
     kpi += `<div class="k" style="grid-column:1/-1;color:var(--gold-soft)">缺失待核实</div>
             <div class="v muted" style="grid-column:1/-1">${esc(d.data_completeness.missing.join("、"))}</div>`;
@@ -225,12 +229,34 @@ function renderSig(c) {
 
 function renderSupplyChain(sc, scode) {
   if (sc.nodes.length <= 1) {
-    $("sc-svg").innerHTML = `<p class="muted">该企业未披露具名客户（named_customer 锚点缺失）。<br>
-      供应链演示样例请查看示例企业：<a class="ev" onclick="openCompany('002860')">002860（浙江 · 客户含美的/LG 等）</a></p>`;
+    $("sc-svg").innerHTML = `<p class="muted">该企业未披露供应链明细。<br>
+      供应链演示样例请查看示例企业：<a class="ev" onclick="openCompany('002860')">002860</a></p>`;
+    $("sc-detail").innerHTML = "";
     $("sc-note").textContent = sc.note;
     return;
   }
   $("sc-svg").innerHTML = graphSVG(sc.nodes, sc.edges, 340);
+  const dt = sc.detail || {};
+  const row = (label, items) => items && items.length
+    ? `<div class="sc-sec"><b>${label}</b>` + items.map((x) => `
+        <div class="sc-row">
+          <span class="sc-nm">${esc(x.name)}${x.overseas ? ' <span class="dirchip ov">境外</span>' : ""}${x.source === "text" ? ' <span class="dirchip rc">文本</span>' : ""}</span>
+          <span class="sc-val muted">${x.proportion != null ? "占比 " + x.proportion + "%" : ""}</span>
+        </div>`).join("") + "</div>" : "";
+  let html = "";
+  html += row("前五大客户（CSMAR 结构化）", (dt.customers || []).slice(0, 5));
+  html += row("前五大供应商（CSMAR 结构化）", (dt.suppliers || []).slice(0, 5));
+  if (dt.concentration) {
+    html += `<div class="sc-sec"><b>集中度（${dt.concentration.year}）</b>
+      <div class="sc-row"><span class="sc-nm">客户集中度</span><span class="sc-val muted">${dt.concentration.customer}%</span></div>
+      <div class="sc-row"><span class="sc-nm">供应商集中度</span><span class="sc-val muted">${dt.concentration.purchase}%</span></div></div>`;
+  }
+  if (dt.two_hop && dt.two_hop.length) {
+    html += `<div class="sc-sec"><b>二跳传导链</b>` + dt.two_hop.map((t) => `
+      <div class="sc-row"><span class="sc-nm">${esc(t.b)} → ${esc(t.c)}</span>
+      <span class="sc-val muted">我方${t.rel1} · 其${t.rel2} · ${t.year}</span></div>`).join("") + "</div>";
+  }
+  $("sc-detail").innerHTML = html;
   $("sc-note").textContent = sc.note;
 }
 
@@ -342,7 +368,7 @@ function graphSVG(nodes, edges, size = 340) {
     const a = -Math.PI / 2 + (i * 2 * Math.PI) / Math.max(others.length, 1);
     pos[n.id] = [cx + R * Math.cos(a), cy + R * Math.sin(a)];
   });
-  const color = { "企业": "#d4af6a", "客户": "#8fc4dd", "国家": "#7fae8e", "信号": "#c9d4e2", "方向": "#c98a7a" };
+  const color = { "企业": "#d4af6a", "客户": "#8fc4dd", "供应商": "#8fbfa8", "国家": "#7fae8e", "信号": "#c9d4e2", "方向": "#c98a7a" };
   let svg = `<svg width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">`;
   for (const e of edges) {
     const [x1, y1] = pos[e.source], [x2, y2] = pos[e.target];
