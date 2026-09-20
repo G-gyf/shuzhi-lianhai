@@ -77,8 +77,11 @@ print("== 4. 当前/历史信号分离 ==")
 d = logic.company_detail("002860", 2023)
 sig_years = {s["year"] for s in d["signals"]}
 check("当前信号全部来自所选年度", sig_years == {2023} or not sig_years, f"{sig_years}")
-check("历史信号归档且不混入", all(s["year"] != 2023 for s in d["history"]["items"]),
-      f"count={d['history']['count']}")
+check("历史信号仅含所选年度以前", all(s["year"] < 2023 for s in d["history"]["items"]) and
+      all(y < 2023 for y in d["history"]["years"]),
+      f"years={d['history']['years']} count={d['history']['count']}")
+d18 = logic.company_detail("002860", 2018)
+check("选 2018 时历史为空（无更早年度）", d18["history"]["count"] == 0, f"count={d18['history']['count']}")
 
 print("== 5. 证据绑定 ==")
 ch = logic.chain("002860", 2023)
@@ -89,6 +92,10 @@ for p in prods[:5]:
     print(f"   - {p['name']} | {p['rule_id']} | {p['signal_id']}")
 check("窗口步骤绑定 rule_id", bool(ch["steps"][0].get("rule_id")))
 check("方向步骤含 sources", len(ch["steps"][1].get("sources", [])) > 0)
+check("产品步骤标题为紧凑计数", ch["steps"][2]["title"].startswith("匹配"))
+pre_step = ch["steps"][3]
+check("前置条件以列表返回", isinstance(pre_step.get("items"), list) and len(pre_step["items"]) > 0,
+      f"items={len(pre_step.get('items', []))}")
 
 print("== 6. 产品触发细化（语境守卫）==")
 # 找一条 investment_or_contract 且方向非 investment_ma 的当年信号，确认不触发 ma_loan

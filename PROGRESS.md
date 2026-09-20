@@ -77,3 +77,10 @@
 | 9 | 建议绑定对应证据 | 推理链/简报每条建议携带 rule_id / signal_id（chunk#claim）/ evidence_id，前端展示并可跳原文 | 产品步骤逐条显示规则ID·信号ID·证据引文 |
 
 改动文件：`server/geo.py`（新增）、`rules/countries.json`（72 国+别名+区域+排除）、`rules/products.json`（条件锚点触发）、`rules/chains.json`（标签+口径注记）、`server/logic.py`（重写核心）、`server/graph.py`、`server/main.py`、`web/assets/app.js`、`web/assets/style.css`（新增 .rc/.prod/.tiny/.hist-note，桌面原样式未动）、`audit_geo.py`（新增）、`smoke_test.py`（新增）。
+
+## 五、v1.3.1 交互与口径修正（smoke_test.py 34/34 通过）
+
+- **历史信号口径**：仅收录所选年度**以前**的披露（选 2018 年时历史为空，不再把 2019-2023 冒充"历史依据"）。
+- **产品匹配紧凑化**：推理链产品步骤标题改为"匹配 N 款产品"，产品明细收进可点击展开的卡片（`<details>`：依据 + 规则ID + 信号ID + 证据按钮），默认只列产品名。
+- **前置条件列表化**：prereq 步骤新增 `items` 字段，前端以列表逐条渲染，不再是一长段文字。
+- **证据跳转修复**：全站证据跳转改为事件委托（`data-ev` 按钮 + `bindEvidence`），信号列表与推理链统一通道；加载失败时显式提示，不再静默无响应。`/api/evidence/{chunk_id}` 已验证 200。

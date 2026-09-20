@@ -119,13 +119,20 @@ table.radar tbody tr:hover { background: rgba(212,175,106,.07); }
 
 svg text { font-family: "Microsoft YaHei", sans-serif; }
 
-/* ---------- v1.3 新增元素：区域标签 / 产品推荐卡 / 口径注记 ---------- */
+/* ---------- v1.3 新增元素：区域标签 / 产品卡片 / 前置条件 / 证据跳转 ---------- */
 .dirchip.rc { border-style: dashed; color: var(--gold-soft); border-color: rgba(212,175,106,.45); }
 .prods { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
-.prod { border-left: 2px solid rgba(212,175,106,.4); padding: 6px 10px;
-        background: rgba(212,175,106,.05); border-radius: 0 8px 8px 0; font-size: 12.5px; }
-.prod .sd { color: var(--txt); margin-top: 3px; }
-.prod .se { margin-top: 4px; }
+.prod { border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px;
+        background: rgba(212,175,106,.04); }
+.prod summary { cursor: pointer; font-size: 12.5px; color: var(--txt); }
+.prod summary::-webkit-details-marker { color: var(--gold-soft); }
+.prod-body { margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--line); }
+.prod-body .sd { color: var(--txt); margin-bottom: 3px; }
+.prereq-list { margin: 8px 0 0 18px; font-size: 12.5px; color: var(--txt); }
+.prereq-list li { margin-bottom: 4px; line-height: 1.6; }
+.evlink { background: none; border: none; padding: 0; margin-left: 4px;
+          color: var(--gold-soft); cursor: pointer; font-size: 12px; text-decoration: underline; }
+.evlink:hover { color: var(--gold); }
 .tiny { font-size: 11px; }
 .hist-note { margin: 12px 0 6px; padding-top: 10px; border-top: 1px dashed var(--line); }
 

@@ -154,16 +154,22 @@ function renderChain(ch) {
     let body = "";
     if (s.products && s.products.length) {
       body += '<div class="prods">' + s.products.map((p) => `
-        <div class="prod">
-          <div><b style="color:var(--gold-soft)">${esc(p.name)}</b><span class="muted">（${esc(p.category)}）</span>
-          ${p.n_signals > 1 ? `<span class="muted tiny"> · 命中 ${p.n_signals} 条信号</span>` : ""}</div>
-          <div class="sd">${esc(p.reason)}</div>
-          ${p.quote ? `<div class="se">证据：「${esc(p.quote)}」 <a class="ev" onclick="showEvidence('${p.evidence_id}')">↗</a></div>` : ""}
-          <div class="muted tiny">${esc(p.rule_id)} · 信号ID ${esc(p.signal_id || "—")}</div>
-        </div>`).join("") + "</div>";
+        <details class="prod">
+          <summary><b style="color:var(--gold-soft)">${esc(p.name)}</b><span class="muted">（${esc(p.category)}）</span>
+          ${p.n_signals > 1 ? `<span class="muted tiny"> · 命中 ${p.n_signals} 条信号</span>` : ""}</summary>
+          <div class="prod-body">
+            <div class="sd">${esc(p.reason)}</div>
+            <div class="muted tiny">${esc(p.rule_id)} · 信号ID ${esc(p.signal_id || "—")}</div>
+            ${p.evidence_id ? `<button type="button" class="evlink" data-ev="${esc(p.evidence_id)}">↗ 查看原文证据</button>` : ""}
+          </div>
+        </details>`).join("") + "</div>";
     }
-    const ev = s.evidence && s.evidence.quote
-      ? `<div class="se">证据：「${esc(s.evidence.quote)}」 <a class="ev" onclick="showEvidence('${s.evidence.evidence_id}')">↗ 查看原文</a></div>`
+    if (s.items && s.items.length) {
+      body += '<ul class="prereq-list">' + s.items.map((x) => `<li>${esc(x)}</li>`).join("") + "</ul>";
+    }
+    const ev = s.evidence && s.evidence.evidence_id
+      ? `<div class="se">证据：「${esc(s.evidence.quote || "")}」
+           <button type="button" class="evlink" data-ev="${esc(s.evidence.evidence_id)}">↗ 查看原文</button></div>`
       : "";
     const meta = s.rule_id
       ? `<div class="muted tiny">${esc(s.rule_id)}${s.evidence && s.evidence.signal_id ? " · 信号ID " + esc(s.evidence.signal_id) : ""}</div>`
@@ -182,7 +188,7 @@ function renderSignals(d) {
     '<p class="muted">所选年度无需求类信号</p>';
   const hist = d.history || {};
   const histHtml = (hist.items && hist.items.length)
-    ? `<div class="hist-note muted">历史信号 ${hist.count} 条（年度：${esc((hist.years || []).join("、"))}）——仅存档展示，不参与本年度产品推荐：</div>` +
+    ? `<div class="hist-note muted">历史信号 ${hist.count} 条（所选年度以前：${esc((hist.years || []).join("、"))}）——仅存档展示，不参与本年度产品推荐：</div>` +
       hist.items.map(renderSig).join("")
     : "";
   $("sig-list").innerHTML = sigHtml + histHtml;
@@ -203,7 +209,7 @@ function renderSig(c) {
         ${geo}
       </div>
       <div class="quote">「${esc(c.evidence_quote)}」</div>
-      <div class="ev" onclick="showEvidence('${c.chunk_id}', ${c.evidence_start}, ${c.evidence_end})">↗ 查看原文证据 · ${esc(c.signal_id)}</div>
+      <button type="button" class="evlink" data-ev="${c.chunk_id}" data-start="${c.evidence_start}" data-end="${c.evidence_end}">↗ 查看原文证据 · ${esc(c.signal_id)}</button>
     </div>`;
 }
 
@@ -241,7 +247,14 @@ function renderCountries(countries, regions = []) {
 
 /* ---------------- 证据弹窗 ---------------- */
 async function showEvidence(chunkId, start = null, end = null) {
-  const e = await jget("/api/evidence/" + chunkId);
+  let e;
+  try {
+    e = await jget("/api/evidence/" + chunkId);
+  } catch (err) {
+    console.error("evidence load failed", chunkId, err);
+    alert("证据加载失败：" + chunkId);
+    return;
+  }
   $("modal-title").textContent = `原文证据 · ${e.coname} ${e.year} · ${e.section}`;
   $("modal-meta").textContent = e.program_label + " · 共 " + e.spans.length + " 条标注";
   $("modal-text").innerHTML = highlight(e.text, e.spans, start, end);
@@ -351,5 +364,17 @@ $("f-sort").onchange = loadRadar;
 $("f-industry").onchange = loadRadar;
 $("modal-close").onclick = () => $("modal-bg").classList.remove("on");
 $("modal-bg").onclick = (e) => { if (e.target === $("modal-bg")) $("modal-bg").classList.remove("on"); };
+// 证据跳转：事件委托（data-ev → showEvidence），推理链与信号列表统一走此通道
+function bindEvidence(containerId) {
+  $(containerId).addEventListener("click", (e) => {
+    const t = e.target && e.target.closest ? e.target.closest("[data-ev]") : null;
+    if (!t || !t.dataset.ev) return;
+    const start = t.dataset.start ? +t.dataset.start : null;
+    const end = t.dataset.end ? +t.dataset.end : null;
+    showEvidence(t.dataset.ev, start, end);
+  });
+}
+bindEvidence("chain-steps");
+bindEvidence("sig-list");
 
 init();

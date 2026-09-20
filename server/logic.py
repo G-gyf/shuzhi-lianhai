@@ -338,7 +338,8 @@ def company_detail(scode, year=None):
     cl = _claims()
     dem = cl[(cl["scode"] == scode) & (cl["program_label"].isin(DEMAND_LABELS))]
     cur = dem[dem["year"] == top_year] if top_year is not None else dem
-    hist = dem[dem["year"] != top_year] if top_year is not None else dem.iloc[0:0]
+    # 历史信号口径：仅所选年度以前（未来的披露不冒充"历史依据"）
+    hist = dem[dem["year"] < top_year] if top_year is not None else dem.iloc[0:0]
     cur = cur.sort_values(["evidence_start"], kind="stable")
     hist = hist.sort_values("year", ascending=False)
 
@@ -390,7 +391,7 @@ def company_detail(scode, year=None):
         "capability": cap,
         "signals": [_claim_out(c) for _, c in cur.head(60).iterrows()],
         "history": {
-            "note": "历史信号仅存档与展示，不参与所选年度产品推荐。",
+            "note": "历史信号口径：仅收录所选年度以前的披露，仅存档与展示，不参与所选年度产品推荐。",
             "count": int(len(hist)),
             "years": sorted(hist["year"].unique().tolist()),
             "items": [_claim_out(c) for _, c in hist.head(8).iterrows()],
@@ -592,10 +593,11 @@ def chain(scode, year=None):
     steps.append({
         "key": "product",
         "label": chains["step_order"][2]["label"],
-        "title": "；".join(prod_names) or "—",
+        "title": f"匹配 {len(recs)} 款产品" if recs else "—",
         "detail": (f"匹配依据（仅使用 {y} 年度信号，历史信号不参与）："
                    f"方向规则 {n_dir} 条、锚点触发 {n_anchor} 条、"
-                   f"窗口配套 {n_window} 条、国别叠加 {n_country} 条。"),
+                   f"窗口配套 {n_window} 条、国别叠加 {n_country} 条。"
+                   f"产品明细可点击展开查看依据与证据。"),
         "evidence": None,
         "products": recs,
     })
@@ -609,6 +611,7 @@ def chain(scode, year=None):
         "key": "prereq",
         "label": chains["step_order"][3]["label"],
         "title": "；".join(prereqs) or "无额外前置条件",
+        "items": prereqs or ["无额外前置条件"],
         "detail": "前置条件由产品规则库定义，落地时可替换为行内产品库。",
         "rule_id": "RULE_PREREQ",
         "evidence": None,
