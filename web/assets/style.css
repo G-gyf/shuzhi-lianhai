@@ -84,7 +84,7 @@ table.radar tbody tr:hover { background: rgba(212,175,106,.07); }
 .sig .quote { font-size: 12px; color: var(--txt-soft); margin-top: 5px; font-style: italic; }
 .sig .ev { font-size: 11px; color: var(--gold); margin-top: 4px; cursor: pointer; }
 
-.steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.steps { display: block; }
 .step { border: 1px solid var(--line); border-left: 3px solid var(--gold); border-radius: 8px; padding: 11px 12px; background: var(--panel); }
 .step .sl { font-size: 11px; color: var(--gold-dim); letter-spacing: 2px; margin-bottom: 4px; }
 .step .st { font-size: 13px; color: var(--gold-soft); font-weight: 700; }
@@ -135,6 +135,11 @@ svg text { font-family: "Microsoft YaHei", sans-serif; }
 .evlink:hover { color: var(--gold); }
 .tiny { font-size: 11px; }
 .hist-note { margin: 12px 0 6px; padding-top: 10px; border-top: 1px dashed var(--line); }
+/* 推理链双栏：左窄（判定/方向）右宽（产品/前置） */
+.chain-cols { display: grid; grid-template-columns: 2fr 3fr; gap: 12px; align-items: start; }
+.chain-col { min-width: 0; }
+.chain-col .step { margin-bottom: 14px; }
+.chain-cols + .tiny { margin-top: 10px; }
 
 @media print {
   header, .back, .brief-actions, .nav-btns { display: none !important; }
@@ -176,8 +181,9 @@ svg text { font-family: "Microsoft YaHei", sans-serif; }
   .co-grid { grid-template-columns: 1fr; }
   .co-head h1 { font-size: 20px; }
 
-  /* 推理链：4 列改 1 列 */
+  /* 推理链：双栏改单列堆叠 */
   .steps { grid-template-columns: 1fr; }
+  .chain-cols { grid-template-columns: 1fr; gap: 0; }
   .step { padding: 10px 12px; }
 
   /* SVG 自适应缩放 */

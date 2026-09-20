@@ -150,7 +150,7 @@ function fmt(x) { return x == null ? "—" : (x / 1e8).toFixed(1) + " 亿"; }
 function pct(x) { return x == null ? "—" : (x * 100).toFixed(1) + "%"; }
 
 function renderChain(ch) {
-  $("chain-steps").innerHTML = ch.steps.map((s) => {
+  const stepHtml = (s) => {
     let body = "";
     if (s.products && s.products.length) {
       body += '<div class="prods">' + s.products.map((p) => `
@@ -179,8 +179,18 @@ function renderChain(ch) {
       <div class="st">${esc(s.title)}</div>
       <div class="sd">${esc(s.detail)}</div>${ev}${meta}${body}
     </div>`;
-  }).join("") +
-  (ch.as_of ? `<p class="muted tiny">口径：${esc(ch.as_of)}</p>` : "");
+  };
+  // 双栏布局：左窄（窗口期判定 / 出海方向与模式），右宽（产品匹配 / 前置条件）
+  const win = ch.steps.find((s) => s.key === "window");
+  const dir = ch.steps.find((s) => s.key === "direction");
+  const prod = ch.steps.find((s) => s.key === "product");
+  const pre = ch.steps.find((s) => s.key === "prereq");
+  $("chain-steps").innerHTML =
+    '<div class="chain-cols">' +
+      `<div class="chain-col chain-left">${win ? stepHtml(win) : ""}${dir ? stepHtml(dir) : ""}</div>` +
+      `<div class="chain-col chain-right">${prod ? stepHtml(prod) : ""}${pre ? stepHtml(pre) : ""}</div>` +
+    "</div>" +
+    (ch.as_of ? `<p class="muted tiny">口径：${esc(ch.as_of)}</p>` : "");
 }
 
 function renderSignals(d) {
