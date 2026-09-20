@@ -2,6 +2,14 @@
 """核心计算层：窗口期 / 分层 / 强度 / 能力评分 / 推理链 / 简报 / 供应链示例。
 
 所有判定均为确定性规则（规则引擎），LLM 不参与计算。
+
+v1.3 口径原则：
+- 年份上下文：企业详情/推理链/简报/子图均以选定年度为准，未选时取最新窗口年度。
+- 当前与历史分离：产品推荐只消费所选年度信号；历史信号仅存档展示。
+- 新国别：以“截至所选年度之前”的子公司国别集合为基准（as-of 口径）。
+- 国别归一：geo 层统一 canonical（国家）/region（区域），完整名优先、别名归一。
+- 缺失值：一律输出 None（前端显示“待核实”），不臆造 0 或中等分。
+- 证据绑定：推理链与简报的每条建议携带 rule_id / signal_id / evidence_id。
 """
 import json
 import sqlite3
@@ -9,6 +17,8 @@ from functools import lru_cache
 from pathlib import Path
 
 import pandas as pd
+
+from .geo import geo_extract, normalize_name
 
 ROOT = Path(__file__).resolve().parent.parent
 DB = ROOT / "kb" / "kb-2023.sqlite"
@@ -18,6 +28,19 @@ LANDING_DIRECTIONS = {"capacity_production", "investment_ma"}
 LANDING_ANCHORS = {"project_or_base", "capacity_or_facility",
                    "overseas_entity", "investment_or_contract"}
 DEMAND_LABELS = ("经营部署", "战略意图")
+
+# 面板展示字段与中文标签（数据完整度统计口径）
+PANEL_LABELS = [
+    ("assets", "总资产"), ("roa", "盈利能力"), ("leverage", "杠杆率"),
+    ("rd_intensity", "研发强度"), ("overseas_sub_count", "海外子公司数"),
+    ("overseas_rev_share", "海外收入占比"), ("overseas_demand", "出海需求标注"),
+    ("soe", "产权性质"), ("firm_age", "企业年龄"),
+]
+
+RULE_IDS = {
+    "window": {"first": "RULE_WINDOW_FIRST", "new_country": "RULE_WINDOW_NEW_COUNTRY",
+               "expansion": "RULE_WINDOW_EXPANSION", "pv_text": "RULE_WINDOW_PV_TEXT"},
+}
 
 
 def _load_json(name):
@@ -45,10 +68,7 @@ def segment_of(scode):
 
 @lru_cache(maxsize=1)
 def industry_tags():
-    """多标签：电气设备（全部 317 家）+ 光伏（申万 6305xx 重叠部分）。
-
-    增量光伏企业（new_shsz/new_bse）尚未入样本，标注后并入。
-    """
+    """多标签：电气设备（全部 317 家）+ 光伏（申万 6305xx 重叠部分）。"""
     pv = rules()["pv_list"]
     pv_codes = set(pv["overlap"]) | set(pv["new_shsz"]) | set(pv["new_bse"])
     con = _conn()
@@ -73,6 +93,7 @@ def meta():
     return dict(zip(cols, cur.fetchone()))
 
 
+@lru_cache(maxsize=1)
 def _panel():
     con = _conn()
     df = pd.read_sql("SELECT * FROM firm_year", con)
@@ -80,15 +101,23 @@ def _panel():
     return df
 
 
+@lru_cache(maxsize=1)
 def _claims():
     con = _conn()
     df = pd.read_sql("SELECT * FROM claims", con)
     df["scode"] = df["scode"].astype(str).str.zfill(6)
+    df["chunk_id"] = df["chunk_id"].astype(str)
+    df["claim_number"] = df["claim_number"].astype(int)
     df["country_hits"] = df["country_hits"].map(
         lambda s: json.loads(s) if isinstance(s, str) and s else [])
+    geo = df["execution_anchor"].map(geo_extract)
+    df["geo_countries"] = geo.map(lambda g: g["countries"])
+    df["geo_regions"] = geo.map(lambda g: g["regions"])
+    df["signal_id"] = df["chunk_id"] + "#" + df["claim_number"].astype(str)
     return df
 
 
+@lru_cache(maxsize=1)
 def _coname_map():
     con = _conn()
     df = pd.read_sql("SELECT DISTINCT scode, coname FROM chunks", con)
@@ -96,16 +125,22 @@ def _coname_map():
     return dict(zip(df["scode"], df["coname"]))
 
 
+@lru_cache(maxsize=1)
 def _sub_countries():
     con = _conn()
     df = pd.read_sql("SELECT scode, year, country, overseas_sub_count FROM subs_country", con)
     df["scode"] = df["scode"].astype(str).str.zfill(6)
+    df["country_canon"] = df["country"].map(normalize_name)
     return df
 
 
 @lru_cache(maxsize=1)
 def agg():
-    """企业-年信号聚合：窗口类型 / 分层 / 强度分。"""
+    """企业-年信号聚合：窗口类型 / 分层 / 强度分。
+
+    新国别判定（as-of）：以“截至该年度之前”的子公司国别集合为基准，
+    避免后续年度布局倒灌影响早年分类。
+    """
     cl = _claims()
     dem = cl[cl["program_label"].isin(DEMAND_LABELS)].copy()
     dem["is_landing"] = dem["direction"].isin(LANDING_DIRECTIONS) | \
@@ -118,7 +153,10 @@ def agg():
         n_claims=("is_landing", "size"),
         n_hard=("is_hard", "sum"),
         directions=("direction", lambda s: sorted(set(s) - {"null", ""})),
-        countries=("country_hits", lambda s: sorted({c for xs in s for c in xs})),
+        countries=("geo_countries", lambda s: sorted({c for xs in s for c in xs})),
+        regions=("geo_regions", lambda s: sorted({r for xs in s for r in xs})),
+        top_signal=("signal_id", "first"),
+        top_chunk=("chunk_id", "first"),
         top_quote=("evidence_quote", "first"),
     ).reset_index()
     g["n_landing"] = g["n_landing"].astype(int)
@@ -128,9 +166,12 @@ def agg():
                   "overseas_rev_share", "province"]].copy()
     g = g.merge(p, on=["scode", "year"], how="left")
 
-    # 已进入国家集合（全期口径）
     subs = _sub_countries()
-    entered = subs.groupby("scode")["country"].apply(set).to_dict()
+
+    def entered_before(scode, year):
+        """截至所选年度之前（year < t）已进入的国别集合。"""
+        return set(subs[(subs["scode"] == scode) & (subs["year"] < int(year))]
+                   ["country_canon"].dropna())
 
     def window_type(row):
         if pd.isna(row["overseas_demand"]):
@@ -139,8 +180,7 @@ def agg():
             return None
         if (row["overseas_sub_count"] or 0) == 0 and (row["overseas_rev_share"] or 0) <= 0:
             return "first"
-        entered_c = entered.get(row["scode"], set())
-        if any(c not in entered_c for c in row["countries"]):
+        if any(c not in entered_before(row["scode"], row["year"]) for c in row["countries"]):
             return "new_country"
         return "expansion"
 
@@ -154,11 +194,11 @@ def agg():
 
 def radar(province=None, industry=None, year=None, limit=200, sort_mode="window",
           segment=None):
-    """辖区意图强度排行。industry 参数保留（当前仅电气设备）。
+    """辖区意图强度排行。
 
     sort_mode:
       window — 窗口类型优先（first > new_country > expansion）→ 分层（落地 > 筹备）
-               → 强度分 → 年份（业务口径：首次出海账户首绑价值最高）
+               → 强度分 → 年份
       score  — 纯强度分降序 → 窗口类型 → 分层
     segment — 电力产业链环节筛选（光伏主链/风电设备/…，见 chain_map.json）
     """
@@ -194,7 +234,7 @@ def radar(province=None, industry=None, year=None, limit=200, sort_mode="window"
         out.append({
             "scode": r["scode"],
             "coname": names.get(r["scode"], ""),
-            "province": r["province"] if pd.notna(r["province"]) else "待补",
+            "province": r["province"] if pd.notna(r["province"]) else "待核实",
             "industry": "光伏" if r["scode"] in pv else "电气设备",
             "industry_tags": (["电气设备", "光伏"] if r["scode"] in pv else ["电气设备"]),
             "segment": segment_of(r["scode"]),
@@ -207,7 +247,10 @@ def radar(province=None, industry=None, year=None, limit=200, sort_mode="window"
             "n_intent": int(r["n_intent"]),
             "directions": r["directions"],
             "countries": r["countries"],
+            "regions": r["regions"],
             "score": int(r["score"]),
+            "top_signal": r["top_signal"],
+            "top_chunk": r["top_chunk"],
             "top_quote": (r["top_quote"] or "")[:120],
         })
     return out
@@ -247,178 +290,319 @@ def years():
 
 # ---------------- 企业详情 ----------------
 
-def company_detail(scode):
-    con = _conn()
-    cl = _claims()
+def _claim_out(c):
+    return {
+        "signal_id": c["signal_id"],
+        "chunk_id": c["chunk_id"],
+        "year": int(c["year"]),
+        "program_label": c["program_label"],
+        "time_state": c["time_state"],
+        "direction": c["direction"],
+        "anchor_type": c["execution_anchor_type"],
+        "anchor": c["execution_anchor"],
+        "countries": c["geo_countries"],
+        "regions": c["geo_regions"],
+        "evidence_start": int(c["evidence_start"]),
+        "evidence_end": int(c["evidence_end"]),
+        "evidence_quote": (c["evidence_quote"] or "")[:200],
+    }
+
+
+def company_detail(scode, year=None):
+    """企业详情：以选定年度为上下文；历史信号单独归档，不参与当年推荐。"""
     names = _coname_map()
-    p = _panel()
-    row = p[p["scode"] == scode]
-    has_panel = not row.empty
-    if has_panel:
-        row = row.sort_values("year", ascending=False).iloc[0]
+    if scode not in names:
+        return None
     g = agg()
-    gy = g[(g["scode"] == scode)].sort_values("year", ascending=False)
-    sigs = cl[(cl["scode"] == scode) &
-              (cl["program_label"].isin(DEMAND_LABELS))].sort_values("year", ascending=False)
+    gy = g[g["scode"] == scode]
+    p = _panel()
+    prow = p[p["scode"] == scode]
 
-    cap = capability_score(scode)
+    if year is not None:
+        top = gy[gy["year"] == int(year)]
+        top = top.iloc[0] if not top.empty else None
+    else:
+        gyw = gy[gy["window_type"].notna()].sort_values("year", ascending=False)
+        if not gyw.empty:
+            top = gyw.iloc[0]
+        else:
+            top = gy.sort_values("year", ascending=False).iloc[0] if not gy.empty else None
+    top_year = int(top["year"]) if top is not None else (int(year) if year is not None else None)
 
-    claims_out = []
-    for _, c in sigs.head(60).iterrows():
-        claims_out.append({
-            "chunk_id": c["chunk_id"],
-            "year": int(c["year"]),
-            "program_label": c["program_label"],
-            "time_state": c["time_state"],
-            "direction": c["direction"],
-            "anchor_type": c["execution_anchor_type"],
-            "anchor": c["execution_anchor"],
-            "evidence_start": int(c["evidence_start"]),
-            "evidence_end": int(c["evidence_end"]),
-            "evidence_quote": (c["evidence_quote"] or "")[:200],
-        })
+    row_sel = prow[prow["year"] == top_year] if top_year is not None else prow
+    if row_sel.empty:
+        row_sel = prow.sort_values("year", ascending=False)
+    has_panel = not row_sel.empty
+    row = row_sel.iloc[0] if has_panel else None
+
+    cl = _claims()
+    dem = cl[(cl["scode"] == scode) & (cl["program_label"].isin(DEMAND_LABELS))]
+    cur = dem[dem["year"] == top_year] if top_year is not None else dem
+    hist = dem[dem["year"] != top_year] if top_year is not None else dem.iloc[0:0]
+    cur = cur.sort_values(["evidence_start"], kind="stable")
+    hist = hist.sort_values("year", ascending=False)
+
+    cap = capability_score(scode, top_year)
 
     def gv(field, to_type=float):
-        if not has_panel or field not in row.index or pd.isna(row[field]):
+        if not has_panel or row is None or field not in row.index or pd.isna(row[field]):
             return None
         return to_type(row[field])
 
+    missing = [label for field, label in PANEL_LABELS if gv(field) is None]
+
+    window = None
+    if top is not None and top["window_type"]:
+        window = {
+            "year": int(top["year"]),
+            "window_type": top["window_type"],
+            "window_label": rules()["chains"]["window_label"].get(top["window_type"]),
+            "window_note": rules()["chains"].get("window_note", {}).get(top["window_type"], ""),
+            "stage_layer": top["stage_layer"],
+            "stage_label": rules()["chains"]["stage_label"][top["stage_layer"]],
+            "score": int(top["score"]),
+        }
+
+    sub_count = gv("overseas_sub_count")
     return {
         "scode": scode,
         "coname": names.get(scode, ""),
-        "province": str(row["province"]) if has_panel and pd.notna(row["province"]) else "待补",
+        "province": str(row["province"]) if has_panel and pd.notna(row["province"]) else "待核实",
         "industry": "光伏" if scode in set(industry_tags()["pv"]) else "电气设备",
-        "year": int(gy.iloc[0]["year"]) if not gy.empty else None,
+        "year": top_year,
+        "years": sorted(gy["year"].unique().tolist()),
+        "window": window,
+        "panel_status": "full" if has_panel else "text_only",
+        "data_completeness": {
+            "checked": len(PANEL_LABELS),
+            "available": len(PANEL_LABELS) - len(missing),
+            "missing": missing,
+        },
         "assets": gv("assets"),
         "roa": gv("roa"),
         "leverage": gv("leverage"),
         "rd_intensity": gv("rd_intensity"),
-        "overseas_sub_count": int(gv("overseas_sub_count", float) or 0) if has_panel else None,
+        "overseas_sub_count": int(sub_count) if sub_count is not None else None,
         "overseas_rev_share": gv("overseas_rev_share"),
-        "overseas_demand": int(gv("overseas_demand", float) or 0) if has_panel else None,
-        "soe": int(gv("soe", float) or 0) if has_panel else None,
+        "overseas_demand": gv("overseas_demand"),
+        "soe": gv("soe"),
         "firm_age": gv("firm_age"),
-        "panel_status": "full" if has_panel else "text_only",
-        "window": {
-            "year": int(gy.iloc[0]["year"]),
-            "window_type": gy.iloc[0]["window_type"],
-            "window_label": rules()["chains"]["window_label"].get(gy.iloc[0]["window_type"]),
-            "stage_layer": gy.iloc[0]["stage_layer"],
-            "stage_label": rules()["chains"]["stage_label"][gy.iloc[0]["stage_layer"]],
-            "score": int(gy.iloc[0]["score"]),
-        } if not gy.empty and gy.iloc[0]["window_type"] else None,
         "capability": cap,
-        "claims": claims_out,
+        "signals": [_claim_out(c) for _, c in cur.head(60).iterrows()],
+        "history": {
+            "note": "历史信号仅存档与展示，不参与所选年度产品推荐。",
+            "count": int(len(hist)),
+            "years": sorted(hist["year"].unique().tolist()),
+            "items": [_claim_out(c) for _, c in hist.head(8).iterrows()],
+        },
     }
 
 
-def capability_score(scode):
-    """能力评分卡：行业分位归一 + 加权。无面板（光伏新增）时返回占位。"""
+def capability_score(scode, year=None):
+    """能力评分卡：行业分位归一 + 加权。缺失维度输出 None（待核实），
+    总分按可得维度重新归一，并给出数据完整度。"""
     sc_rules = rules()["scoring"]
     p = _panel()
     sub = p[p["scode"] == scode]
-    if sub.empty:
-        dims = [{"key": d["key"], "label": d["label"], "value": 0.5, "raw": None}
-                for d in sc_rules["dimensions"]]
-        return {"score": None, "grade": "待补", "desc": "结构化数据未接入（仅文本信号）",
+    if year is not None:
+        sub = sub[sub["year"] == int(year)]
+
+    def empty_result():
+        dims = [{"key": d["key"], "label": d["label"], "value": None,
+                 "raw": None, "missing": True} for d in sc_rules["dimensions"]]
+        labels = [d["label"] for d in dims]
+        return {"score": None, "grade": "待核实", "desc": "结构化数据缺失（该年度无面板记录），请人工核实。",
+                "completeness": {"available": 0, "total": len(dims), "missing": labels},
                 "dims": dims}
 
-    def pct(s):
-        if s is None or pd.isna(s):
-            return 0.5
-        return float((p[p[field].notna()][field] <= s).mean()) if p[field].notna().any() else 0.5
+    if sub.empty:
+        return empty_result()
 
     row = sub.sort_values("year", ascending=False).iloc[0]
-    dims = []
-    total = 0.0
+
+    def pct(field, s):
+        col = p[field].dropna()
+        if s is None or pd.isna(s) or col.empty:
+            return None
+        return float((col <= s).mean())
+
+    dims, score, avail_w = [], 0.0, 0.0
     for d in sc_rules["dimensions"]:
         field = d["field"]
         raw = row[field] if field in row.index else None
-        if pd.isna(raw):
+        if raw is not None and pd.isna(raw):
             raw = None
-        pv = pct(raw)
+        pv = pct(field, raw)
+        if pv is None:
+            dims.append({"key": d["key"], "label": d["label"], "value": None,
+                         "raw": None, "missing": True})
+            continue
         if d["direction"] == -1:
             pv = 1 - pv
-        total += pv * d["weight"]
         dims.append({"key": d["key"], "label": d["label"],
-                     "value": round(pv, 3),
-                     "raw": round(float(raw), 3) if raw is not None else None})
-    total = round(total, 3)
-    grade = next((g for g in sc_rules["grades"] if total >= g["min"]), sc_rules["grades"][-1])
-    return {"score": total, "grade": grade["label"], "desc": grade["desc"], "dims": dims}
+                     "value": round(float(pv), 3),
+                     "raw": round(float(raw), 3), "missing": False})
+        score += pv * d["weight"]
+        avail_w += d["weight"]
+
+    missing_labels = [x["label"] for x in dims if x["missing"]]
+    completeness = {"available": len(dims) - len(missing_labels),
+                    "total": len(dims), "missing": missing_labels}
+    if avail_w <= 0:
+        return {"score": None, "grade": "待核实", "desc": "该年度关键维度全部缺失，请人工核实。",
+                "completeness": completeness, "dims": dims}
+    score = round(score / avail_w, 3)
+    grade = next((g for g in sc_rules["grades"] if score >= g["min"]), sc_rules["grades"][-1])
+    desc = grade["desc"]
+    if missing_labels:
+        desc += f"（{len(missing_labels)} 个维度缺失：{'、'.join(missing_labels)}，待核实）"
+    return {"score": score, "grade": grade["label"], "desc": desc,
+            "completeness": completeness, "dims": dims}
 
 
 # ---------------- 推理链 ----------------
 
-def chain(scode):
+def _chain_top(scode, year):
+    g = agg()
+    gy = g[g["scode"] == scode]
+    if gy.empty:
+        return None, None
+    if year is not None:
+        sel = gy[gy["year"] == int(year)]
+        if sel.empty or not sel.iloc[0]["window_type"]:
+            return None, None
+        return sel.iloc[0], int(year)
+    gyw = gy[gy["window_type"].notna()]
+    if gyw.empty:
+        return None, None
+    top = gyw.sort_values("year", ascending=False).iloc[0]
+    return top, int(top["year"])
+
+
+def chain(scode, year=None):
+    """营销方案推理链：全部判定基于所选年度信号（历史信号不参与推荐），
+    每条建议绑定 rule_id / signal_id / evidence_id。"""
     r = rules()
     products = r["products"]
     chains = r["chains"]
-    g = agg()
-    gy = g[(g["scode"] == scode)].sort_values("year", ascending=False)
-    if gy.empty or gy.iloc[0]["window_type"] is None:
+    top, y = _chain_top(scode, year)
+    if top is None:
         return None
-    top = gy.iloc[0]
+
     cl = _claims()
-    dem = cl[(cl["scode"] == scode) &
-             (cl["program_label"].isin(DEMAND_LABELS))].sort_values("year", ascending=False)
+    cur = cl[(cl["scode"] == scode) & (cl["year"] == y) &
+             (cl["program_label"].isin(DEMAND_LABELS))].copy()
+    cur = cur.sort_values(["evidence_start"], kind="stable")
+    top_c = cur.iloc[0] if len(cur) else None
+
+    def step_ev(c):
+        if c is None:
+            return None
+        return {"quote": (c["evidence_quote"] or "")[:160],
+                "signal_id": c["signal_id"], "evidence_id": c["chunk_id"]}
 
     steps = []
+    wt = top["window_type"]
+    wl = chains["window_label"].get(wt, wt)
+    sl = chains["stage_label"][top["stage_layer"]]
+    wn = chains.get("window_note", {}).get(wt, "")
+
     # step 1 窗口期
     steps.append({
         "key": "window",
         "label": chains["step_order"][0]["label"],
-        "title": f"{chains['window_label'][top['window_type']]} · {chains['stage_label'][top['stage_layer']]}",
-        "detail": (f"当年披露 {int(top['n_deploy'])} 条经营部署、{int(top['n_intent'])} 条战略意图；"
-                   f"窗口类型「{chains['window_label'][top['window_type']]}」，分层「{chains['stage_label'][top['stage_layer']]}」。"),
-        "evidence": dem.iloc[0]["evidence_quote"][:160] if len(dem) else "",
+        "title": f"{wl} · {sl}",
+        "detail": (f"所选年度 {y} 披露 {int(top['n_deploy'])} 条经营部署、{int(top['n_intent'])} 条战略意图；"
+                   f"窗口类型「{wl}」，分层「{sl}」。" + (f" {wn}" if wn else "")),
+        "rule_id": RULE_IDS["window"].get(wt, "RULE_WINDOW_OTHER"),
+        "evidence": step_ev(top_c),
     })
+
     # step 2 方向与模式
     dirs = top["directions"]
-    mode_desc = "、".join(
-        f"{d}（{products['direction_map'].get(d, {}).get('mode', '—')}）" for d in dirs) or "—"
+    dir_sources = []
+    for d in dirs:
+        dcl = cur[cur["direction"] == d]
+        c0 = dcl.iloc[0] if len(dcl) else top_c
+        mode = products["direction_map"].get(d, {}).get("mode", "—")
+        dir_sources.append({"direction": d, "mode": mode,
+                            "rule_id": f"RULE_DIR_{d}",
+                            "signal_id": c0["signal_id"] if c0 is not None else None,
+                            "evidence_id": c0["chunk_id"] if c0 is not None else None})
+    mode_desc = "、".join(f"{s['direction']}（{s['mode']}）" for s in dir_sources) or "—"
     steps.append({
         "key": "direction",
         "label": chains["step_order"][1]["label"],
         "title": mode_desc,
-        "detail": f"识别到的出海方向：{'、'.join(dirs) if dirs else '未分类'}；"
-                  f"硬锚点 {int(top['n_hard'])} 条。",
-        "evidence": dem.iloc[0]["evidence_quote"][:160] if len(dem) else "",
+        "detail": f"识别到的出海方向：{'、'.join(dirs) if dirs else '未分类'}；硬锚点 {int(top['n_hard'])} 条。",
+        "evidence": step_ev(top_c),
+        "sources": dir_sources,
     })
-    # step 3 产品匹配
-    prod_keys, extras = [], []
+
+    # step 3 产品匹配（仅当年信号；锚点触发按 方向 语境细化）
+    recs, seen = [], {}
+
+    def add_rec(key, reason, rule_id, c):
+        if c is None:
+            return
+        info = products["catalog"].get(key)
+        if not info:
+            return
+        if key in seen:
+            seen[key]["n_signals"] += 1
+            return
+        rec = {"key": key, "name": info["name"], "category": info["category"],
+               "reason": reason, "rule_id": rule_id, "n_signals": 1,
+               "signal_id": c["signal_id"], "evidence_id": c["chunk_id"],
+               "quote": (c["evidence_quote"] or "")[:120]}
+        seen[key] = rec
+        recs.append(rec)
+
     for d in dirs:
+        dcl = cur[cur["direction"] == d]
+        c0 = dcl.iloc[0] if len(dcl) else top_c
         for k in products["direction_map"].get(d, {}).get("products", []):
-            if k not in prod_keys:
-                prod_keys.append(k)
-    anchors = dem["execution_anchor_type"].dropna().unique().tolist()
-    for a in anchors:
-        for k in products["anchor_extra"].get(a, []):
-            if k not in prod_keys:
-                prod_keys.append(k)
-                extras.append(k)
-    for k in products["window_extra"].get(top["window_type"], []):
-        if k not in prod_keys:
-            prod_keys.append(k)
-    has_country = bool(top["countries"])
-    for k in products["country_extra"]:
-        if has_country and k not in prod_keys:
-            prod_keys.append(k)
-    prod_names = [f"{products['catalog'][k]['name']}（{products['catalog'][k]['category']}）"
-                  for k in prod_keys if k in products["catalog"]]
+            add_rec(k, f"方向「{d}」命中方向规则", f"RULE_DIR_{d}", c0)
+
+    for _, c in cur.iterrows():
+        a = c["execution_anchor_type"]
+        d = c["direction"]
+        for t in products["anchor_extra"].get(a, []):
+            if "if_directions" in t and d not in t["if_directions"]:
+                continue   # 语境守卫：同一锚点按方向区分业务，防止过度推荐
+            add_rec(t["product"],
+                    f"{t['reason']}（锚点「{a}」，方向「{d}」）",
+                    f"RULE_ANCHOR_{a}_{t['product']}", c)
+
+    for k in products["window_extra"].get(wt, []):
+        add_rec(k, f"窗口类型「{wl}」阶段配套", f"RULE_WINDOW_{wt}", top_c)
+
+    if top["countries"]:
+        ccl = cur[cur["geo_countries"].map(lambda xs: len(xs) > 0)]
+        c0 = ccl.iloc[0] if len(ccl) else top_c
+        for k in products["country_extra"]:
+            add_rec(k, f"披露明确国别（{'、'.join(top['countries'])}），叠加清算与避险服务",
+                    "RULE_COUNTRY_CLEARING", c0)
+
+    n_dir = sum(1 for x in recs if x["rule_id"].startswith("RULE_DIR_"))
+    n_anchor = sum(1 for x in recs if x["rule_id"].startswith("RULE_ANCHOR_"))
+    n_window = sum(1 for x in recs if x["rule_id"].startswith("RULE_WINDOW_"))
+    n_country = sum(1 for x in recs if x["rule_id"] == "RULE_COUNTRY_CLEARING")
+    prod_names = [f"{x['name']}（{x['category']}）" for x in recs]
     steps.append({
         "key": "product",
         "label": chains["step_order"][2]["label"],
         "title": "；".join(prod_names) or "—",
-        "detail": (f"匹配依据：方向规则命中 {[d for d in dirs]}；"
-                   + (f"锚点补充 {extras}；" if extras else "")
-                   + f"窗口类型补充 {products['window_extra'].get(top['window_type'], [])}；"
-                   + ("含国别锚点，叠加清算/避险建议。" if has_country else "无国别锚点，不叠加清算建议。")),
-        "evidence": "",
+        "detail": (f"匹配依据（仅使用 {y} 年度信号，历史信号不参与）："
+                   f"方向规则 {n_dir} 条、锚点触发 {n_anchor} 条、"
+                   f"窗口配套 {n_window} 条、国别叠加 {n_country} 条。"),
+        "evidence": None,
+        "products": recs,
     })
+
     # step 4 前置条件
     prereqs = []
-    for k in prod_keys:
+    for k in [x["key"] for x in recs]:
         if k in products["prereq"]:
             prereqs.append(f"{products['catalog'][k]['name']}：{products['prereq'][k]}")
     steps.append({
@@ -426,46 +610,79 @@ def chain(scode):
         "label": chains["step_order"][3]["label"],
         "title": "；".join(prereqs) or "无额外前置条件",
         "detail": "前置条件由产品规则库定义，落地时可替换为行内产品库。",
-        "evidence": "",
+        "rule_id": "RULE_PREREQ",
+        "evidence": None,
     })
+
     return {
         "scode": scode,
-        "year": int(top["year"]),
+        "year": y,
         "countries": top["countries"],
+        "regions": top["regions"],
         "steps": steps,
+        "as_of": f"全部判定基于 {y} 年度信号；历史信号仅存档展示，不参与推荐。",
     }
 
 
-def briefing(scode):
-    d = company_detail(scode)
-    ch = chain(scode)
-    if not d or not ch:
+def briefing(scode, year=None):
+    d = company_detail(scode, year)
+    ch = chain(scode, year)
+    if not d or not ch or not d["window"]:
         return None
     cap = d["capability"]
     w = d["window"]
     prod_step = next(s for s in ch["steps"] if s["key"] == "product")
     prereq_step = next(s for s in ch["steps"] if s["key"] == "prereq")
+    win_step = ch["steps"][0]
+
+    if cap["score"] is None:
+        cap_line = (f"能力评分待核实（数据完整度 {cap['completeness']['available']}/{cap['completeness']['total']}）"
+                    f"——{cap['desc']}")
+    else:
+        dims_txt = "；".join(
+            f"{x['label']} 分位 {x['value']:.0%}" if x["value"] is not None
+            else f"{x['label']} 待核实" for x in cap["dims"])
+        cap_line = (f"能力评分 {cap['score']:.2f}，分级「{cap['grade']}」——{cap['desc']}。"
+                    f"关键维度：{dims_txt}。本项为辅助判断，不替代人工尽调。")
+
+    win_ev = win_step.get("evidence") or {}
+    ev_txt = f"证据：「{win_ev.get('quote', '')}」" if win_ev.get("quote") else "证据：待核实"
+
+    prod_lines = [f"{x['name']}（{x['reason']}）" for x in prod_step.get("products", [])]
+    prod_body = "；".join(prod_lines) if prod_lines else prod_step["title"]
+
+    sections = [
+        {"heading": "一、能力就绪度",
+         "body": cap_line,
+         "rule_ids": ["RULE_CAPABILITY"],
+         "signal_ids": [], "evidence_ids": []},
+        {"heading": "二、出海需求判断",
+         "body": (f"{w['window_label']}（{w['stage_label']}），强度分 {w['score']}。"
+                  f"{ch['steps'][1]['title']}。{ev_txt}"
+                  + (f" {w['window_note']}" if w.get("window_note") else "")),
+         "rule_ids": [win_step.get("rule_id")] +
+                     [s["rule_id"] for s in ch["steps"][1].get("sources", [])],
+         "signal_ids": [win_ev["signal_id"]] if win_ev.get("signal_id") else [],
+         "evidence_ids": [win_ev["evidence_id"]] if win_ev.get("evidence_id") else []},
+        {"heading": "三、产品组合建议",
+         "body": prod_body,
+         "rule_ids": [x["rule_id"] for x in prod_step.get("products", [])],
+         "signal_ids": [x["signal_id"] for x in prod_step.get("products", []) if x.get("signal_id")],
+         "evidence_ids": [x["evidence_id"] for x in prod_step.get("products", []) if x.get("evidence_id")]},
+        {"heading": "四、前置条件与触达要点",
+         "body": (prereq_step["title"] + "。"
+                  f"目标国别：{'、'.join(ch['countries']) if ch['countries'] else '未披露明确国别'}。"
+                  + (f"区域表述：{'、'.join(ch['regions'])}。" if ch["regions"] else "")
+                  + "触达要点：以账户方案与保函预授信为敲门砖，融资需求后置于行内授信流程。"),
+         "rule_ids": ["RULE_PREREQ", "RULE_COUNTRY_CLEARING"],
+         "signal_ids": [], "evidence_ids": []},
+    ]
     return {
         "scode": scode,
         "coname": d["coname"],
-        "title": f"{d['coname']} 访前简报",
-        "sections": [
-            {"heading": "一、能力就绪度",
-             "body": (f"能力评分 {cap['score']}，分级「{cap['grade']}」——{cap['desc']}。"
-                      f"关键维度："
-                      + "；".join(f"{x['label']} 分位 {x['value']:.0%}" for x in cap["dims"])
-                      + "。本项为辅助判断，不替代人工尽调。")},
-            {"heading": "二、出海需求判断",
-             "body": (f"{w['window_label']}（{w['stage_label']}），"
-                      f"强度分 {w['score']}。{ch['steps'][1]['title']}。"
-                      f"证据示例：「{ch['steps'][0]['evidence']}」。")},
-            {"heading": "三、产品组合建议",
-             "body": prod_step["title"] + "。"},
-            {"heading": "四、前置条件与触达要点",
-             "body": (prereq_step["title"] + "。"
-                      f"目标国别：{'、'.join(ch['countries']) if ch['countries'] else '未披露明确国别'}。"
-                      "触达要点：以账户方案与保函预授信为敲门砖，融资需求后置于行内授信流程。")},
-        ],
+        "title": f"{d['coname']} 访前简报（{ch['year']} 年度）",
+        "year": ch["year"],
+        "sections": sections,
     }
 
 
@@ -501,9 +718,9 @@ def evidence(chunk_id):
     }
 
 
-def supply_chain(scode):
-    """供应链示例（sample）：客户边来自年报披露的 named_customer 锚点，
-    国家边来自子公司国家表；供应商边为 schema 占位（P2）。"""
+def supply_chain(scode, year=None):
+    """供应链示例（sample）：客户边来自年报披露的 named_customer 锚点；
+    国家边来自子公司国家表（as-of：截至所选年度）。供应商边为 schema 占位（P2）。"""
     cl = _claims()
     subs = _sub_countries()
     names = _coname_map()
@@ -513,8 +730,11 @@ def supply_chain(scode):
     for _, c in cust.drop_duplicates("execution_anchor").head(6).iterrows():
         customers.append({"name": c["execution_anchor"],
                           "evidence": (c["evidence_quote"] or "")[:100]})
-    sub_c = subs[subs["scode"] == scode].sort_values("year", ascending=False)
-    countries = sorted(set(sub_c["country"].tolist()))
+    sub_c = subs[subs["scode"] == scode]
+    if year is not None:
+        sub_c = sub_c[sub_c["year"] <= int(year)]
+    countries = sorted(set(sub_c["country_canon"].dropna()))
+    as_of = f"截至 {int(year)} 年度" if year is not None else "全期口径"
     nodes = [{"id": "self", "label": names.get(scode, scode), "type": "企业"}]
     edges = []
     for i, c in enumerate(customers):
@@ -528,7 +748,7 @@ def supply_chain(scode):
     return {
         "scode": scode,
         "sample": True,
-        "note": "演示样例：客户边来自年报披露锚点，国家边来自子公司数据；供应商边（SUPPLY_FROM）为 P2 扩展位，全量供应链数据接入后激活。",
+        "note": f"演示样例（{as_of}）：客户边来自年报披露锚点，国家边来自子公司数据；供应商边（SUPPLY_FROM）为 P2 扩展位，全量供应链数据接入后激活。",
         "nodes": nodes,
         "edges": edges,
     }

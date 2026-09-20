@@ -118,6 +118,17 @@ table.radar tbody tr:hover { background: rgba(212,175,106,.07); }
 .evtext mark { background: rgba(212,175,106,.35); color: #fff; border-radius: 3px; padding: 1px 2px; }
 
 svg text { font-family: "Microsoft YaHei", sans-serif; }
+
+/* ---------- v1.3 新增元素：区域标签 / 产品推荐卡 / 口径注记 ---------- */
+.dirchip.rc { border-style: dashed; color: var(--gold-soft); border-color: rgba(212,175,106,.45); }
+.prods { margin-top: 8px; display: flex; flex-direction: column; gap: 6px; }
+.prod { border-left: 2px solid rgba(212,175,106,.4); padding: 6px 10px;
+        background: rgba(212,175,106,.05); border-radius: 0 8px 8px 0; font-size: 12.5px; }
+.prod .sd { color: var(--txt); margin-top: 3px; }
+.prod .se { margin-top: 4px; }
+.tiny { font-size: 11px; }
+.hist-note { margin: 12px 0 6px; padding-top: 10px; border-top: 1px dashed var(--line); }
+
 @media print {
   header, .back, .brief-actions, .nav-btns { display: none !important; }
   body { background: #fff; color: #222; }

@@ -4,13 +4,13 @@
 接口（/api/*）：
   GET  /api/meta                    知识库版本与可选项
   GET  /api/radar                   辖区意图强度排行（province/industry/year）
-  GET  /api/company/{scode}         企业详情（画像+评分+信号）
-  GET  /api/company/{scode}/graph   企业-信号-方向-国别子图
-  GET  /api/company/{scode}/supply-chain  供应链示例
-  GET  /api/company/{scode}/chain   营销方案推理链
-  GET  /api/company/{scode}/briefing 访前简报
+  GET  /api/company/{scode}         企业详情（?year= 选定年度，缺省取最新窗口年度）
+  GET  /api/company/{scode}/graph   企业-信号-方向-国别子图（?year=）
+  GET  /api/company/{scode}/supply-chain  供应链示例（?year=，国别边 as-of）
+  GET  /api/company/{scode}/chain   营销方案推理链（?year=，仅当年信号参与推荐）
+  GET  /api/company/{scode}/briefing 访前简报（?year=）
   GET  /api/evidence/{chunk_id}     原文片段 + 证据锚点区间
-  GET  /api/country/{name}          国别卡片（占位）
+  GET  /api/country/{name}          国别卡片（别名归一；区域级表述单独提示）
   GET  /api/health                  健康检查
 """
 from fastapi import FastAPI, HTTPException, Query
@@ -21,7 +21,7 @@ from pathlib import Path
 from . import graph, logic
 
 ROOT = Path(__file__).resolve().parent.parent
-app = FastAPI(title="数智链海 · 服务层", version="1.2")
+app = FastAPI(title="数智链海 · 服务层", version="1.3")
 
 app.add_middleware(
     CORSMiddleware,
@@ -56,38 +56,34 @@ def api_segments():
 
 
 @app.get("/api/company/{scode}")
-def api_company(scode: str):
-    d = logic.company_detail(scode)
+def api_company(scode: str, year: int | None = None):
+    d = logic.company_detail(scode, year)
     if not d:
         raise HTTPException(404, "company not found")
     return d
 
 
 @app.get("/api/company/{scode}/graph")
-def api_company_graph(scode: str):
-    return graph.get_company_graph(scode)
+def api_company_graph(scode: str, year: int | None = None):
+    return graph.get_company_graph(scode, year)
 
 
 @app.get("/api/company/{scode}/supply-chain")
-def api_supply_chain(scode: str):
-    return graph_placeholder(scode)
-
-
-def graph_placeholder(scode: str):
-    return logic.supply_chain(scode)
+def api_supply_chain(scode: str, year: int | None = None):
+    return logic.supply_chain(scode, year)
 
 
 @app.get("/api/company/{scode}/chain")
-def api_chain(scode: str):
-    ch = logic.chain(scode)
+def api_chain(scode: str, year: int | None = None):
+    ch = logic.chain(scode, year)
     if not ch:
         raise HTTPException(404, "no demand chain for this company")
     return ch
 
 
 @app.get("/api/company/{scode}/briefing")
-def api_briefing(scode: str):
-    b = logic.briefing(scode)
+def api_briefing(scode: str, year: int | None = None):
+    b = logic.briefing(scode, year)
     if not b:
         raise HTTPException(404, "briefing unavailable")
     return b

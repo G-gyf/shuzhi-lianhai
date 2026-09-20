@@ -25,10 +25,28 @@
     "investment_ma":                { "mode": "投资并购",   "products": ["ma_loan", "offshore", "offshore_cny", "guarantee_prequal"] }
   },
   "anchor_extra": {
-    "project_or_base":        ["bid_bond", "performance_bond"],
-    "investment_or_contract": ["ma_loan", "advance_bond"],
-    "certification_or_access":["guarantee_prequal"],
-    "overseas_entity":        ["offshore", "treasury"]
+    "project_or_base": [
+      { "product": "bid_bond", "if_directions": ["capacity_production", "investment_ma", "market_expansion", "channel_supply_chain"],
+        "reason": "项目/基地锚点通常伴随投标环节" },
+      { "product": "performance_bond", "if_directions": ["capacity_production", "investment_ma"],
+        "reason": "项目/基地落地伴随履约担保需求" }
+    ],
+    "investment_or_contract": [
+      { "product": "ma_loan", "if_directions": ["investment_ma"],
+        "reason": "投资并购语境下的投资/合同锚点" },
+      { "product": "advance_bond", "if_directions": ["capacity_production", "channel_supply_chain", "market_expansion"],
+        "reason": "非并购语境的合同/投资锚点，匹配预付款担保" }
+    ],
+    "certification_or_access": [
+      { "product": "guarantee_prequal", "if_directions": ["market_expansion", "local_organization_readiness"],
+        "reason": "认证准入阶段先行保函预授信" }
+    ],
+    "overseas_entity": [
+      { "product": "offshore", "if_directions": ["capacity_production", "local_organization_readiness", "investment_ma", "market_expansion"],
+        "reason": "境外主体设立，匹配离岸账户服务" },
+      { "product": "treasury", "if_directions": ["capacity_production", "local_organization_readiness", "investment_ma", "market_expansion"],
+        "reason": "境外主体设立，匹配司库集中管理" }
+    ]
   },
   "window_extra": {
     "first":       ["account_setup", "settlement_arch", "guarantee_prequal"],
