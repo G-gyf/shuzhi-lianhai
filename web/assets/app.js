@@ -165,7 +165,7 @@ function renderChain(ch) {
         </details>`).join("") + "</div>";
     }
     if (s.items && s.items.length) {
-      body += '<ul class="prereq-list">' + s.items.map((x) => `<li>${esc(x)}</li>`).join("") + "</ul>";
+      body += '<ul class="prereq-list">' + s.items.map((x) => `<li><b>${esc(x)}</b></li>`).join("") + "</ul>";
     }
     const ev = s.evidence && s.evidence.evidence_id
       ? `<div class="se">证据：「${esc(s.evidence.quote || "")}」

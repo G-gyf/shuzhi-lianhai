@@ -610,7 +610,7 @@ def chain(scode, year=None):
     steps.append({
         "key": "prereq",
         "label": chains["step_order"][3]["label"],
-        "title": "；".join(prereqs) or "无额外前置条件",
+        "title": f"共 {len(prereqs)} 项前置条件" if prereqs else "无额外前置条件",
         "items": prereqs or ["无额外前置条件"],
         "detail": "前置条件由产品规则库定义，落地时可替换为行内产品库。",
         "rule_id": "RULE_PREREQ",
@@ -673,7 +673,7 @@ def briefing(scode, year=None):
          "signal_ids": [x["signal_id"] for x in prod_step.get("products", []) if x.get("signal_id")],
          "evidence_ids": [x["evidence_id"] for x in prod_step.get("products", []) if x.get("evidence_id")]},
         {"heading": "四、前置条件与触达要点",
-         "body": (prereq_step["title"] + "。"
+         "body": ("；".join(prereq_step.get("items", []) or [prereq_step["title"]]) + "。"
                   f"目标国别：{'、'.join(ch['countries']) if ch['countries'] else '未披露明确国别'}。"
                   + (f"区域表述：{'、'.join(ch['regions'])}。" if ch["regions"] else "")
                   + "触达要点：以账户方案与保函预授信为敲门砖，融资需求后置于行内授信流程。"),

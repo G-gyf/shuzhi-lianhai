@@ -136,7 +136,7 @@ svg text { font-family: "Microsoft YaHei", sans-serif; }
 .tiny { font-size: 11px; }
 .hist-note { margin: 12px 0 6px; padding-top: 10px; border-top: 1px dashed var(--line); }
 /* 推理链双栏：左窄（判定/方向）右宽（产品/前置） */
-.chain-cols { display: grid; grid-template-columns: 2fr 3fr; gap: 12px; align-items: start; }
+.chain-cols { display: grid; grid-template-columns: 7fr 13fr; gap: 12px; align-items: start; }
 .chain-col { min-width: 0; }
 .chain-col .step { margin-bottom: 14px; }
 .chain-cols + .tiny { margin-top: 10px; }
