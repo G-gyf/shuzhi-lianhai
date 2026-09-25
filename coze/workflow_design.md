@@ -49,6 +49,26 @@
 - 不要把 token 固定写在插件鉴权里（10 分钟后全量失效、且人人可用），
   也不要让大模型改写它（方案 5.2：token 由工作流变量直接传给工具请求，不进模型上下文）。
 
+#### 插件页「试运行」时填什么
+
+试运行绕过工作流，没有开始节点变量可引用 → 必须手工粘贴真实 token：
+
+```bash
+# Windows
+set TOOL_CONTEXT_SECRET=与 Railway 一致的值
+python -X utf8 scripts/make_token.py --tools resolve_company,get_company_context ^
+       --ttl 604800 --base-url https://<你的域名>
+
+# macOS / Linux
+TOOL_CONTEXT_SECRET='与 Railway 一致的值' python -X utf8 scripts/make_token.py \
+       --tools resolve_company,get_company_context --ttl 604800 --base-url https://<你的域名>
+```
+
+- `--tools` 必须包含要试跑的工具（否则 403）；`--ttl` 生产为 600 秒，调试可给 7 天；
+- 加 `--base-url` 会用该服务 `/api/health` 的 `snapshot_id` 签 token 并立即冒烟调用，
+  避免因快照不一致返回 409（token 带数据版本，属故意设计）；
+- 工作流正式运行时由后端每轮自动传入，**不需要手工粘贴**。
+
 ### N02 意图与参数（大模型节点）
 - 输入：message、page_context、history_summary。
 - 提示词：`prompts/intent.md`。

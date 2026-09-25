@@ -683,10 +683,48 @@ print(json.loads(urllib.request.urlopen(req).read())[<span class="str">"coname"<
   <div class="step">
     <div class="step-head"><span class="dot dot-blue"></span><b>插件试跑</b><span class="tag">TEST</span></div>
     <div class="step-body">
+      <div class="callout gold">
+        <div class="icon">◈</div>
+        <div class="body"><strong>X-Context-Token 填什么？</strong>插件页的「试运行」是<b>绕过工作流</b>直接调插件，
+        没有开始节点变量可引用，所以必须<b>手工粘贴一个真实可用的 token 字符串</b>。
+        用本仓库脚本一键生成（<code>scripts/make_token.py</code>），把它整行复制进参数框即可。</div>
+      </div>
+      <div class="code-wrap">
+        <div class="code-header"><span class="lang">BASH</span><span class="fname">生成试跑令牌</span></div>
+        <pre><span class="cmt"># Windows PowerShell</span>
+<span class="var">$env:TOOL_CONTEXT_SECRET</span>=<span class="str">'与 Railway 一致的值'</span>
+python -X utf8 scripts/make_token.py --tools resolve_company,get_company_context `
+       --ttl 604800 --base-url https://shuzhi-lianhai-production.up.railway.app
+
+<span class="cmt"># macOS / Linux</span>
+<span class="var">TOOL_CONTEXT_SECRET</span>=<span class="str">'与 Railway 一致的值'</span> python -X utf8 scripts/make_token.py \
+       --tools resolve_company,get_company_context --ttl 604800 \
+       --base-url https://shuzhi-lianhai-production.up.railway.app</pre>
+      </div>
+      <table>
+        <tr><th>参数</th><th>说明</th><th>建议取值</th></tr>
+        <tr><td><code>--tools</code></td><td>token 允许调用的工具，<b>必须包含你要试跑的那个</b>，否则 403</td><td><code>resolve_company,get_company_context</code></td></tr>
+        <tr><td><code>--ttl</code></td><td>有效期（秒）。生产由后端按 600 秒签发；调试可以给长一点省事</td><td>调试 <code>604800</code>（7 天）</td></tr>
+        <tr><td><code>--from-url</code> / <code>--base-url</code></td><td>从服务的 <code>/api/health</code> 取 <code>snapshot_id</code>，避免与线上快照不一致报 409</td><td>填线上域名（推荐）</td></tr>
+        <tr><td><code>--regions</code></td><td>绑定辖区，决定地区资料可见范围</td><td><code>region_a</code>（默认）</td></tr>
+        <tr><td><code>--base-url</code></td><td>生成后立即冒烟调用一次，直接看到成功/失败原因</td><td>同上</td></tr>
+      </table>
+      <div class="callout info">
+        <div class="icon">ℹ️</div>
+        <div class="body"><strong>为什么快照要对上：</strong>token 里带 <code>snapshot_id</code>（kb 库文件的内容哈希）。
+        核心库文件一旦变化（重新构建、或 SQLite 回滚 hot journal），哈希就变，旧 token 会被 409 拒绝——
+        这是方案 12 章的“数据版本漂移保护”，属预期行为。<b>用 <code>--from-url</code> 取线上快照最稳。</b></div>
+      </div>
       <ol>
-        <li>在插件页对 <code>resolve_company</code> 输入 <code>query=002860</code> → 期望返回 <code>matches[0].coname=星帅尔</code>。</li>
-        <li>对 <code>get_company_context</code> 输入 <code>scode=002860, year=2023</code> → 期望返回证据包（signal_refs / rule_candidates / coverage）。</li>
+        <li>在插件页对 <code>resolve_company</code> 填入 <code>query=002860</code> + 粘贴上面的 token → 期望返回 <code>matches[0].coname=星帅尔</code>。</li>
+        <li>对 <code>get_company_context</code> 填入 <code>scode=002860、year=2023</code> + 同一 token → 期望返回证据包（signal_refs / rule_candidates / coverage）。</li>
+        <li>试跑通过后再进工作流配置；<b>工作流里不需要手工粘贴 token</b>——由开始节点变量自动传入（STEP 9/13）。</li>
       </ol>
+      <div class="callout success">
+        <div class="icon">✅</div>
+        <div class="body"><strong>本地已实测：</strong>脚本生成的 token 在运行服务上冒烟成功（<code>resolve_company → 星帅尔</code>）；
+        故意用错误密钥时返回 <code>403 {"detail":"context_token 无效或已过期。"}</code>，与预期一致。</div>
+      </div>
       <table>
         <tr><th>现象</th><th>原因</th><th>处理</th></tr>
         <tr><td>403</td><td>token 无效/过期/工具不在允许清单</td><td>确认密钥与 token 签发一致；确认 allowed_tools 包含该工具</td></tr>
