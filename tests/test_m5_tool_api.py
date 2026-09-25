@@ -132,6 +132,44 @@ class TestToolApi(unittest.TestCase):
         self.assertEqual(r.status_code, 503)
         self.assertIn("TOOL_CONTEXT_SECRET", r.json()["detail"])
 
+    # ---- Coze 试运行面板的实际传参形态（截图暴露的三个坑） ----
+
+    def test_token_in_body_accepted(self):
+        """Coze 试运行把 Header 参数放进 JSON 体时也要能通过。"""
+        os.environ["ALLOW_STATIC_DEBUG_TOKEN"] = "1"
+        try:
+            r = self.client.post("/api/v1/tools/resolve_company",
+                                 json={"X-Context-Token": self.secret, "query": "002860"})
+            self.assertEqual(r.status_code, 200)
+            self.assertEqual(r.json()["matches"][0]["coname"], "星帅尔")
+        finally:
+            os.environ.pop("ALLOW_STATIC_DEBUG_TOKEN", None)
+
+    def test_empty_body_tolerated(self):
+        """无必填参数的工具（Coze 可能不发 body）不能报错。"""
+        os.environ["ALLOW_STATIC_DEBUG_TOKEN"] = "1"
+        try:
+            r = self.client.post("/api/v1/tools/search_product_knowledge",
+                                 headers={"X-Context-Token": self.secret})
+            self.assertEqual(r.status_code, 200)
+            self.assertTrue(r.json()["ok"])
+        finally:
+            os.environ.pop("ALLOW_STATIC_DEBUG_TOKEN", None)
+
+    def test_unknown_body_keys_ignored_not_fatal(self):
+        """请求体里多出的键（如被塞进 body 的 header）不应导致工具调用失败。"""
+        os.environ["ALLOW_STATIC_DEBUG_TOKEN"] = "1"
+        try:
+            r = self.client.post("/api/v1/tools/resolve_company",
+                                 json={"X-Context-Token": self.secret,
+                                       "query": "002860",
+                                       "headers": {"foo": "bar"}})
+            self.assertEqual(r.status_code, 200)
+            self.assertEqual(r.json()["matches"][0]["coname"], "星帅尔")
+            self.assertIn("headers", r.json()["ignored_params"])
+        finally:
+            os.environ.pop("ALLOW_STATIC_DEBUG_TOKEN", None)
+
     def test_static_debug_token_when_enabled(self):
         """打开 ALLOW_STATIC_DEBUG_TOKEN=1 后，密钥本身即可作为试跑 token。"""
         os.environ["ALLOW_STATIC_DEBUG_TOKEN"] = "1"

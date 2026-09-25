@@ -7,14 +7,16 @@
 - 工具接口验证 token；不信任模型传来的地区ID作为权限依据。
 - 本地降级模式下不依赖本接口（网关进程内直调 tools.call_tool）。
 
-参数形态兼容（便于 Coze 插件工作流传参）：
-  1. 扁平：        {"scode": "002860", "year": 2023}
-  2. 嵌套：        {"parameters": {...}}
-  3. 字符串（dispatch）：{"tool": "...", "parameters_json": "{\"scode\":\"002860\"}"}
+为兼容 Coze 插件实际发出的各种请求形态，本模块刻意做了三处容错：
+  1. token 既可从 Header `X-Context-Token` 读取，也可从请求体同名字段读取
+     （Coze 试运行面板会把 Header 参数显示/放进 JSON 体）；
+  2. 请求体为空或缺省时不报错（无必填参数的工具，Coze 可能不发 body）；
+  3. 请求体里多出的非工具参数会被忽略并在响应里回报，不会让工具调用失败。
 """
 from __future__ import annotations
 
 import hmac
+import inspect
 import json
 import os
 
@@ -24,8 +26,12 @@ from . import context_token, runtime, tools
 
 router = APIRouter(prefix="/api/v1")
 
-# 非参数键：出现在扁平请求体中时不应作为工具参数传递
-NON_PARAM_KEYS = {"parameters", "parameters_json", "tool"}
+# token 在请求体中的可接受键名（Coze 试运行面板的形态）
+TOKEN_BODY_KEYS = ("X-Context-Token", "x-context-token", "context_token",
+                   "X-Context-Token ".strip())
+
+# 非参数键：出现在请求体中时不应作为工具参数传递
+NON_PARAM_KEYS = {"parameters", "parameters_json", "tool"} | set(TOKEN_BODY_KEYS)
 
 # 静态调试密钥模式（仅调试用；默认关闭）
 # 打开后，X-Context-Token 可以直接填 TOOL_CONTEXT_SECRET 的值本身，
@@ -42,12 +48,32 @@ def _debug_regions() -> list[str]:
     return [r.strip() for r in raw.split(",") if r.strip()]
 
 
-def _verify(request: Request) -> dict:
+async def read_body(request: Request) -> dict:
+    """容错读取请求体：空体 / 非 JSON → 返回 {}（不因 Coze 不发 body 而失败）。"""
+    try:
+        body = await request.json()
+    except Exception:  # noqa: BLE001 — 空体或非法 JSON 一律按空参数处理
+        return {}
+    return body if isinstance(body, dict) else {}
+
+
+def _header_token(request: Request, body: dict) -> str:
+    token = request.headers.get("x-context-token") or ""
+    if token:
+        return token
+    for key in TOKEN_BODY_KEYS:
+        val = body.get(key)
+        if isinstance(val, str) and val:
+            return val
+    return ""
+
+
+def _verify(request: Request, body: dict) -> dict:
     secret = _secret()
     if not secret:
         raise HTTPException(503, "本服务未配置 TOOL_CONTEXT_SECRET，工具接口不可用。"
                                  "请在部署平台的环境变量中添加该密钥并重启。")
-    token = request.headers.get("x-context-token")
+    token = _header_token(request, body)
     debug_on = os.environ.get(DEBUG_FLAG) == "1"
     if token and hmac.compare_digest(token, secret):
         if debug_on:
@@ -87,8 +113,6 @@ def _check_snapshot(payload: dict):
 
 def _extract_params(body: dict) -> dict:
     """支持扁平 / 嵌套 / JSON 字符串三种传参形态。"""
-    if not isinstance(body, dict):
-        raise HTTPException(400, "请求体必须是 JSON 对象。")
     raw_json = body.get("parameters_json")
     if isinstance(raw_json, str) and raw_json.strip():
         try:
@@ -104,12 +128,23 @@ def _extract_params(body: dict) -> dict:
     return {k: v for k, v in body.items() if k not in NON_PARAM_KEYS}
 
 
+def _accepted_params(tool_name: str) -> set[str]:
+    handler = tools.TOOL_REGISTRY[tool_name]["handler"]
+    return set(inspect.signature(handler).parameters) - {"ctx"}
+
+
 def _run(tool_name: str, payload: dict, params: dict) -> dict:
-    result = tools.call_tool(tool_name, _ctx(payload), params)
+    accepted = _accepted_params(tool_name)
+    clean = {k: v for k, v in params.items() if k in accepted}
+    ignored = sorted(k for k in params if k not in accepted)
+    result = tools.call_tool(tool_name, _ctx(payload), clean)
     if not result.get("ok"):
         code = result.get("code")
         status = 400 if code in ("bad_input", "bad_ref") else 403
         raise HTTPException(status, result.get("error", "工具执行失败"))
+    if ignored:
+        # 多余参数不阻断调用，但在响应里回报，便于排查 Coze 传参形态
+        result["ignored_params"] = ignored
     return result
 
 
@@ -120,9 +155,9 @@ async def dispatch_tool(request: Request):
     请求：{"tool": "get_company_context", "parameters_json": "{\"scode\":\"002860\"}"}
     响应：{"ok": true, "tool": "...", "result": {目标工具返回体}}
     """
-    payload = _verify(request)
-    body = await request.json()
-    tool_name = (body.get("tool") or "").strip() if isinstance(body, dict) else ""
+    body = await read_body(request)
+    payload = _verify(request, body)
+    tool_name = str(body.get("tool") or "").strip()
     if not tool_name:
         raise HTTPException(400, "缺少 tool 参数（目标工具名）。")
     if tool_name not in tools.TOOL_REGISTRY:
@@ -137,8 +172,8 @@ async def dispatch_tool(request: Request):
 async def call_http_tool(tool_name: str, request: Request):
     if tool_name == "dispatch":
         raise HTTPException(400, "请直接调用 /api/v1/tools/dispatch。")
-    payload = _verify(request)
-    body = await request.json()
+    body = await read_body(request)
+    payload = _verify(request, body)
     params = _extract_params(body)
     _check_snapshot(payload)
     return _run(tool_name, payload, params)
