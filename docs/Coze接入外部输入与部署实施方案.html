@@ -158,6 +158,8 @@ tr:last-child td { border-bottom: none; }
 td .ok-mark { color: var(--green); font-weight: 700; }
 td .todo-mark { color: var(--orange); font-weight: 700; }
 td .no-mark { color: var(--red); font-weight: 700; }
+.req { color: var(--red); font-weight: 700; white-space: nowrap; }
+.opt { color: var(--text-dim); white-space: nowrap; }
 
 /* ── CHECKLIST ── */
 .checklist { list-style: none; margin: 10px 0 !important; }
@@ -232,10 +234,16 @@ td .no-mark { color: var(--red); font-weight: 700; }
   </div>
   <div class="sidebar-group">
     <div class="sidebar-group-label">Phase 4 · 工作流搭建与发布</div>
-    <a href="#p4s1" class="sidebar-item"><span class="num" style="background:#2d1545;color:#f778ba;">11</span>新建工作流（9 节点）</a>
-    <a href="#p4s2" class="sidebar-item"><span class="num" style="background:#2d1545;color:#f778ba;">12</span>大模型节点提示词</a>
-    <a href="#p4s3" class="sidebar-item"><span class="num" style="background:#2d1545;color:#f778ba;">13</span>插件节点与 context_token</a>
-    <a href="#p4s4" class="sidebar-item"><span class="num" style="background:#2d1545;color:#f778ba;">14</span>代码节点自检</a>
+    <a href="#p4s1" class="sidebar-item"><span class="num" style="background:#2d1545;color:#f778ba;">11</span>新建工作流 + 描述</a>
+    <a href="#n01" class="sidebar-item"><span class="num" style="background:#2d1545;color:#f778ba;">N01</span>开始节点变量</a>
+    <a href="#n02" class="sidebar-item"><span class="num" style="background:#2d1545;color:#f778ba;">N02</span>意图与参数</a>
+    <a href="#n03" class="sidebar-item"><span class="num" style="background:#2d1545;color:#f778ba;">N03</span>上下文决议</a>
+    <a href="#n04" class="sidebar-item"><span class="num" style="background:#2d1545;color:#f778ba;">N04</span>工具路由</a>
+    <a href="#n05" class="sidebar-item"><span class="num" style="background:#2d1545;color:#f778ba;">N05</span>事实检索</a>
+    <a href="#n06" class="sidebar-item"><span class="num" style="background:#2d1545;color:#f778ba;">N06</span>资料检索</a>
+    <a href="#n07" class="sidebar-item"><span class="num" style="background:#2d1545;color:#f778ba;">N07</span>AI 分析</a>
+    <a href="#n08" class="sidebar-item"><span class="num" style="background:#2d1545;color:#f778ba;">N08</span>自检整理</a>
+    <a href="#n09" class="sidebar-item"><span class="num" style="background:#2d1545;color:#f778ba;">N09</span>结束输出</a>
     <a href="#p4s5" class="sidebar-item"><span class="num" style="background:#2d1545;color:#f778ba;">15</span>试运行与发布</a>
   </div>
   <div class="sidebar-group">
@@ -254,6 +262,7 @@ td .no-mark { color: var(--red); font-weight: 700; }
     <div class="sidebar-group-label">附录</div>
     <a href="#appendix1" class="sidebar-item"><span class="num" style="background:#1a1e24;color:#8b949e;">A</span>与 kg_api 实施对照</a>
     <a href="#appendix2" class="sidebar-item"><span class="num" style="background:#1a1e24;color:#8b949e;">B</span>最终检查清单</a>
+    <a href="#appendix3" class="sidebar-item"><span class="num" style="background:#1a1e24;color:#8b949e;">C</span>工具试跑速查表</a>
   </div>
 </nav>
 
@@ -798,26 +807,52 @@ python -X utf8 scripts/make_token.py --tools resolve_company,get_company_context
   <div class="phase-header" style="margin-top:0;">
     <div class="phase-num bg-pink">STEP 11</div>
     <div>
-      <div class="phase-title">新建工作流（9 节点）</div>
-      <div class="phase-sub">完整节点配置见 coze/workflow_design.md，这里给搭建顺序与要点</div>
+      <div class="phase-title">新建工作流 + 填写工作流描述</div>
+      <div class="phase-sub">下面 N01—N09 每节都给出该节点要建的变量名、类型、必填标记与来源，照着填即可搭完</div>
     </div>
   </div>
   <div class="step">
-    <div class="step-head"><span class="dot dot-blue"></span><b>工作流 → 创建工作流</b><span class="tag">WORKFLOW</span></div>
+    <div class="step-head"><span class="dot dot-blue"></span><b>创建工作流</b><span class="tag">CREATE</span></div>
     <div class="step-body">
-      <p>名称：<b>数智链海出海助手</b>；按顺序放置节点：</p>
+      <p>资源库 → 工作流 → 创建工作流，名称：<b>数智链海出海助手</b>。</p>
+      <p><b>工作流描述</b>（必填，限 600 字；作用是让大模型知道“什么情况下调用它”，直接粘贴）：</p>
+      <div class="code-wrap">
+        <div class="code-header"><span class="lang">TEXT</span><span class="fname">工作流描述</span></div>
+        <pre>当客户经理要了解某家电气设备/光伏企业的出海情况、解释某企业为何值得关注、比较两家企业，
+或需要一份访前拜访方案与拜访问题清单时，调用本工作流。
+
+典型问法：“这家公司值得关注什么？”“它为什么入选？”“比较这两家，优先拜访谁？”
+“帮我做一份以结算服务为主的拜访方案”“找江苏有产能部署的光伏企业”。
+
+输入：用户问题、当前企业代码与年份、前几轮对话摘要、服务偏好、通行证 context_token。
+输出：分类回答（已知事实/需求假设/候选服务/待核实事项/行动建议）、候选服务及其依据引用、拜访问题清单。
+所有企业名称、数字与原文均来自受控数据库，不编造；资料不足时明确列出待核实事项。
+不用于闲聊，不代替人工授信审批。</pre>
+      </div>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-head"><span class="dot dot-blue"></span><b>9 个节点总览（本节往下逐节点给字段）</b><span class="tag">OVERVIEW</span></div>
+    <div class="step-body">
       <table>
-        <tr><th>节点</th><th>类型</th><th>输入</th><th>处理 / 输出</th></tr>
-        <tr><td>N01 开始</td><td>开始</td><td>message、page_context、history_summary、preferences、<b>context_token</b>、data_snapshot、product_version、tools_base_url、allowed_tools、max_tool_calls、max_compare_companies</td><td>透传，验证必要参数（变量名须与后端入参一致）</td></tr>
-        <tr><td>N02 意图与参数</td><td>大模型</td><td>message、page_context、history_summary</td><td>intent / 企业指代 / 年份 / 筛选 / 方案偏好（结构化任务，不作业务结论）</td></tr>
-        <tr><td>N03 上下文决议</td><td>大模型</td><td>N02 + 后端会话状态</td><td>明确企业、年份；歧义走澄清分支</td></tr>
-        <tr><td>N04 工具路由</td><td>条件分支</td><td>intent</td><td>search / explain / compare / plan / clarify</td></tr>
-        <tr><td>N05 事实检索</td><td>插件</td><td>参数 + context_token</td><td>facts、evidence_refs、coverage</td></tr>
-        <tr><td>N06 资料检索</td><td>插件</td><td>行动与服务范围</td><td>product_refs、适用条件</td></tr>
-        <tr><td>N07 AI 分析</td><td>大模型</td><td>N05、N06、偏好</td><td>综合行动/画像/产品条件 → 结构化分析草稿</td></tr>
-        <tr><td>N08 自检/格式整理</td><td>代码 + 大模型</td><td>草稿</td><td>检查事实引用、未知字段、类型格式 → analysis_draft</td></tr>
-        <tr><td>N09 结束</td><td>结束（文本）</td><td>标准结果</td><td>返回完整 JSON 结果包，交给后端校验与发布</td></tr>
+        <tr><th>节点</th><th>类型</th><th>作用</th><th>必填变量</th><th>详细配置</th></tr>
+        <tr><td>N01 开始</td><td>开始</td><td>接收调用方入参</td><td><span class="req">message</span>、<span class="req">context_token</span></td><td><a href="#n01" style="color:var(--blue)">N01 变量表</a></td></tr>
+        <tr><td>N02 意图与参数</td><td>大模型</td><td>判断用户想做什么</td><td><span class="req">message</span></td><td><a href="#n02" style="color:var(--blue)">N02 输入输出</a></td></tr>
+        <tr><td>N03 上下文决议</td><td>大模型</td><td>定企业、定年份</td><td><span class="req">need_clarify</span>（出参）</td><td><a href="#n03" style="color:var(--blue)">N03 输入输出</a></td></tr>
+        <tr><td>N04 工具路由</td><td>条件分支</td><td>按意图分流</td><td>—</td><td><a href="#n04" style="color:var(--blue)">N04 分支条件</a></td></tr>
+        <tr><td>N05 事实检索</td><td>插件</td><td>查企业事实</td><td><span class="req">X-Context-Token</span>、<span class="req">scode</span> 等</td><td><a href="#n05" style="color:var(--blue)">N05 三种工具参数</a></td></tr>
+        <tr><td>N06 资料检索</td><td>插件</td><td>查产品/地区资料</td><td><span class="req">X-Context-Token</span></td><td><a href="#n06" style="color:var(--blue)">N06 参数表</a></td></tr>
+        <tr><td>N07 AI 分析</td><td>大模型</td><td>生成结构化分析</td><td><span class="req">facts</span>、<span class="req">message</span></td><td><a href="#n07" style="color:var(--blue)">N07 输入输出</a></td></tr>
+        <tr><td>N08 自检整理</td><td>代码</td><td>格式检查</td><td><span class="req">draft</span></td><td><a href="#n08" style="color:var(--blue)">N08 代码</a></td></tr>
+        <tr><td>N09 结束</td><td>结束</td><td>输出 JSON</td><td><span class="req">clean_draft</span></td><td><a href="#n09" style="color:var(--blue)">N09 输出设置</a></td></tr>
       </table>
+      <div class="callout ok">
+        <div class="icon">✅</div>
+        <div class="body"><strong>建议的搭建顺序（每加一段都能立刻验证）：</strong>
+        先连最短链路 <code>N01 → N05（get_company_context） → N07 → N09</code> 跑通，确认能返回 JSON；
+        再补 <code>N02 → N03 → N04</code> 的分支；最后加 <code>N06</code> 与 <code>N08</code>。
+        一次搭完九个节点出问题时很难定位，分段验证最快。</div>
+      </div>
       <div class="callout info">
         <div class="icon">ℹ️</div>
         <div class="body">按方案第 6 章：单一主流程，<b>不引入多个自治智能体</b>；N08 是辅助检查，<b>不能替代后端验证</b>（后端校验、生成 analysis_id、构建光球才是正式发布步骤）。</div>
@@ -826,72 +861,291 @@ python -X utf8 scripts/make_token.py --tools resolve_company,get_company_context
   </div>
 </section>
 
-<!-- ══ P4S2 ══ -->
-<section id="p4s2">
+<!-- ══ N01 ══ -->
+<section id="n01">
   <div class="phase-header">
-    <div class="phase-num bg-pink">STEP 12</div>
+    <div class="phase-num bg-pink">N01</div>
     <div>
-      <div class="phase-title">大模型节点提示词</div>
-      <div class="phase-sub">直接使用 coze/prompts/ 下的版本化提示词</div>
+      <div class="phase-title">开始节点 · 声明全部输入变量</div>
+      <div class="phase-sub">拖入「开始」节点，按下面的表逐个新建变量。<b>变量名必须一字不差</b>——后端就是按这些名字传值的。</div>
     </div>
   </div>
   <div class="step">
-    <div class="step-head"><span class="dot dot-blue"></span><b>提示词文件映射</b><span class="tag">PROMPTS</span></div>
+    <div class="step-head"><span class="dot dot-blue"></span><b>输入变量清单</b><span class="tag">START</span></div>
     <div class="step-body">
       <table>
-        <tr><th>节点</th><th>提示词文件</th><th>要点</th></tr>
-        <tr><td>N02 意图与参数</td><td><code>coze/prompts/intent.md</code></td><td>“最近”=最新可用数据年度；指代绑定上一条结果集稳定ID，不按重排序名单猜测</td></tr>
-        <tr><td>N03 上下文决议 / 澄清</td><td><code>coze/prompts/clarify.md</code></td><td>同名候选必须让经理确认；不提前生成方案</td></tr>
-        <tr><td>N07 AI 分析</td><td><code>coze/prompts/analyze.md</code></td><td>五类分区：已知事实/需求假设/候选服务/待核实事项/行动建议；只引用本轮允许的 ref</td></tr>
-        <tr><td>N07（plan 分支）</td><td><code>coze/prompts/plan.md</code></td><td>偏好只改候选范围与顺序；placeholder 卡只列讨论方向；地区资料冲突展示差异</td></tr>
+        <tr><th>变量名</th><th>类型</th><th>必填</th><th>说明</th><th>试运行时填</th></tr>
+        <tr><td><code>message</code></td><td>String</td><td><span class="req">★必填</span></td><td>用户这一句话</td><td><code>这家公司值得关注什么？</code></td></tr>
+        <tr><td><code>context_token</code></td><td>String</td><td><span class="req">★必填</span></td><td>通行证。上线后由后端每轮自动签发</td><td><code>G-KEY</code>（你的密钥）</td></tr>
+        <tr><td><code>page_context</code></td><td>Object</td><td><span class="opt">可选</span></td><td>页面上下文，子字段见下方</td><td>留空</td></tr>
+        <tr><td><code>history_summary</code></td><td>String</td><td><span class="opt">可选</span></td><td>前几轮对话摘要（理解“第二家”“它”）</td><td>留空</td></tr>
+        <tr><td><code>preferences</code></td><td>Object</td><td><span class="opt">可选</span></td><td>经理偏好，子字段见下方</td><td>留空</td></tr>
+        <tr><td><code>data_snapshot</code></td><td>String</td><td><span class="opt">可选</span></td><td>数据快照 ID（版本校验用）</td><td>留空</td></tr>
+        <tr><td><code>product_version</code></td><td>String</td><td><span class="opt">可选</span></td><td>产品资料版本</td><td>留空</td></tr>
+        <tr><td><code>tools_base_url</code></td><td>String</td><td><span class="opt">可选</span></td><td>工具服务地址</td><td>留空</td></tr>
+        <tr><td><code>allowed_tools</code></td><td>Array&lt;String&gt;</td><td><span class="opt">可选</span></td><td>允许调用的工具清单</td><td>留空</td></tr>
+        <tr><td><code>max_tool_calls</code></td><td>Integer</td><td><span class="opt">可选</span></td><td>工具调用上限（默认 6）</td><td>留空</td></tr>
+        <tr><td><code>max_compare_companies</code></td><td>Integer</td><td><span class="opt">可选</span></td><td>对比企业数上限（默认 3）</td><td>留空</td></tr>
       </table>
-      <div class="callout gold">
-        <div class="icon">◈</div>
-        <div class="body">N02 输出 JSON 模板（复制进大模型节点的输出格式）：<br>
-        <code>{"intent": "search|explain|compare|plan|clarify|general", "companies": [{"scode": "002860"}], "year": 2023, "filters": {"province": "江苏省", "industry": "光伏", "direction": "capacity_production"}, "service_preferences": {"service_focus": ["settlement"], "exclude_financing": true}}</code></div>
+      <p><b>两个 Object 变量的子字段</b>（在变量编辑里为它们添加子字段）：</p>
+      <table>
+        <tr><th>父变量</th><th>子字段</th><th>类型</th><th>说明</th></tr>
+        <tr><td rowspan="3"><code>page_context</code></td><td><code>scode</code></td><td>String</td><td>当前企业 6 位代码，如 <code>002860</code></td></tr>
+        <tr><td><code>year</code></td><td>Integer</td><td>当前选定年度，如 <code>2023</code></td></tr>
+        <tr><td><code>view</code></td><td>String</td><td>页面标识，如 <code>company</code></td></tr>
+        <tr><td rowspan="2"><code>preferences</code></td><td><code>service_focus</code></td><td>Array&lt;String&gt;</td><td>重点关注的服务，如 <code>settlement</code></td></tr>
+        <tr><td><code>exclude_financing</code></td><td>Boolean</td><td>是否排除融资类服务</td></tr>
+      </table>
+      <div class="callout ok">
+        <div class="icon">✅</div>
+        <div class="body"><b>试运行最小填法</b>：只填 <code>message</code> 与 <code>context_token</code> 两个必填项，其余留空也能跑通整条链路。</div>
       </div>
     </div>
   </div>
 </section>
 
-<!-- ══ P4S3 ══ -->
-<section id="p4s3">
+<!-- ══ N02 ══ -->
+<section id="n02">
   <div class="phase-header">
-    <div class="phase-num bg-pink">STEP 13</div>
+    <div class="phase-num bg-pink">N02</div>
     <div>
-      <div class="phase-title">插件节点与 context_token</div>
-      <div class="phase-sub">N05/N06 绑定 STEP 8 插件；token 由工作流变量透传</div>
+      <div class="phase-title">意图与参数 · 大模型节点</div>
+      <div class="phase-sub">判断用户想干什么。提示词：<code>coze/prompts/intent.md</code></div>
     </div>
   </div>
   <div class="step">
-    <div class="step-head"><span class="dot dot-blue"></span><b>插件节点配置</b><span class="tag">NODES</span></div>
+    <div class="step-head"><span class="dot dot-blue"></span><b>输入（引用开始节点的变量）</b><span class="tag">INPUT</span></div>
     <div class="step-body">
-      <ol>
-        <li><b>N05 事实检索</b>：按 intent 分别调用 <code>get_company_context</code>（explain/plan）、<code>search_companies</code>（search）、<code>compare_companies</code>（compare）、<code>get_evidence</code>（按需）；输入参数取自 N02/N03 的变量。</li>
-        <li><b>N06 资料检索</b>：<code>get_rule_candidates</code> + <code>search_product_knowledge</code> + <code>search_regional_knowledge</code>（地区资料由 token 权限决定，不传地区ID）。</li>
-        <li><b>Header 传 token（关键一步）</b>：在插件节点的参数面板里，把 <code>X-Context-Token</code> 的值设为
-          <b>引用 → 开始节点 → <code>context_token</code></b>（见 STEP 9 的四步表格）。开始节点必须已声明该同名变量。</li>
-        <li>token 每轮由项目后端签发（10 分钟有效、绑定用户/地区/快照/允许工具），工作流自身不生成 token、也不改写它。</li>
-      </ol>
+      <table>
+        <tr><th>输入变量名</th><th>类型</th><th>必填</th><th>引用自</th></tr>
+        <tr><td><code>message</code></td><td>String</td><td><span class="req">★必填</span></td><td>开始节点 → <code>message</code></td></tr>
+        <tr><td><code>page_context</code></td><td>Object</td><td><span class="opt">可选</span></td><td>开始节点 → <code>page_context</code></td></tr>
+        <tr><td><code>history_summary</code></td><td>String</td><td><span class="opt">可选</span></td><td>开始节点 → <code>history_summary</code></td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-head"><span class="dot dot-blue"></span><b>输出格式（选 JSON，逐个添加字段）</b><span class="tag">OUTPUT</span></div>
+    <div class="step-body">
+      <table>
+        <tr><th>字段名</th><th>类型</th><th>必填</th><th>取值范围 / 说明</th></tr>
+        <tr><td><code>intent</code></td><td>String</td><td><span class="req">★必填</span></td><td>只能是 <code>search</code> / <code>explain</code> / <code>compare</code> / <code>plan</code> / <code>clarify</code> / <code>general</code></td></tr>
+        <tr><td><code>companies</code></td><td>Array&lt;Object&gt;</td><td><span class="opt">可选</span></td><td>元素子字段：<code>scode</code>(String)</td></tr>
+        <tr><td><code>year</code></td><td>Integer</td><td><span class="opt">可选</span></td><td>用户提到的年份</td></tr>
+        <tr><td><code>filters</code></td><td>Object</td><td><span class="opt">可选</span></td><td>子字段：<code>province</code>、<code>industry</code>、<code>direction</code>（均为 String）</td></tr>
+        <tr><td><code>service_preferences</code></td><td>Object</td><td><span class="opt">可选</span></td><td>子字段：<code>service_focus</code>(Array&lt;String&gt;)、<code>exclude_financing</code>(Boolean)</td></tr>
+      </table>
+      <div class="callout info">
+        <div class="icon">ℹ️</div>
+        <div class="body">提示词里已写死三条约束：<b>“最近”=最新可用年度（不擅称实时）</b>；<b>“前两家/第二家”只绑定上一条工具结果集的稳定 ID</b>；<b>企业不明确时 intent 必须为 clarify</b>。</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ N03 ══ -->
+<section id="n03">
+  <div class="phase-header">
+    <div class="phase-num bg-pink">N03</div>
+    <div>
+      <div class="phase-title">上下文决议 · 大模型节点</div>
+      <div class="phase-sub">确定“是哪家企业、哪一年”。提示词：<code>coze/prompts/clarify.md</code></div>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-head"><span class="dot dot-blue"></span><b>输入 / 输出</b><span class="tag">NODE</span></div>
+    <div class="step-body">
+      <table>
+        <tr><th>方向</th><th>变量名</th><th>类型</th><th>必填</th><th>引用自 / 说明</th></tr>
+        <tr><td>输入</td><td><code>intent_result</code></td><td>Object</td><td><span class="req">★必填</span></td><td>N02 的整个输出</td></tr>
+        <tr><td>输入</td><td><code>page_context</code></td><td>Object</td><td><span class="opt">可选</span></td><td>开始节点 → <code>page_context</code>（页面上的企业优先）</td></tr>
+        <tr><td>输出</td><td><code>scode</code></td><td>String</td><td><span class="opt">可选</span></td><td>已确认的 6 位企业代码</td></tr>
+        <tr><td>输出</td><td><code>year</code></td><td>Integer</td><td><span class="opt">可选</span></td><td>已确认的年度</td></tr>
+        <tr><td>输出</td><td><code>need_clarify</code></td><td>Boolean</td><td><span class="req">★必填</span></td><td>是否要反问用户</td></tr>
+        <tr><td>输出</td><td><code>clarify_message</code></td><td>String</td><td><span class="opt">可选</span></td><td>反问的话，例如“请选择要分析的企业…”</td></tr>
+      </table>
       <div class="callout warn">
         <div class="icon">⚠️</div>
-        <div class="body">“未接通外网工具服务时可先由后端预取当前企业证据包传给工作流”——本项目网关已内置此降级：即使工具服务异常，后端仍可把 <code>get_company_context</code> 结果直接塞进工作流参数，此模式会标注功能限制，不假装可查询所有企业（方案 5.2）。</div>
+        <div class="body"><code>need_clarify</code> 必须建，N04 分支要用它。优先级：<b>用户本轮明确要求 &gt; 页面上下文 &gt; 历史默认值</b>。</div>
       </div>
     </div>
   </div>
 </section>
 
-<!-- ══ P4S4 ══ -->
-<section id="p4s4">
+<!-- ══ N04 ══ -->
+<section id="n04">
   <div class="phase-header">
-    <div class="phase-num bg-pink">STEP 14</div>
+    <div class="phase-num bg-pink">N04</div>
     <div>
-      <div class="phase-title">代码节点自检（N08）</div>
-      <div class="phase-sub">JS 代码节点：字段白名单、ref 前缀、未知字段剔除</div>
+      <div class="phase-title">工具路由 · 条件分支节点</div>
+      <div class="phase-sub">按意图分流。分支条件全部引用 N02/N03 的输出变量</div>
     </div>
   </div>
   <div class="step">
-    <div class="step-head"><span class="dot dot-blue"></span><b>代码节点（JavaScript）</b><span class="tag">CODE NODE</span></div>
+    <div class="step-head"><span class="dot dot-blue"></span><b>分支设置</b><span class="tag">BRANCH</span></div>
+    <div class="step-body">
+      <table>
+        <tr><th>分支名</th><th>条件</th><th>去向</th></tr>
+        <tr><td>找企业</td><td><code>N02.intent</code> 等于 <code>search</code></td><td>N05（工具选 <code>search_companies</code>）</td></tr>
+        <tr><td>解释 / 方案</td><td><code>N02.intent</code> 等于 <code>explain</code>，或 等于 <code>plan</code></td><td>N05（工具选 <code>get_company_context</code>）</td></tr>
+        <tr><td>对比</td><td><code>N02.intent</code> 等于 <code>compare</code></td><td>N05（工具选 <code>compare_companies</code>）</td></tr>
+        <tr><td>澄清</td><td><code>N03.need_clarify</code> 为 true</td><td>直接连 N09（不生成方案）</td></tr>
+        <tr><td>其他（兜底）</td><td>以上都不满足</td><td>直接连 N09</td></tr>
+      </table>
+      <div class="callout info"><div class="icon">ℹ️</div><div class="body">Coze 条件分支支持“多条件多分支”。若你的版本只能二选一，就用多个分支节点串联，条件写法不变。</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ N05 ══ -->
+<section id="n05">
+  <div class="phase-header">
+    <div class="phase-num bg-pink">N05</div>
+    <div>
+      <div class="phase-title">事实检索 · 插件节点</div>
+      <div class="phase-sub">调第 3 阶段建好的插件。按 N04 的分支选择不同工具</div>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-head"><span class="dot dot-blue"></span><b>公共前提：X-Context-Token</b><span class="tag">必填</span></div>
+    <div class="step-body">
+      <table>
+        <tr><th>参数名</th><th>必填</th><th>值</th></tr>
+        <tr><td><code>X-Context-Token</code></td><td><span class="req">★必填</span></td><td>先点参数右侧的「模型不可见」，值填 <code>{{context_token}}</code>（引用开始节点）</td></tr>
+      </table>
+      <div class="callout warn"><div class="icon">⚠️</div><div class="body">每个插件节点都要单独设一次这个 Header。<b>不要让模型自己填</b>，否则会被改写导致 403。</div></div>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-head"><span class="dot dot-blue"></span><b>① 解释 / 方案分支：get_company_context</b><span class="tag">TOOL</span></div>
+    <div class="step-body">
+      <table>
+        <tr><th>参数名</th><th>类型</th><th>必填</th><th>值 / 引用</th><th>试运行填</th></tr>
+        <tr><td><code>X-Context-Token</code></td><td>String</td><td><span class="req">★必填</span></td><td><code>{{context_token}}</code></td><td><code>G-KEY</code></td></tr>
+        <tr><td><code>scode</code></td><td>String</td><td><span class="req">★必填</span></td><td>引用 <code>N03.scode</code></td><td><code>002860</code></td></tr>
+        <tr><td><code>year</code></td><td>Integer</td><td><span class="opt">可选</span></td><td>引用 <code>N03.year</code></td><td>留空</td></tr>
+        <tr><td><code>snapshot_id</code></td><td>String</td><td><span class="opt">可选</span></td><td>引用 <code>data_snapshot</code></td><td>留空</td></tr>
+      </table>
+      <p><b>关键输出字段</b>（N07 会引用）：<code>coname</code>、<code>year</code>、<code>window</code>、<code>panel</code>、<code>sc</code>、<code>capability</code>、<code>signal_refs</code>（含 <code>evidence_ref</code>）、<code>rule_candidates</code>（含 <code>product_ref</code>、<code>card_status</code>）、<code>coverage</code></p>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-head"><span class="dot dot-blue"></span><b>② 找企业分支：search_companies</b><span class="tag">TOOL</span></div>
+    <div class="step-body">
+      <table>
+        <tr><th>参数名</th><th>类型</th><th>必填</th><th>值 / 引用</th><th>试运行填</th></tr>
+        <tr><td><code>X-Context-Token</code></td><td>String</td><td><span class="req">★必填</span></td><td><code>{{context_token}}</code></td><td><code>G-KEY</code></td></tr>
+        <tr><td><code>province</code></td><td>String</td><td><span class="opt">可选</span></td><td>引用 <code>N02.filters.province</code></td><td><code>江苏省</code></td></tr>
+        <tr><td><code>industry</code></td><td>String</td><td><span class="opt">可选</span></td><td>引用 <code>N02.filters.industry</code></td><td><code>光伏</code></td></tr>
+        <tr><td><code>year</code></td><td>Integer</td><td><span class="opt">可选</span></td><td>引用 <code>N02.year</code></td><td>留空</td></tr>
+        <tr><td><code>direction</code></td><td>String</td><td><span class="opt">可选</span></td><td>引用 <code>N02.filters.direction</code></td><td><code>capacity_production</code></td></tr>
+        <tr><td><code>page</code> / <code>page_size</code></td><td>Integer</td><td><span class="opt">可选</span></td><td>留空（默认 1 / 20）</td><td>留空</td></tr>
+      </table>
+      <p><b>关键输出字段</b>：<code>total</code>（真实总数）、<code>items</code>（企业列表，含 <code>scode</code>、<code>coname</code>）、<code>filter_explanation</code></p>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-head"><span class="dot dot-blue"></span><b>③ 对比分支：compare_companies</b><span class="tag">TOOL</span></div>
+    <div class="step-body">
+      <table>
+        <tr><th>参数名</th><th>类型</th><th>必填</th><th>值 / 引用</th><th>试运行填</th></tr>
+        <tr><td><code>X-Context-Token</code></td><td>String</td><td><span class="req">★必填</span></td><td><code>{{context_token}}</code></td><td><code>G-KEY</code></td></tr>
+        <tr><td><code>scodes</code></td><td>Array&lt;String&gt;</td><td><span class="req">★必填（2—3 项）</span></td><td>引用 <code>N02.companies</code> 里的代码</td><td>两项：<code>002860</code>、<code>300670</code></td></tr>
+        <tr><td><code>year</code></td><td>Integer</td><td><span class="req">★必填</span></td><td>引用 <code>N03.year</code>（同一口径）</td><td><code>2023</code></td></tr>
+        <tr><td><code>fields</code></td><td>Array&lt;String&gt;</td><td><span class="opt">可选</span></td><td>留空</td><td>留空</td></tr>
+      </table>
+      <div class="callout err"><div class="icon">❗</div><div class="body"><code>scodes</code> 是数组：在试运行面板要点 <b>「+」两次</b>分别填两个代码，不能把两个代码写在一格里，也不能只填一个（后端会返回“对比至少需要两家企业”）。</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ N06 ══ -->
+<section id="n06">
+  <div class="phase-header">
+    <div class="phase-num bg-pink">N06</div>
+    <div>
+      <div class="phase-title">资料检索 · 插件节点</div>
+      <div class="phase-sub">查产品资料与地区资料，为主分析提供“服务依据”</div>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-head"><span class="dot dot-blue"></span><b>search_product_knowledge</b><span class="tag">TOOL</span></div>
+    <div class="step-body">
+      <table>
+        <tr><th>参数名</th><th>类型</th><th>必填</th><th>值 / 引用</th><th>试运行填</th></tr>
+        <tr><td><code>X-Context-Token</code></td><td>String</td><td><span class="req">★必填</span></td><td><code>{{context_token}}</code></td><td><code>G-KEY</code></td></tr>
+        <tr><td><code>service_focus</code></td><td>Array&lt;String&gt;</td><td><span class="opt">可选</span></td><td>引用 <code>preferences.service_focus</code></td><td>一项：<code>settlement</code></td></tr>
+        <tr><td><code>actions</code></td><td>Array&lt;String&gt;</td><td><span class="opt">可选</span></td><td>引用 <code>N02.filters.direction</code></td><td><code>market_expansion</code></td></tr>
+        <tr><td><code>country</code></td><td>String</td><td><span class="opt">可选</span></td><td>留空（目标国需人工核实）</td><td>留空</td></tr>
+        <tr><td><code>as_of</code></td><td>String</td><td><span class="opt">可选</span></td><td>引用 <code>data_snapshot</code></td><td>留空</td></tr>
+      </table>
+      <p><b>关键输出字段</b>：<code>total</code>、<code>cards</code>（含 <code>ref_id</code>、<code>status</code>）、<code>detail</code>（含 <code>conditions</code>、<code>need_verify</code>）</p>
+      <div class="callout info"><div class="icon">ℹ️</div><div class="body">数组字段（<code>service_focus</code>、<code>actions</code>）同样要点「+」逐项添加。想查地区资料时，再加一个插件节点调用 <code>search_regional_knowledge</code>，参数 <code>query</code> 引用 <code>message</code>。</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ N07 ══ -->
+<section id="n07">
+  <div class="phase-header">
+    <div class="phase-num bg-pink">N07</div>
+    <div>
+      <div class="phase-title">AI 分析 · 大模型节点</div>
+      <div class="phase-sub">把事实与资料组织成“事实 / 假设 / 候选服务 / 待核实 / 行动建议”。提示词：<code>coze/prompts/analyze.md</code>（plan 分支加 <code>plan.md</code>）</div>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-head"><span class="dot dot-blue"></span><b>输入</b><span class="tag">INPUT</span></div>
+    <div class="step-body">
+      <table>
+        <tr><th>输入变量名</th><th>类型</th><th>必填</th><th>引用自</th></tr>
+        <tr><td><code>facts</code></td><td>Object</td><td><span class="req">★必填</span></td><td>N05 的整个输出</td></tr>
+        <tr><td><code>products</code></td><td>Object</td><td><span class="opt">可选</span></td><td>N06 的整个输出</td></tr>
+        <tr><td><code>message</code></td><td>String</td><td><span class="req">★必填</span></td><td>开始节点 → <code>message</code></td></tr>
+        <tr><td><code>preferences</code></td><td>Object</td><td><span class="opt">可选</span></td><td>开始节点 → <code>preferences</code></td></tr>
+      </table>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-head"><span class="dot dot-blue"></span><b>输出格式（选 JSON）</b><span class="tag">OUTPUT</span></div>
+    <div class="step-body">
+      <table>
+        <tr><th>字段名</th><th>类型</th><th>必填</th><th>子字段 / 取值</th></tr>
+        <tr><td><code>answer_blocks</code></td><td>Array&lt;Object&gt;</td><td><span class="req">★必填</span></td><td><code>kind</code>（<code>fact</code>/<code>hypothesis</code>/<code>product</code>/<code>checklist</code>/<code>note</code>）、<code>text</code>、<code>refs</code>(Array&lt;String&gt;)</td></tr>
+        <tr><td><code>recommendations</code></td><td>Array&lt;Object&gt;</td><td><span class="req">★必填</span></td><td><code>id</code>、<code>product_ref</code>、<code>priority</code>（<code>discussion_first</code>/<code>standard</code>/<code>later</code>/<code>not_applicable</code>）、<code>reason</code>、<code>evidence_refs</code>、<code>product_source_refs</code>、<code>eligibility</code>（<code>eligible</code>/<code>not_eligible</code>/<code>unknown</code>）、<code>missing_conditions</code></td></tr>
+        <tr><td><code>questions</code></td><td>Array&lt;Object&gt;</td><td><span class="opt">可选</span></td><td><code>text</code>、<code>related_recommendation</code></td></tr>
+        <tr><td><code>orbs</code></td><td>Array&lt;Object&gt;</td><td><span class="opt">可选</span></td><td><code>id</code>、<code>kind</code>、<code>label</code>、<code>summary</code>、<code>ref_id</code>、<code>state</code></td></tr>
+        <tr><td><code>warnings</code></td><td>Array&lt;String&gt;</td><td><span class="opt">可选</span></td><td>口径与演示说明</td></tr>
+      </table>
+      <div class="callout warn"><div class="icon">⚠️</div><div class="body">提示词已约束：<b>只能引用 N05/N06 返回里真实存在的 ref</b>；不输出 URL/HTML/脚本；产品库之外的服务只能写“需补充资料的讨论方向”，不得伪造产品ID。</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ N08 ══ -->
+<section id="n08">
+  <div class="phase-header">
+    <div class="phase-num bg-pink">N08</div>
+    <div>
+      <div class="phase-title">自检 / 格式整理 · 代码节点</div>
+      <div class="phase-sub">只做格式检查与字段白名单，不做事实判断</div>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-head"><span class="dot dot-blue"></span><b>入参 / 出参</b><span class="tag">CODE NODE</span></div>
+    <div class="step-body">
+      <table>
+        <tr><th>方向</th><th>参数名</th><th>类型</th><th>必填</th><th>引用自 / 说明</th></tr>
+        <tr><td>入参</td><td><code>draft</code></td><td>String</td><td><span class="req">★必填</span></td><td>N07 的整个输出（JSON 字符串）</td></tr>
+        <tr><td>出参</td><td><code>valid</code></td><td>Boolean</td><td><span class="req">★必填</span></td><td>格式是否合规</td></tr>
+        <tr><td>出参</td><td><code>issues</code></td><td>String</td><td><span class="opt">可选</span></td><td>问题摘要，无问题为空字符串</td></tr>
+        <tr><td>出参</td><td><code>clean_draft</code></td><td>String</td><td><span class="req">★必填</span></td><td>整理后的 JSON 字符串（供 N09 输出）</td></tr>
+      </table>
+      <div class="callout warn"><div class="icon">⚠️</div><div class="body">出参名不要也叫 <code>draft</code>（会与入参同名），按上表用 <code>clean_draft</code>。</div></div>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-head"><span class="dot dot-blue"></span><b>代码（JavaScript，整段粘贴）</b><span class="tag">JS</span></div>
     <div class="step-body">
       <div class="code-wrap">
         <div class="code-header"><span class="lang">JS</span><span class="fname">N08 自检节点</span></div>
@@ -916,13 +1170,38 @@ python -X utf8 scripts/make_token.py --tools resolve_company,get_company_context
     }
   });
   return { valid: issues.length === 0, issues: issues.join('; '),
-           draft: JSON.stringify(draft) };
+           clean_draft: JSON.stringify(draft) };
 }</pre>
       </div>
       <div class="callout info">
         <div class="icon">ℹ️</div>
         <div class="body">N08 只做<b>格式整理</b>；事实引用存在性、年度一致性、产品资格、权限等<b>硬性校验由后端</b> <code>server/analysis_service.py</code> 完成（非法引用不生成光球，方案 12.1）。</div>
       </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ N09 ══ -->
+<section id="n09">
+  <div class="phase-header">
+    <div class="phase-num bg-pink">N09</div>
+    <div>
+      <div class="phase-title">结束节点 · 输出 JSON</div>
+      <div class="phase-sub">后端要按 JSON 解析，所以这里只能输出纯 JSON</div>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-head"><span class="dot dot-blue"></span><b>输出设置</b><span class="tag">END</span></div>
+    <div class="step-body">
+      <table>
+        <tr><th>设置项</th><th>填什么</th></tr>
+        <tr><td>返回模式</td><td><b>返回文本</b></td></tr>
+        <tr><td>输出变量名</td><td><code>clean_draft</code>（类型 String）</td></tr>
+        <tr><td>引用自</td><td><code>N08.clean_draft</code></td></tr>
+        <tr><td>回答内容</td><td>只写 <code>{{clean_draft}}</code></td></tr>
+      </table>
+      <div class="callout err"><div class="icon">❗</div><div class="body">不要在回答内容里加“以下是分析结果”“好的”之类的句子——后端会把整段当 JSON 解析，多一个字符就会解析失败并触发降级。</div></div>
+      <div class="callout ok"><div class="icon">✅</div><div class="body">澄清分支（N04 → N09 直连）时，把回答内容临时设为 <code>{{N03.clarify_message}}</code>；后端会把非 JSON 文本当作澄清消息处理。</div></div>
     </div>
   </div>
 </section>
@@ -1139,6 +1418,61 @@ workflow_id：7484xxxxxxxxxxxxxxx   <span class="cmt"># 发布后从工作流详
         <li><b>额度</b>：AI_MAX_TOOL_CALLS / AI_MAX_COMPARE_COMPANIES / AI_TIMEOUT_SECONDS 为项目内限制，不等同 Coze 平台额度；关注 Coze 控制台的调用统计。</li>
         <li><b>响应时间</b>：接通后实测“首个状态反馈 / 完整答案 / 详情加载”的中位数与较慢分位数，再确定演示阈值，不预先承诺固定秒数（方案 15.2）。</li>
       </ul>
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"><span id="appendix3">附录 C · 工具试跑速查（每个插件填什么）</span></div>
+
+<section id="a3">
+  <div class="step">
+    <div class="step-head"><span class="dot dot-blue"></span><b>9 个工具的必填项与照抄值</b><span class="tag">CHEATSHEET</span></div>
+    <div class="step-body">
+      <p><code>X-Context-Token</code> 是<b>每个工具都必填</b>的 Header，统一填你的密钥（调试期，例如 <code>G-KEY</code>）；
+      工作流里则统一引用 <code>{{context_token}}</code>。下表只列各工具自身的参数。</p>
+      <table>
+        <tr><th>工具</th><th>必填参数</th><th>试运行照抄</th><th>期望结果</th></tr>
+        <tr><td><code>resolve_company</code></td><td><span class="req">query</span></td><td><code>query=002860</code></td><td><code>matches[0].coname</code> = 星帅尔</td></tr>
+        <tr><td><code>search_companies</code></td><td><span class="opt">无</span></td><td><code>province=江苏省</code>、<code>industry=光伏</code>、<code>direction=capacity_production</code>、<code>page_size=5</code></td><td><code>total=45</code>（真实总数）</td></tr>
+        <tr><td><code>get_company_context</code></td><td><span class="req">scode</span></td><td><code>scode=002860</code>、<code>year=2023</code></td><td><code>coname=星帅尔</code>、含 <code>signal_refs</code>、<code>rule_candidates</code></td></tr>
+        <tr><td><code>get_evidence</code></td><td><span class="req">evidence_ref</span></td><td>先跑 <code>get_company_context</code>，把它返回的 <code>signal_refs[0].evidence_ref</code> 整串粘来（形如 <code>ev:v21_c00010547:1:45ca93e985f8</code>）</td><td>返回 <code>text</code>、<code>spans</code>，<code>status=ok</code></td></tr>
+        <tr><td><code>compare_companies</code></td><td><span class="req">scodes</span>（<b>点「+」填两项</b>）、<span class="req">year</span></td><td><code>scodes</code> 两项：<code>002860</code>、<code>300670</code>；<code>year=2023</code></td><td>两家同年度对比表 + <code>compare_ref</code></td></tr>
+        <tr><td><code>get_rule_candidates</code></td><td><span class="req">scode</span></td><td><code>scode=002860</code>、<code>year=2023</code></td><td>候选服务列表（含 <code>rule_id</code>、<code>product_ref</code>）</td></tr>
+        <tr><td><code>search_product_knowledge</code></td><td><span class="opt">无</span></td><td><code>service_focus</code> 点「+」填一项 <code>settlement</code></td><td><code>total=7</code>（不填条件则 15）</td></tr>
+        <tr><td><code>search_regional_knowledge</code></td><td><span class="opt">无</span></td><td><code>query=结算</code></td><td><code>total=1</code>（A 区合成示范资料）</td></tr>
+        <tr><td><code>tools_dispatch</code>（最小版插件）</td><td><span class="req">tool</span></td><td><code>tool=get_company_context</code>、<code>parameters_json={"scode":"002860","year":2023}</code></td><td><code>result.coname</code> = 星帅尔</td></tr>
+      </table>
+      <div class="callout warn">
+        <div class="icon">⚠️</div>
+        <div class="body"><b>数组类字段</b>（<code>scodes</code>、<code>service_focus</code>、<code>actions</code>、<code>directions</code>）必须点字段右侧的 <b>「+」</b>逐项添加，不能把多个值写在一格里；
+        <b>对象/JSON 类字段</b>（<code>parameters_json</code>）要填完整 JSON，例如 <code>{"scode":"002860","year":2023}</code>，不能只填一个值。</div>
+      </div>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-head"><span class="dot dot-blue"></span><b>变量命名对照（后端 ↔ 工作流）</b><span class="tag">NAMING</span></div>
+    <div class="step-body">
+      <p>后端调用工作流时发送的键名（工作流开始节点必须同名声明）：</p>
+      <div class="code-wrap">
+        <div class="code-header"><span class="lang">JSON</span><span class="fname">后端实际发送的 parameters</span></div>
+        <pre>{
+  <span class="key">"message"</span>:        <span class="s">"这家公司值得关注什么？"</span>,
+  <span class="key">"page_context"</span>:   { <span class="key">"scode"</span>: <span class="s">"002860"</span>, <span class="key">"year"</span>: 2023, <span class="key">"view"</span>: <span class="s">"company"</span> },
+  <span class="key">"history_summary"</span>: <span class="s">"经理：... / 助手：..."</span>,
+  <span class="key">"preferences"</span>:    { <span class="key">"service_focus"</span>: [<span class="s">"settlement"</span>], <span class="key">"exclude_financing"</span>: true },
+  <span class="key">"data_snapshot"</span>:  <span class="s">"kb-2023@c080c94c0e56"</span>,
+  <span class="key">"product_version"</span>: <span class="s">"product-cards-v1"</span>,
+  <span class="key">"context_token"</span>:  <span class="s">"eyJ1c2VyX2lk...fQ==.9f3c8a41d0b7..."</span>,
+  <span class="key">"tools_base_url"</span>: <span class="s">"https://&lt;域名&gt;"</span>,
+  <span class="key">"allowed_tools"</span>:  [<span class="s">"resolve_company"</span>, <span class="s">"get_company_context"</span>, ...],
+  <span class="key">"max_tool_calls"</span>: 6,
+  <span class="key">"max_compare_companies"</span>: 3
+}</pre>
+      </div>
+      <div class="callout err">
+        <div class="icon">❗</div>
+        <div class="body">开始节点的变量名<b>大小写与下划线都要一致</b>：<code>context_token</code> 不能写成 <code>contextToken</code>、<code>Context-Token</code> 等；否则后端传的值工作流取不到，插件调用会因无 token 而 403。</div>
+      </div>
     </div>
   </div>
 </section>
