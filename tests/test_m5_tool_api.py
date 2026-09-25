@@ -89,6 +89,16 @@ class TestToolApi(unittest.TestCase):
                        self._token(["get_company_context"]))
         self.assertEqual(r.status_code, 400)
 
+    def test_dispatch_bare_value_hint(self):
+        """把单个值（如企业代码）填进 parameters_json 时，提示要给出正确示例。"""
+        r = self._post("/api/v1/tools/dispatch",
+                       {"tool": "get_company_context", "parameters_json": "002860"},
+                       self._token(["get_company_context"]))
+        self.assertEqual(r.status_code, 400)
+        detail = r.json()["detail"]
+        self.assertIn("scode", detail)
+        self.assertIn("002860", detail)
+
     def test_tool_not_in_allow_list(self):
         """token 的 allowed_tools 收窄：越权工具 403。"""
         r = self._post("/api/v1/tools/compare_companies",

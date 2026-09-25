@@ -301,6 +301,8 @@ def segments(year=None, province=None, industry=None):
     out = []
     for seg, cfg in chain.items():
         codes = {c for c in all_codes if segment_of(c) == seg}
+        if not codes:
+            continue
         dem_codes = {c for c in codes if c in set(dem["scode"])}
         sub = dem[dem["scode"].map(segment_of) == seg]
         out.append({

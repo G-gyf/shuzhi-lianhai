@@ -62,6 +62,9 @@ class TestScopeYear(unittest.TestCase):
         self.assertEqual(sum(x['deploy'] + x['intent'] for x in result['items']), len(logic._claims().query('year == 2018').loc[lambda d:d.program_label.isin(logic.DEMAND_LABELS)]))
 
     def test_all_segments_and_no_unresolved(self):
+        self.assertEqual(logic.segment_of('300750'), '储能与电源')
+        self.assertEqual(logic.segment_of('688063'), '储能与电源')
+        self.assertEqual(logic.segment_of('301155'), '风电设备')
         self.assertEqual(len(logic.radar(industry='电气设备', limit=2000)), len(logic.radar(limit=2000)))
         rows = logic.radar(industry='风电设备', limit=2000)
         self.assertTrue(rows)

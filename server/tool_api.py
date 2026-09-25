@@ -118,9 +118,13 @@ def _extract_params(body: dict) -> dict:
         try:
             parsed = json.loads(raw_json)
         except ValueError:
-            raise HTTPException(400, "parameters_json 不是合法 JSON 字符串。")
+            raise HTTPException(
+                400, "parameters_json 必须是“参数的 JSON 字符串”，不是单个值。"
+                     f'请填例如 {{"scode": "002860", "year": 2023}}；'
+                     f'当前收到的是：{raw_json.strip()[:60]!r}。'
+                     "（也可改用 parameters 对象字段传同样的 JSON。）")
         if not isinstance(parsed, dict):
-            raise HTTPException(400, "parameters_json 解析后必须是对象。")
+            raise HTTPException(400, "parameters_json 解析后必须是对象（形如 {\"scode\": \"002860\"}）。")
         return parsed
     nested = body.get("parameters")
     if isinstance(nested, dict):
