@@ -536,12 +536,64 @@ def prepare_analysis(message: str, user: dict, page: dict, prefs: dict,
 
     if not clean.get("orbs"):
         clean["orbs"] = _default_orbs(clean)
-    clean["orbs"] = _mark_main_orbs(clean["orbs"])
+    # 引擎可能只给了产品球、或在伪引用被剥离后一条证据都不剩；
+    # 此时用确定性证据包补挂（带 supplemented 标记），避免页面上「原文依据」整块消失。
+    if not any(o.get("kind") == "evidence" for o in clean["orbs"]):
+        clean["orbs"] = list(clean["orbs"]) + _supplement_evidence_orbs(clean, ctx, page)
+    clean["orbs"] = _mark_main_orbs(clean["orbs"][:12])
 
     analysis_id = persist(clean, user, request_id, None, engine, workflow_version)
     clean["analysis_id"] = analysis_id
     return {"analysis": clean, "issues": issues, "engine": engine,
             "state": inner_state, "analysis_id": analysis_id}
+
+
+def _supplement_evidence_orbs(clean: dict, ctx: dict, page: dict,
+                              limit: int = 2) -> list[dict]:
+    """引擎未提供任何可回溯原文证据时，用确定性证据包补挂证据球。
+
+    背景（线上事故回归）：生成式引擎可能输出格式合法但不存在的伪引用
+    （如 `ev:item:300827`、`ev:filter_explanation`），后端 `_ref_ok()` 会正确剥离，
+    但结果是页面上「原文依据」光球消失；若引擎又自带了 product 光球，还会让
+    `_default_orbs` 的兜底不执行（`if not clean.get("orbs")`）—— 死结。
+
+    与模型引用**严格区分**：
+    - 补挂球带 `supplemented=True`，label/summary 明示「后端补充、非模型引用」；
+    - **不写回** `answer_blocks[].refs`，不冒充模型的引用；
+    - 引用取自确定性的 `signal_refs`，且逐个再过一次 `_ref_ok()`，保证点得开。
+    """
+    c = clean.get("context") or {}
+    scode = c.get("scode") or page.get("scode")
+    year = c.get("year") or page.get("year")
+    if not scode:
+        return []
+    try:
+        pkg = tools.get_company_context(ctx, scode, year)
+    except Exception:  # noqa: BLE001  补挂失败绝不能影响主流程
+        return []
+    if not pkg.get("ok"):
+        return []
+
+    orbs: list[dict] = []
+    seen: set[str] = set()
+    for r in (pkg.get("signal_refs") or []):
+        ref = r.get("evidence_ref")
+        if not ref or ref in seen or not _ref_ok(ref, ctx):
+            continue
+        seen.add(ref)
+        orbs.append({
+            "id": f"orb_ev_sup_{len(orbs)}",
+            "kind": "evidence",
+            "label": "原文依据（后端补充）",
+            "summary": (f"{pkg.get('year')} 年度披露信号 · "
+                        "后端从确定性证据包补充，非模型引用"),
+            "ref_id": ref,
+            "state": "ready",
+            "supplemented": True,
+        })
+        if len(orbs) >= limit:
+            break
+    return orbs
 
 
 def _default_orbs(draft: dict) -> list[dict]:

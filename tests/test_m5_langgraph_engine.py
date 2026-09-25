@@ -257,6 +257,46 @@ class TestLangGraphEngine(unittest.TestCase):
         os.environ.pop("AI_ENABLED", None)
         self.assertEqual(analysis_service.engine_status()["effective_engine"], "rules-demo")
 
+    # ---- 11) 引擎未给出可回溯原文证据时，后端补挂（且明确标记） ----
+    def test_evidence_orbs_supplemented_when_engine_gives_none(self):
+        """回归：伪引用被剥离后，页面上「原文依据」不能整块消失。
+
+        引擎只给 product 光球、且 refs 为空时，后端应补挂带 supplemented 标记的
+        证据球，并且**不得**把补挂引用写回 answer_blocks（不冒充模型引用）。
+        """
+        STATE["response"] = {"result": json.dumps(self._draft(), ensure_ascii=False)}
+        res = analysis_service.prepare_analysis(
+            "这家公司值得关注什么", self.user, {"scode": "002860", "year": 2023},
+            runtime.get_preferences(self.user["user_id"]), [], {}, "t_lg_sup")
+        a = res["analysis"]
+        ev = [o for o in a["orbs"] if o.get("kind") == "evidence"]
+        self.assertTrue(ev, "应补挂原文证据球，否则用户点不到原文")
+        self.assertTrue(all(o.get("supplemented") for o in ev),
+                        "补挂的证据球必须带 supplemented 标记，以区别于模型引用")
+        self.assertTrue(all(o["ref_id"].startswith("ev:") for o in ev))
+        self.assertIn("后端补充", ev[0]["label"])
+        # 不冒充模型引用：回答块与推荐里的引用集合保持为空
+        self.assertTrue(all(not (b.get("refs") or []) for b in a["answer_blocks"]))
+        self.assertTrue(all(not (r.get("evidence_refs") or [])
+                            for r in a["recommendations"]))
+        # 补挂的引用必须真的能打开
+        ctx = tools.build_context(self.user)
+        self.assertTrue(tools.get_evidence(ctx, ev[0]["ref_id"]).get("ok"))
+
+    def test_no_supplement_when_engine_already_cites_evidence(self):
+        ctx = tools.build_context(self.user)
+        ref = tools.get_company_context(ctx, "002860", 2023)["signal_refs"][0]["evidence_ref"]
+        d = self._draft()
+        d["answer_blocks"][0]["refs"] = [ref]
+        STATE["response"] = {"result": json.dumps(d, ensure_ascii=False)}
+        res = analysis_service.prepare_analysis(
+            "这家公司值得关注什么", self.user, {"scode": "002860", "year": 2023},
+            runtime.get_preferences(self.user["user_id"]), [], {}, "t_lg_sup2")
+        ev = [o for o in res["analysis"]["orbs"] if o.get("kind") == "evidence"]
+        self.assertTrue(ev, "引擎给的合法证据应生成原文球")
+        self.assertFalse(any(o.get("supplemented") for o in ev),
+                         "引擎已给出证据时不应再补挂")
+
     # ---- 6) 非正则措辞：必须交给 AI 引擎，而不是被本地规则引擎"接住" ----
     def test_non_regex_phrasing_still_reaches_engine(self):
         """回归：演示中的自然语言若不在本地正则覆盖内，也必须走引擎。
