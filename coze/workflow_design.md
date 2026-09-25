@@ -60,6 +60,11 @@
 - 工具输入由 N04 的参数变量填充；`context_token` 每轮由后端签发（10 分钟有效），
   **不拼入模型提示词**。
 - 后端工具接口验证 token；模型传来的地区ID不作为权限依据。
+- **导入报错处理**：Coze 插件解析器要求「每个响应体必须声明 `application/json` 且 schema 顶层为
+  object/array」，否则报 `API response schema must be json object/array`。
+  `coze/tool_openapi.yaml`（v1.1.0 起）已为全部 operation 补齐响应 schema；
+  若仍导入失败，改用 `coze/tool_openapi.min.yaml`（单 `dispatch` 工具，参数以 JSON 字符串传入），
+  对应后端 `/api/v1/tools/dispatch`（已实现，支持扁平/嵌套/JSON 字符串三种传参）。
 
 ### N07 AI 分析（大模型节点）
 - 提示词：`prompts/analyze.md`。
@@ -78,7 +83,8 @@ analysis_id 并构建光球。模型不能决定网页路由或拼接外部 URL�
 ## 4. 发布
 
 1. 在 Coze 工作空间新建“数智链海出海助手工作流”，按上文搭建节点；
-2. 上传 `tool_openapi.yaml` 为插件（认证方式：API Key 传入自定义 Header `X-Context-Token`）；
+2. 上传 `tool_openapi.yaml` 为插件（认证方式：API Key 传入自定义 Header `X-Context-Token`，
+   值绑定工作流变量 `{{context_token}}`）；
 3. 试运行：使用 `examples/` 中合成样例（明确非真实案例）验证节点连通；
 4. 发布工作流，记录版本号（`pinned_version`），后端记录
    `workflow_version = COZE_WORKFLOW_ID`（见方案 12.2 运行记录）；
@@ -86,7 +92,7 @@ analysis_id 并构建光球。模型不能决定网页路由或拼接外部 URL�
 ```
 AI_ENABLED=1
 COZE_API_BASE=https://api.coze.cn
-COZE_ACCESS_TOKEN=<PAT>
+COZE_ACCESS_TOKEN=<PAT 或 SAT>
 COZE_WORKFLOW_ID=<发布后的工作流ID>
 COZE_APP_ID=<可选，按发布方式选用>
 TOOLS_BASE_URL=https://<项目后端域名>
@@ -96,6 +102,19 @@ AI_MAX_TOOL_CALLS=6
 AI_MAX_COMPARE_COMPANIES=3
 ```
 6. 浏览器不保存 Coze 长期令牌；Coze 只能通过 context_token 访问受控工具。
+
+### 4.1 令牌从哪来（官方入口，2026-09 核对）
+
+| 令牌 | 适用场景 | 有效期 | 入口 |
+|---|---|---|---|
+| 个人访问令牌 PAT | 测试、调试（官方明确不建议用于生产） | 1—30 天，到期须重签 | 扣子编程 [code.coze.cn/home](https://code.coze.cn/home) → 左栏 **API & SDK** → **授权 > 个人访问令牌** → 添加 |
+| 服务访问令牌 SAT | 服务/应用间长期调用（**本项目后端推荐**） | 可长期有效，可修改 | 扣子编程 → **API & SDK** → **授权 > 服务身份凭证** → 添加 |
+
+要点：
+- 入口在**扣子编程（code.coze.cn）**，不在 coze.cn 的「设置」里 —— 这是常见找不到的原因。
+- 权限须包含工作流调用，否则报错 **4101**；个人版只能选择**自己作为空间所有者**的工作空间。
+- 令牌只在创建时显示一次，立即复制到 Railway Variables。
+- 企业版创建 SAT 需组织超管/管理员；一个企业最多 100 个 SAT，个人版每人最多 10 个。
 
 ## 5. 常见坑
 

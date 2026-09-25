@@ -323,7 +323,7 @@ td .no-mark { color: var(--red); font-weight: 700; }
     <div class="step-body">
       <table>
         <tr><th>#</th><th>外部输入</th><th>用途</th><th>提供方</th><th>状态</th><th>完成节点</th></tr>
-        <tr><td>1</td><td><b>Coze 工作空间 + API 授权令牌（PAT）</b></td><td>后端以 Bearer 令牌调用工作流流式接口</td><td>团队（任一队员注册/申请）</td><td><span class="todo-mark">◈ 待提供</span></td><td>PHASE 2 → STEP 5—7</td></tr>
+        <tr><td>1</td><td><b>Coze 工作空间 + 授权令牌（PAT 或 SAT）</b></td><td>后端以 Bearer 令牌调用工作流流式接口</td><td>团队（任一队员注册/申请）</td><td><span class="todo-mark">◈ 待提供</span></td><td>PHASE 2 → STEP 5—7</td></tr>
         <tr><td>2</td><td><b>已发布工作流（workflow_id + 版本）</b></td><td>AI 分析主流程（意图→工具→分析→结果）</td><td>实施队员按本文档搭建</td><td><span class="todo-mark">◈ 待搭建发布</span></td><td>PHASE 4 → STEP 11—15</td></tr>
         <tr><td>3</td><td><b>可供 Coze 访问的公网 HTTPS 工具服务</b></td><td>Coze 云端经 context_token 调用受控业务工具</td><td>实施队员部署</td><td><span class="todo-mark">◈ 待部署</span></td><td>PHASE 1 → STEP 1—4</td></tr>
         <tr><td>4</td><td>5—8 张重点服务资料卡及来源</td><td>产品依据光球与方案分析</td><td>金融队员</td><td><span class="ok-mark">✅ 已备</span></td><td>已交付（15 卡 · 8 verified）</td></tr>
@@ -504,16 +504,39 @@ print(json.loads(urllib.request.urlopen(req).read())[<span class="str">"coname"<
     </div>
   </div>
   <div class="step">
-    <div class="step-head"><span class="dot dot-blue"></span><b>设置 → API 授权</b><span class="tag">PAT</span></div>
+    <div class="step-head"><span class="dot dot-blue"></span><b>扣子编程 → API &amp; SDK → 授权</b><span class="tag">PAT / SAT</span></div>
     <div class="step-body">
+      <div class="callout error">
+        <div class="icon">❗</div>
+        <div class="body"><strong>找不到「API 授权」的原因：</strong>令牌入口不在 <code>coze.cn</code> 的「设置」里，而在
+        <b>扣子编程</b>站点 <a href="https://code.coze.cn/home" style="color:var(--blue)">code.coze.cn/home</a> → 左侧导航栏 <b>API &amp; SDK</b> → 顶部 <b>授权</b> 页签。
+        在 coze.cn 主站翻「设置」是找不到的。（2026-09 核对官方文档）</div>
+      </div>
+      <table>
+        <tr><th>令牌类型</th><th>适用场景</th><th>有效期</th><th>入口路径</th></tr>
+        <tr><td><b>个人访问令牌 PAT</b></td><td>测试、调试（官方明确不建议用于生产环境）</td><td>1—30 天，到期须重签，不能设为永久</td><td>code.coze.cn/home → <b>API &amp; SDK</b> → <b>授权 &gt; 个人访问令牌</b> → 添加</td></tr>
+        <tr><td><b>服务访问令牌 SAT</b><br><span class="muted">（本项目后端推荐）</span></td><td>服务/应用间长期调用 —— 正是本项目「后端调工作流」的场景</td><td>1 天 / 30 / 90 / 180 天 / 长期有效 / 自定义，可修改</td><td>code.coze.cn/home → <b>API &amp; SDK</b> → <b>授权 &gt; 服务身份凭证</b> → 添加</td></tr>
+      </table>
       <ol>
-        <li>coze.cn → 左下角头像 → <b>设置</b> → <b>API 授权</b> → <b>新增令牌</b>。</li>
-        <li>名称：<code>shuzhi-lianhai-workflow</code>；权限勾选<b>工作流调用</b>相关权限（最小授权原则，不勾选多余能力）。</li>
-        <li>复制生成的 PAT —— <b>只显示一次</b>，立即存入 Railway Variables（STEP 16），不要粘贴到聊天/文档/仓库。</li>
+        <li>登录 <a href="https://code.coze.cn/home" style="color:var(--blue)">扣子编程</a>，左栏选 <b>API &amp; SDK</b>；顶部切到 <b>授权</b> 页签。</li>
+        <li>按上表选择页签：<b>个人访问令牌</b>（先用它跑通）或 <b>服务身份凭证</b>（SAT，正式长期运行）。</li>
+        <li>点 <b>添加</b>，配置四项：<br>
+          · <b>名称</b>：<code>shuzhi-lianhai-workflow</code><br>
+          · <b>过期时间</b>：PAT 选 30 天；SAT 选「长期有效」<br>
+          · <b>权限</b>：勾选<b>工作流调用</b>相关权限（最小授权，不勾多余能力）<br>
+          · <b>访问工作空间</b>：选「数智链海」工作空间</li>
+        <li>点确定后<b>立即复制令牌</b>（仅显示一次），存入 Railway Variables（STEP 16）。</li>
       </ol>
+      <div class="callout warn">
+        <div class="icon">⚠️</div>
+        <div class="body"><strong>两个常见坑：</strong>
+        ① 权限没勾工作流调用 → 调用报 <b>4101</b>；
+        ② 个人版只能选择<b>自己作为空间所有者</b>的工作空间，若工作空间属于他人，需先转移所有权（或让他人代发令牌）。
+        企业版创建 SAT 需组织超级管理员/管理员操作；一个企业最多 100 个 SAT，个人版每人最多 10 个。</div>
+      </div>
       <div class="callout error">
         <div class="icon">🔒</div>
-        <div class="body"><strong>令牌安全边界（方案 5.2）：</strong>浏览器只连接项目后端，<b>不保存 Coze 长期令牌</b>；PAT 只存在于后端环境变量。若怀疑泄漏 → 立即在 Coze 控制台吊销并重新签发，同时轮换 <code>TOOL_CONTEXT_SECRET</code>。</div>
+        <div class="body"><strong>令牌安全边界（方案 5.2）：</strong>浏览器只连接项目后端，<b>不保存 Coze 长期令牌</b>；PAT/SAT 只存在于后端环境变量。若怀疑泄漏 → 立即在扣子控制台吊销并重新签发，同时轮换 <code>TOOL_CONTEXT_SECRET</code>。</div>
       </div>
     </div>
   </div>
@@ -568,13 +591,30 @@ print(json.loads(urllib.request.urlopen(req).read())[<span class="str">"coname"<
     <div class="step-body">
       <ol>
         <li>工作空间 → <b>插件</b> → <b>创建插件</b> → 选择「通过 OpenAPI 创建」。</li>
-        <li>上传 <code>数智链海/coze/tool_openapi.yaml</code>（8 个工具：resolve_company / search_companies / get_company_context / get_evidence / compare_companies / get_rule_candidates / search_product_knowledge / search_regional_knowledge）。</li>
+        <li>上传 <code>数智链海/coze/tool_openapi.yaml</code>（v1.1.0：8 个业务工具 + <code>dispatch</code> 统一分发，全部响应已声明 object schema）。</li>
         <li>服务器 URL 填 <code>https://shuzhi-lianhai-production.up.railway.app</code>（OpenAPI 内 servers.url 占位也同步替换）。</li>
         <li>保存插件，名称：<b>数智链海受控业务工具</b>。</li>
       </ol>
+      <div class="callout error">
+        <div class="icon">❗</div>
+        <div class="body"><strong>导入报错「API response schema must be json object/array」的原因与修复：</strong>
+        Coze 插件解析器要求<b>每个 operation 的响应体</b>都声明 <code>application/json</code>，且 schema 顶层类型必须是
+        <code>object</code> 或 <code>array</code>。旧版 <code>tool_openapi.yaml</code> 的响应只写了 <code>description</code>，
+        所以被拦下。<b>v1.1.0 已为全部 9 个 operation 补齐响应 schema</b>，并附加了这些约定：
+        请求体改为<b>扁平参数</b>（不再嵌套 <code>parameters</code>）、不使用 oneOf/anyOf/allOf、不使用字符串型响应体；
+        规格与后端工具注册表的一致性由 <code>tests/test_m5_openapi_spec.py</code> 守护。
+        重新导入 <code>coze/tool_openapi.yaml</code>（v1.1.0）即可。</div>
+      </div>
       <div class="callout warn">
         <div class="icon">⚠️</div>
-        <div class="body"><strong>kg_api 经验复刻：</strong>kg_api 为规避 Coze 多分支与嵌套对象数组传递限制，设计了 <code>/dispatch</code> 单接口统一分发。本项目 8 个独立工具在 OpenAPI 中声明，若工作流调试发现「对象/数组嵌套传递受限」，按 STEP 10 的备选方案加一个 <code>/api/v1/tools/dispatch</code> 统一入口（约 20 行代码），插件只保留一个工具。</div>
+        <div class="body"><strong>若仍导入失败：改用最小版</strong> <code>coze/tool_openapi.min.yaml</code> —— 只有 1 个
+        <code>/api/v1/tools/dispatch</code> operation，工具名走 enum、参数以 JSON 字符串（<code>parameters_json</code>）传入，
+        完全规避多工具与嵌套传参限制。后端 dispatch 接口已实现（见 STEP 10）。</div>
+      </div>
+      <div class="callout warn">
+        <div class="icon">⚠️</div>
+        <div class="body"><strong>kg_api 经验复刻：</strong>kg_api 为规避 Coze 多分支与嵌套对象数组传递限制，设计了
+        <code>/dispatch</code> 单接口统一分发。本项目两种形态都支持：完整版 8+1 个 operation，或最小版单 dispatch。</div>
       </div>
     </div>
   </div>
@@ -628,24 +668,25 @@ print(json.loads(urllib.request.urlopen(req).read())[<span class="str">"coname"<
         <tr><td>503</td><td>服务端未配置 TOOL_CONTEXT_SECRET</td><td>检查 Railway Variables 并重启</td></tr>
         <tr><td>网络超时</td><td>Coze 无法访问服务域名</td><td>确认是 HTTPS 公网域名；Coze 访问不了 127.0.0.1</td></tr>
       </table>
-      <div class="callout gold">
-        <div class="icon">◈</div>
-        <div class="body"><strong>备选：/dispatch 统一分发接口（如遇 Coze 参数嵌套限制）</strong>，在后端 <code>server/tool_api.py</code> 追加：</div>
+      <div class="callout success">
+        <div class="icon">✅</div>
+        <div class="body"><strong>已实现：/api/v1/tools/dispatch 统一分发接口</strong>（最小版插件形态，无需再自行添加代码）。
+        支持三种传参：扁平对象、嵌套 <code>parameters</code>、JSON 字符串 <code>parameters_json</code>；
+        鉴权、allowed_tools 收窄、快照漂移保护与单工具接口完全一致。</div>
       </div>
       <div class="code-wrap">
-        <div class="code-header"><span class="lang">PYTHON</span><span class="fname">server/tool_api.py（备选追加）</span></div>
-        <pre>@router.post(<span class="str">"/tools/dispatch"</span>)
-async def dispatch(request: Request):
-    payload = _verify(request)                       <span class="cmt"># 与单工具接口同一鉴权</span>
-    body = await request.json()
-    name = body.get(<span class="str">"tool"</span>); params = body.get(<span class="str">"parameters"</span>) or {}
-    ctx = tools.build_context({
-        <span class="str">"user_id"</span>: payload.get(<span class="str">"user_id"</span>, <span class="str">"coze-worker"</span>),
-        <span class="str">"display_name"</span>: payload.get(<span class="str">"display_name"</span>, <span class="str">"Coze 工作流"</span>),
-        <span class="str">"regions"</span>: payload.get(<span class="str">"regions"</span>) or [],
-        <span class="str">"identity_mode"</span>: <span class="str">"workflow"</span>},
-        allowed_tools=payload.get(<span class="str">"allowed_tools"</span>))
-    return tools.call_tool(name, ctx, params)       <span class="cmt"># 结果扁平化，规避嵌套对象限制</span></pre>
+        <div class="code-header"><span class="lang">BASH</span><span class="fname">dispatch 调用示例</span></div>
+        <pre>curl -s -X POST $TOOLS_BASE_URL/api/v1/tools/dispatch \
+  -H <span class="str">"X-Context-Token: $TOKEN"</span> -H <span class="str">"Content-Type: application/json"</span> \
+  -d <span class="str">'{"tool":"get_company_context","parameters_json":"{\"scode\":\"002860\",\"year\":2023}"}'</span>
+
+<span class="cmt"># 响应（顶层恒为 object，工作流代码节点取 result 字段）：</span>
+{<span class="str">"ok"</span>:<span class="key">true</span>,<span class="str">"tool"</span>:<span class="str">"get_company_context"</span>,<span class="str">"result"</span>:{<span class="str">"coname"</span>:<span class="str">"星帅尔"</span>, <span class="str">"..."</span>}}</pre>
+      </div>
+      <div class="callout info">
+        <div class="icon">ℹ️</div>
+        <div class="body">本地验收：<code>tests/test_m5_tool_api.py</code> 覆盖 10 个场景（三种传参、未知工具 400、
+        坏 JSON 400、越权 403、伪造 token 403、快照漂移 409、未配密钥 503），全部通过。</div>
       </div>
     </div>
   </div>
@@ -832,7 +873,7 @@ workflow_id：7484xxxxxxxxxxxxxxx   <span class="cmt"># 发布后从工作流详
         <div class="code-header"><span class="lang">ENV</span><span class="fname">Railway Variables（完整清单）</span></div>
         <pre><span class="key">AI_ENABLED</span>=1
 <span class="key">COZE_API_BASE</span>=https://api.coze.cn          <span class="cmt"># 国际版用 api.coze.com</span>
-<span class="key">COZE_ACCESS_TOKEN</span>=&lt;STEP 6 的 PAT&gt;
+<span class="key">COZE_ACCESS_TOKEN</span>=&lt;STEP 6 的 PAT 或 SAT&gt;
 <span class="key">COZE_WORKFLOW_ID</span>=&lt;STEP 15 发布的 workflow_id&gt;
 <span class="key">COZE_APP_ID</span>=                              <span class="cmt"># 可选，按发布方式选用；bot/app 不混填</span>
 <span class="key">TOOLS_BASE_URL</span>=https://shuzhi-lianhai-production.up.railway.app

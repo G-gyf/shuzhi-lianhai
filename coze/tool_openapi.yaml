@@ -1,13 +1,19 @@
 openapi: 3.0.3
 info:
   title: 数智链海受控业务工具
-  version: 1.0.0
+  version: 1.1.0
   description: |
     项目内部协议（v1），供 Coze 工作流以插件方式导入。
     所有接口需 Header `X-Context-Token`（由对话网关每轮签发，10 分钟有效）。
     工具接口验证 token；不信任模型传来的地区ID作为权限依据。
+
+    导入要点（Coze 插件解析器较保守，缺一项即报错）：
+    1. 每个 operation 的响应必须声明 application/json，且 schema 顶层为 object（本文件已全部补齐）；
+    2. 请求体参数采用扁平结构，不使用嵌套 parameters 包装，避免工作流传参受限；
+    3. 不使用 oneOf/anyOf/allOf，不使用字符串型响应体。
 servers:
-  - url: https://<项目后端域名>   # 部署时替换；Coze 云端无法访问 127.0.0.1
+  - url: https://shuzhi-lianhai-production.up.railway.app
+    description: 线上工具服务（部署时替换为你的域名；Coze 云端无法访问 127.0.0.1）
 paths:
   /api/v1/tools/resolve_company:
     post:
@@ -25,19 +31,58 @@ paths:
           application/json:
             schema:
               type: object
-              required: [parameters]
+              required: [query]
               properties:
-                parameters:
-                  type: object
-                  required: [query]
-                  properties:
-                    query: { type: string, description: 企业名称或6位股票代码 }
-                    visible_scopes: { type: array, items: { type: string } }
+                query:
+                  type: string
+                  description: 企业名称或 6 位股票代码，例如 002860 或 星帅尔
+                visible_scodes:
+                  type: array
+                  items: { type: string }
+                  description: 可选，限定可见企业代码白名单
       responses:
         '200':
-          description: 候选企业列表（matches 含稳定 scode、可用年度）
-        '403': { description: token 无效或工具不在允许清单 }
-        '503': { description: 服务端未配置 TOOL_CONTEXT_SECRET }
+          description: 候选企业列表（含稳定 scode、可用年度）
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean, description: 是否成功 }
+                  query: { type: string, description: 原始查询词 }
+                  ambiguous: { type: boolean, description: 是否多候选需澄清 }
+                  note: { type: string, description: 无结果或多候选时的说明 }
+                  matches:
+                    type: array
+                    description: 候选企业
+                    items:
+                      type: object
+                      properties:
+                        scode: { type: string, description: 6位稳定企业代码 }
+                        coname: { type: string, description: 企业简称 }
+                        match: { type: string, description: code_exact 或 name_substring }
+                        province: { type: string }
+                        industry: { type: string }
+                        years:
+                          type: array
+                          items: { type: integer }
+                          description: 样本内可用数据年度（降序）
+        '403':
+          description: token 无效或工具不在允许清单
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail: { type: string }
+        '503':
+          description: 服务端未配置 TOOL_CONTEXT_SECRET
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  detail: { type: string }
 
   /api/v1/tools/search_companies:
     post:
@@ -54,24 +99,74 @@ paths:
           application/json:
             schema:
               type: object
-              required: [parameters]
               properties:
-                parameters:
-                  type: object
-                  properties:
-                    province: { type: string }
-                    industry: { type: string, enum: [全部, 电气设备, 光伏, 光伏主链, 风电设备, 储能与电源, 电网设备, 工业控制, 家电消费, 其他] }
-                    year: { type: integer, minimum: 2018, maximum: 2023 }
-                    direction:
-                      type: string
-                      enum: [capacity_production, market_expansion, channel_supply_chain,
-                             local_organization_readiness, rd_localization, investment_ma]
-                    page: { type: integer, default: 1 }
-                    page_size: { type: integer, default: 20, maximum: 100 }
-                    sort: { type: string, enum: [window, score], default: window }
+                province:
+                  type: string
+                  description: 省份，例如 江苏省（须与样本取值一致）
+                industry:
+                  type: string
+                  enum: [电气设备, 光伏]
+                  description: 产业标签
+                year:
+                  type: integer
+                  minimum: 2018
+                  maximum: 2023
+                  description: 数据年度；“最近”=最新可用年度（不擅称实时）
+                direction:
+                  type: string
+                  enum: [capacity_production, market_expansion, channel_supply_chain,
+                         local_organization_readiness, rd_localization, investment_ma]
+                  description: 出海方向
+                page: { type: integer, default: 1 }
+                page_size: { type: integer, default: 20, maximum: 100 }
+                sort: { type: string, enum: [window, score], default: window }
       responses:
         '200':
-          description: total 为企业-年真实总数（不是去重企业数）；items 为当页；filter_explanation 为筛选解释
+          description: total 为真实总数；items 为当页；filter_explanation 为筛选解释
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  total: { type: integer, description: 符合条件的真实总数 }
+                  page: { type: integer }
+                  page_size: { type: integer }
+                  items:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        scode: { type: string }
+                        coname: { type: string }
+                        province: { type: string }
+                        industry: { type: string }
+                        year: { type: integer }
+                        window_type: { type: string }
+                        window_label: { type: string }
+                        stage_layer: { type: string }
+                        stage_label: { type: string }
+                        directions:
+                          type: array
+                          items: { type: string }
+                        countries:
+                          type: array
+                          items: { type: string }
+                        regions:
+                          type: array
+                          items: { type: string }
+                        score: { type: integer }
+                        n_deploy: { type: integer }
+                        n_intent: { type: integer }
+                  filter_explanation:
+                    type: object
+                    properties:
+                      sample: { type: string }
+                      year_note: { type: string }
+                      industry: { type: string }
+                      province: { type: string }
+                      year: { type: integer }
+                      direction: { type: string }
 
   /api/v1/tools/get_company_context:
     post:
@@ -88,18 +183,142 @@ paths:
           application/json:
             schema:
               type: object
-              required: [parameters]
+              required: [scode]
               properties:
-                parameters:
-                  type: object
-                  required: [scode]
-                  properties:
-                    scode: { type: string, description: 6位股票代码 }
-                    year: { type: integer }
-                    snapshot_id: { type: string }
+                scode: { type: string, description: 6 位股票代码 }
+                year: { type: integer, description: 选定年度；与页面上下文保持一致 }
+                snapshot_id: { type: string, description: 可选，数据快照校验用 }
       responses:
         '200':
           description: 证据包（含 signal_refs/evidence_ref、metric_refs、rule_candidates、coverage）
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  scode: { type: string }
+                  coname: { type: string }
+                  year: { type: integer }
+                  requested_year: { type: integer }
+                  snapshot_id: { type: string }
+                  industry: { type: string }
+                  has_year_data: { type: boolean, description: 所选年度是否有数据（false 时不回退其他年份） }
+                  window:
+                    type: object
+                    description: 窗口期判定（该年度无需求信号时为空对象）
+                    properties:
+                      year: { type: integer }
+                      window_type: { type: string }
+                      window_label: { type: string }
+                      window_note: { type: string }
+                      stage_layer: { type: string }
+                      stage_label: { type: string }
+                      score: { type: integer }
+                  panel:
+                    type: object
+                    description: 结构化面板（缺失为 null，前端显示“待核实”）
+                    properties:
+                      status: { type: string }
+                      province: { type: string }
+                      assets: { type: number }
+                      roa: { type: number }
+                      leverage: { type: number }
+                      rd_intensity: { type: number }
+                      overseas_sub_count: { type: integer }
+                      overseas_rev_share: { type: number }
+                      soe: { type: number }
+                      firm_age: { type: integer }
+                      missing:
+                        type: array
+                        items: { type: string }
+                  sc:
+                    type: object
+                    description: 供应链摘要
+                    properties:
+                      customer_concentration: { type: number }
+                      supplier_concentration: { type: number }
+                      overseas_customer_share: { type: number }
+                      structured_customers: { type: integer }
+                      structured_suppliers: { type: integer }
+                      two_hop_count: { type: integer }
+                  capability:
+                    type: object
+                    properties:
+                      score: { type: number }
+                      grade: { type: string }
+                      desc: { type: string }
+                      completeness:
+                        type: object
+                        properties:
+                          available: { type: integer }
+                          total: { type: integer }
+                          missing:
+                            type: array
+                            items: { type: string }
+                  signals:
+                    type: array
+                    description: 所选年度需求信号（不含历史年度）
+                    items:
+                      type: object
+                      properties:
+                        signal_id: { type: string }
+                        chunk_id: { type: string }
+                        year: { type: integer }
+                        program_label: { type: string }
+                        time_state: { type: string }
+                        direction: { type: string }
+                        anchor_type: { type: string }
+                        anchor: { type: string }
+                        countries:
+                          type: array
+                          items: { type: string }
+                        regions:
+                          type: array
+                          items: { type: string }
+                        evidence_start: { type: integer }
+                        evidence_end: { type: integer }
+                        evidence_quote: { type: string }
+                  history_count: { type: integer, description: 历史信号条数（仅存档，不参与推荐） }
+                  signal_refs:
+                    type: array
+                    description: 可引用的证据引用（分析中的 refs 只允许取自此列表）
+                    items:
+                      type: object
+                      properties:
+                        signal_id: { type: string }
+                        evidence_ref: { type: string, description: "ev:<chunk_id>:<claim_number>:<text_version>" }
+                        quote: { type: string }
+                        year: { type: integer }
+                        direction: { type: string }
+                  rule_candidates:
+                    type: array
+                    description: 规则候选服务（含 product_ref 与产品卡核实状态）
+                    items:
+                      type: object
+                      properties:
+                        key: { type: string }
+                        name: { type: string }
+                        category: { type: string }
+                        reason: { type: string }
+                        rule_id: { type: string }
+                        signal_id: { type: string }
+                        evidence_id: { type: string }
+                        product_ref: { type: string }
+                        card_status: { type: string, description: verified 或 placeholder }
+                  metric_refs:
+                    type: object
+                    properties:
+                      customer_concentration: { type: string }
+                      supplier_concentration: { type: string }
+                  coverage:
+                    type: object
+                    properties:
+                      panel: { type: string }
+                      claims_selected_year: { type: integer }
+                      chain: { type: boolean }
+                      sc_structured: { type: boolean }
+                      note: { type: string }
 
   /api/v1/tools/get_evidence:
     post:
@@ -116,21 +335,53 @@ paths:
           application/json:
             schema:
               type: object
-              required: [parameters]
+              required: [evidence_ref]
               properties:
-                parameters:
-                  type: object
-                  required: [evidence_ref]
-                  properties:
-                    evidence_ref: { type: string, description: "ev:<chunk_id>:<claim_number>:<text_version>" }
+                evidence_ref:
+                  type: string
+                  description: "格式 ev:<chunk_id>:<claim_number>:<text_version>"
       responses:
         '200':
           description: 原文文本、证据锚点区间（start/end）、来源与文本版本
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  ref_id: { type: string }
+                  chunk_id: { type: string }
+                  claim_number: { type: integer }
+                  scode: { type: string }
+                  coname: { type: string }
+                  year: { type: integer }
+                  section: { type: string }
+                  program_label: { type: string }
+                  text: { type: string, description: 原文全文（引文按 start/end 还原） }
+                  text_version: { type: string }
+                  status: { type: string, description: ok 或 stale_text }
+                  warning: { type: string }
+                  spans:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        claim_number: { type: integer }
+                        program_label: { type: string }
+                        direction: { type: string }
+                        start: { type: integer }
+                        end: { type: integer }
+                        quote: { type: string }
+                  source:
+                    type: object
+                    properties:
+                      snapshot_id: { type: string }
+                      kb_version: { type: string }
 
   /api/v1/tools/compare_companies:
     post:
       operationId: compare_companies
-      summary: 同一年度多企业确定性对比表及参考范围（最多3家）
+      summary: 同一年度多企业确定性对比表及参考范围（最多 3 家）
       parameters:
         - in: header
           name: X-Context-Token
@@ -142,21 +393,116 @@ paths:
           application/json:
             schema:
               type: object
-              required: [parameters]
+              required: [scodes, year]
               properties:
-                parameters:
-                  type: object
-                  required: [scodes, year]
-                  properties:
-                    scodes:
-                      type: array
-                      items: { type: string }
-                      maxItems: 3
-                    year: { type: integer, description: 统一年份（同年度口径） }
-                    fields: { type: array, items: { type: string } }
+                scodes:
+                  type: array
+                  items: { type: string }
+                  maxItems: 3
+                  description: 统一年度对比的企业代码（2—3 家）
+                year:
+                  type: integer
+                  description: 统一年份（同年度口径，必填）
+                fields:
+                  type: array
+                  items: { type: string }
+                  description: 可选，限定对比字段
       responses:
         '200':
-          description: 对比表（缺失标 None，不补0、不取其他年度）、参考范围、compare_ref
+          description: 对比表（缺失为 null，不补 0、不取其他年度）、参考范围、compare_ref
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  comparison_id: { type: string }
+                  compare_ref: { type: string, description: "compare:<comparison_id>" }
+                  year: { type: integer }
+                  note: { type: string }
+                  companies:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        scode: { type: string }
+                        coname: { type: string }
+                        province: { type: string }
+                        industry: { type: string }
+                        year: { type: integer }
+                        window:
+                          type: object
+                          properties:
+                            window_type: { type: string }
+                            window_label: { type: string }
+                            stage_layer: { type: string }
+                            stage_label: { type: string }
+                            score: { type: integer }
+                        directions:
+                          type: array
+                          items: { type: string }
+                        countries:
+                          type: array
+                          items: { type: string }
+                        regions:
+                          type: array
+                          items: { type: string }
+                        customer_concentration: { type: number }
+                        supplier_concentration: { type: number }
+                        overseas_customer_share: { type: number }
+                        panel_status: { type: string }
+                        signal_count: { type: integer }
+                        capability:
+                          type: object
+                          properties:
+                            grade: { type: string }
+                            score: { type: number }
+                        panel:
+                          type: object
+                          properties:
+                            assets: { type: number }
+                            roa: { type: number }
+                            leverage: { type: number }
+                            rd_intensity: { type: number }
+                            overseas_rev_share: { type: number }
+                            overseas_sub_count: { type: integer }
+                  reference:
+                    type: object
+                    description: 样本中位数/四分位（同年度）
+                    properties:
+                      assets:
+                        type: object
+                        properties:
+                          median: { type: number }
+                          q1: { type: number }
+                          q3: { type: number }
+                          n: { type: integer }
+                      CustomerConcentration:
+                        type: object
+                        properties:
+                          median: { type: number }
+                          q1: { type: number }
+                          q3: { type: number }
+                          n: { type: integer }
+                      PurchaseConcentration:
+                        type: object
+                        properties:
+                          median: { type: number }
+                          q1: { type: number }
+                          q3: { type: number }
+                          n: { type: integer }
+                  missing:
+                    type: array
+                    description: 缺失字段标识
+                    items:
+                      type: object
+                      properties:
+                        scode: { type: string }
+                        missing:
+                          type: array
+                          items: { type: string }
+                        note: { type: string }
+                        year_data_note: { type: string }
 
   /api/v1/tools/get_rule_candidates:
     post:
@@ -173,18 +519,47 @@ paths:
           application/json:
             schema:
               type: object
-              required: [parameters]
+              required: [scode]
               properties:
-                parameters:
-                  type: object
-                  required: [scode]
-                  properties:
-                    scode: { type: string }
-                    year: { type: integer }
-                    directions: { type: array, items: { type: string } }
+                scode: { type: string }
+                year: { type: integer }
+                directions:
+                  type: array
+                  items: { type: string }
+                  description: 限定行动方向（仅保留该方向规则命中项）
       responses:
         '200':
           description: 候选服务（rule_id/signal_id/evidence_id/product_ref/card_status）
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  scode: { type: string }
+                  year: { type: integer }
+                  directions_filter:
+                    type: array
+                    items: { type: string }
+                  candidates:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        key: { type: string }
+                        name: { type: string }
+                        category: { type: string }
+                        reason: { type: string }
+                        rule_id: { type: string }
+                        signal_id: { type: string }
+                        evidence_id: { type: string }
+                        quote: { type: string }
+                        product_ref: { type: string }
+                        card_status: { type: string }
+                  coverage:
+                    type: object
+                    properties:
+                      note: { type: string }
 
   /api/v1/tools/search_product_knowledge:
     post:
@@ -201,18 +576,81 @@ paths:
           application/json:
             schema:
               type: object
-              required: [parameters]
               properties:
-                parameters:
-                  type: object
-                  properties:
-                    actions: { type: array, items: { type: string } }
-                    country: { type: string }
-                    service_focus: { type: array, items: { type: string } }
-                    as_of: { type: string }
+                actions:
+                  type: array
+                  items: { type: string }
+                  description: 行动方向代码列表
+                country: { type: string, description: 目标国别（覆盖清单需人工核实） }
+                service_focus:
+                  type: array
+                  items: { type: string }
+                  description: 服务偏好，如 settlement / guarantee / hedging
+                as_of: { type: string, description: 资料时间口径 }
       responses:
         '200':
           description: 产品卡（含 ref、来源、状态；placeholder 卡片不构成正式适配建议）
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  total: { type: integer }
+                  cards:
+                    type: array
+                    description: 卡片摘要（含 ref 与核实状态）
+                    items:
+                      type: object
+                      properties:
+                        ref_id: { type: string, description: "product:<product_id>" }
+                        product_id: { type: string }
+                        name: { type: string }
+                        category: { type: string }
+                        status: { type: string }
+                        product_version: { type: string }
+                        source: { type: string }
+                        source_date: { type: string }
+                  detail:
+                    type: array
+                    description: 卡片明细（条件/场景/需核实信息）
+                    items:
+                      type: object
+                      properties:
+                        product_id: { type: string }
+                        name: { type: string }
+                        category: { type: string }
+                        status: { type: string }
+                        summary: { type: string }
+                        scenarios:
+                          type: array
+                          items: { type: string }
+                        conditions:
+                          type: array
+                          items: { type: string }
+                        exclusions:
+                          type: array
+                          items: { type: string }
+                        need_verify:
+                          type: array
+                          items: { type: string }
+                        source: { type: string }
+                        source_date: { type: string }
+                        version: { type: string }
+                  coverage:
+                    type: object
+                    properties:
+                      product_version: { type: string }
+                      as_of: { type: string }
+                      actions:
+                        type: array
+                        items: { type: string }
+                      service_focus:
+                        type: array
+                        items: { type: string }
+                      note: { type: string }
+                      country: { type: string }
+                      country_note: { type: string }
 
   /api/v1/tools/search_regional_knowledge:
     post:
@@ -229,13 +667,84 @@ paths:
           application/json:
             schema:
               type: object
-              required: [parameters]
               properties:
-                parameters:
-                  type: object
-                  properties:
-                    query: { type: string }
-                    allowed_source_ids: { type: array, items: { type: string } }
+                query: { type: string, description: 关键词（留空返回全部可见片段） }
+                allowed_source_ids:
+                  type: array
+                  items: { type: string }
+                  description: 可选，进一步收窄资料源范围
       responses:
         '200':
           description: 片段（regional ref 带 source_id/scope/version；详情读取时再次检查权限）
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  total: { type: integer }
+                  snippets:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        ref_id: { type: string, description: "regional:<source_id>:<doc_id>" }
+                        source_id: { type: string }
+                        doc_id: { type: string }
+                        title: { type: string }
+                        snippet: { type: string }
+                        locator: { type: string }
+                        effective_from: { type: string }
+                        version: { type: string }
+                        scope: { type: string }
+                        source_name: { type: string }
+                  coverage:
+                    type: object
+                    properties:
+                      user_regions:
+                        type: array
+                        items: { type: string }
+                      note: { type: string }
+
+  /api/v1/tools/dispatch:
+    post:
+      operationId: tools_dispatch
+      summary: 统一工具分发（备选：单插件节点，规避多工具与嵌套参数传递限制）
+      parameters:
+        - in: header
+          name: X-Context-Token
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tool]
+              properties:
+                tool:
+                  type: string
+                  enum: [resolve_company, search_companies, get_company_context, get_evidence,
+                         compare_companies, get_rule_candidates, search_product_knowledge,
+                         search_regional_knowledge]
+                  description: 目标工具名
+                parameters_json:
+                  type: string
+                  description: 目标工具参数的 JSON 字符串（推荐；规避嵌套对象传参限制）
+                parameters:
+                  type: object
+                  description: 目标工具参数对象（与 parameters_json 二选一）
+      responses:
+        '200':
+          description: 目标工具原样返回（结构随 tool 而定，顶层恒为 object）
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  tool: { type: string }
+                  result:
+                    type: object
+                    description: 目标工具返回体（扁平包装）

@@ -1,0 +1,59 @@
+openapi: 3.0.3
+info:
+  title: 数智链海受控工具（最小可导入版）
+  version: 1.0.0
+  description: |
+    兜底方案：若完整版 tool_openapi.yaml 导入仍失败，先用本文件建立单个插件节点。
+
+    设计沿用 kg_api 的经验——用一个统一分发接口规避 Coze 的多分支与嵌套参数限制：
+    - 只有 1 个 operation，响应顶层恒为 object；
+    - 工具名用 enum 枚举，参数以 JSON 字符串传入（parameters_json），
+      避免工作流对嵌套对象/数组传参的兼容问题；
+    - 后端 /api/v1/tools/dispatch 会解析该字符串并转交对应受控工具。
+servers:
+  - url: https://shuzhi-lianhai-production.up.railway.app
+    description: 线上工具服务（替换为你的域名）
+paths:
+  /api/v1/tools/dispatch:
+    post:
+      operationId: tools_dispatch
+      summary: 统一工具分发（按工具名调用受控业务工具）
+      parameters:
+        - in: header
+          name: X-Context-Token
+          required: true
+          schema: { type: string }
+          description: 短期上下文令牌（由对话网关每轮签发）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tool]
+              properties:
+                tool:
+                  type: string
+                  enum: [resolve_company, search_companies, get_company_context, get_evidence,
+                         compare_companies, get_rule_candidates, search_product_knowledge,
+                         search_regional_knowledge]
+                  description: 目标工具名
+                parameters_json:
+                  type: string
+                  description: '目标工具参数的 JSON 字符串，例如 {"scode": "002860", "year": 2023}'
+                parameters:
+                  type: object
+                  description: 目标工具参数对象（与 parameters_json 二选一）
+      responses:
+        '200':
+          description: 目标工具原样返回
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean, description: 是否成功 }
+                  tool: { type: string, description: 实际执行的工具名 }
+                  result:
+                    type: object
+                    description: 目标工具返回体（代码节点用 JSON.parse 后的 result 字段取用）

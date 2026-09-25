@@ -1,0 +1,115 @@
+# -*- coding: utf-8 -*-
+"""工具 HTTP 接口验收：三种传参形态、dispatch、鉴权与快照保护（方案 5.2 节）。"""
+import json
+import os
+import unittest
+
+from fastapi.testclient import TestClient
+
+from server import context_token, runtime
+from server.main import app
+
+
+class TestToolApi(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        runtime.init_runtime()
+
+    def setUp(self):
+        self.client = TestClient(app)
+        self.client.__enter__()
+        self.secret = "test-secret-tool-api"
+        self._old = os.environ.get("TOOL_CONTEXT_SECRET")
+        os.environ["TOOL_CONTEXT_SECRET"] = self.secret
+        self.snap = runtime.get_snapshot()
+
+    def tearDown(self):
+        self.client.__exit__(None, None, None)
+        if self._old is None:
+            os.environ.pop("TOOL_CONTEXT_SECRET", None)
+        else:
+            os.environ["TOOL_CONTEXT_SECRET"] = self._old
+
+    def _token(self, tools_allowed=None, snapshot=None):
+        return context_token.sign_context_token(
+            {"user_id": "u_demo_a", "display_name": "演示经理", "regions": ["region_a"],
+             "snapshot_id": snapshot or self.snap,
+             "allowed_tools": tools_allowed}, self.secret, 300)
+
+    def _post(self, path, payload, token):
+        return self.client.post(path, json=payload,
+                                headers={"X-Context-Token": token})
+
+    def test_flat_params(self):
+        """扁平传参（Coze 插件默认形态）。"""
+        r = self._post("/api/v1/tools/get_company_context",
+                       {"scode": "002860", "year": 2023},
+                       self._token(["get_company_context"]))
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json()["coname"], "星帅尔")
+        self.assertEqual(r.json()["year"], 2023)
+
+    def test_nested_params(self):
+        """嵌套 parameters 形态（向后兼容）。"""
+        r = self._post("/api/v1/tools/resolve_company",
+                       {"parameters": {"query": "002860"}},
+                       self._token(["resolve_company"]))
+        self.assertEqual(r.status_code, 200)
+        self.assertEqual(r.json()["matches"][0]["coname"], "星帅尔")
+
+    def test_dispatch_with_parameters_json(self):
+        """统一分发 + JSON 字符串传参（最小可导入版插件的形态）。"""
+        r = self._post("/api/v1/tools/dispatch",
+                       {"tool": "get_company_context",
+                        "parameters_json": json.dumps({"scode": "002860", "year": 2023})},
+                       self._token(["get_company_context"]))
+        self.assertEqual(r.status_code, 200)
+        body = r.json()
+        self.assertTrue(body["ok"])
+        self.assertEqual(body["tool"], "get_company_context")
+        self.assertEqual(body["result"]["coname"], "星帅尔")
+
+    def test_dispatch_with_object_params(self):
+        r = self._post("/api/v1/tools/dispatch",
+                       {"tool": "search_companies", "parameters": {"province": "江苏省",
+                                                                   "page_size": 3}},
+                       self._token(["search_companies"]))
+        self.assertEqual(r.status_code, 200)
+        self.assertGreater(r.json()["result"]["total"], 0)
+
+    def test_dispatch_bad_tool(self):
+        r = self._post("/api/v1/tools/dispatch", {"tool": "drop_tables"},
+                       self._token(["get_company_context"]))
+        self.assertEqual(r.status_code, 400)
+
+    def test_dispatch_bad_json_string(self):
+        r = self._post("/api/v1/tools/dispatch",
+                       {"tool": "get_company_context", "parameters_json": "{not json}"},
+                       self._token(["get_company_context"]))
+        self.assertEqual(r.status_code, 400)
+
+    def test_tool_not_in_allow_list(self):
+        """token 的 allowed_tools 收窄：越权工具 403。"""
+        r = self._post("/api/v1/tools/compare_companies",
+                       {"scodes": ["002860", "300670"], "year": 2023},
+                       self._token(["get_company_context"]))
+        self.assertEqual(r.status_code, 403)
+
+    def test_forged_token_rejected(self):
+        r = self._post("/api/v1/tools/resolve_company", {"query": "002860"}, "forged.tok")
+        self.assertEqual(r.status_code, 403)
+
+    def test_snapshot_drift_rejected(self):
+        r = self._post("/api/v1/tools/resolve_company", {"query": "002860"},
+                       self._token(["resolve_company"], snapshot="kb-2023@deadbeef0000"))
+        self.assertEqual(r.status_code, 409)
+
+    def test_missing_secret_returns_503(self):
+        os.environ.pop("TOOL_CONTEXT_SECRET", None)
+        r = self._post("/api/v1/tools/resolve_company", {"query": "002860"}, "any.tok")
+        self.assertEqual(r.status_code, 503)
+
+
+if __name__ == "__main__":
+    unittest.main()
