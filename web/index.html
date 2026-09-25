@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>数智链海 · 出海金融需求雷达</title>
 <link rel="stylesheet" href="assets/style.css?v=13">
+<link rel="stylesheet" href="assets/chat.css?v=20">
 </head>
 <body>
 
@@ -115,7 +116,44 @@
   </div>
 </div>
 
+<!-- 对话工作台（dock） -->
+<div class="chat-dock" id="chat-dock">
+  <div class="chat-panel" id="chat-panel" role="dialog" aria-label="对话工作台">
+    <div class="chat-head">
+      <b>数智链海对话工作台</b>
+      <span class="chat-meta" id="chat-meta"></span>
+      <select id="chat-identity" title="演示身份切换（正式环境由服务端身份替代）">
+        <option value="demo-token-region-a">演示经理·A区</option>
+        <option value="demo-token-region-b">演示经理·B区</option>
+      </select>
+      <button class="chat-close" id="chat-close" aria-label="收起对话区">—</button>
+    </div>
+    <div class="chat-body" id="chat-body"></div>
+    <div class="chat-input">
+      <textarea id="chat-input" rows="1"
+        placeholder="问：这家公司值得关注什么？ / 找江苏有产能部署的光伏企业 / 比较前两家"></textarea>
+      <button id="chat-send">发送</button>
+      <button id="chat-cancel" style="display:none">停止</button>
+    </div>
+  </div>
+  <button class="chat-toggle" id="chat-toggle">
+    <span class="dot"></span>AI 助手
+  </button>
+</div>
+
+<!-- 详情抽屉 -->
+<div class="drawer" id="drawer" role="dialog" aria-label="依据详情">
+  <div class="drawer-head">
+    <h3 id="drawer-title">依据详情</h3>
+    <span class="drawer-close" id="drawer-close" role="button" tabindex="0" aria-label="关闭">✕</span>
+  </div>
+  <div class="drawer-body" id="drawer-body"></div>
+</div>
+
 <script src="config.js"></script>
 <script src="assets/app.js?v=13"></script>
+<script src="assets/orbs.js?v=20"></script>
+<script src="assets/drawer.js?v=20"></script>
+<script src="assets/chat.js?v=20"></script>
 </body>
 </html>

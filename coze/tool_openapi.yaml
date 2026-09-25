@@ -1,0 +1,241 @@
+openapi: 3.0.3
+info:
+  title: 数智链海受控业务工具
+  version: 1.0.0
+  description: |
+    项目内部协议（v1），供 Coze 工作流以插件方式导入。
+    所有接口需 Header `X-Context-Token`（由对话网关每轮签发，10 分钟有效）。
+    工具接口验证 token；不信任模型传来的地区ID作为权限依据。
+servers:
+  - url: https://<项目后端域名>   # 部署时替换；Coze 云端无法访问 127.0.0.1
+paths:
+  /api/v1/tools/resolve_company:
+    post:
+      operationId: resolve_company
+      summary: 按名称/代码检索企业候选及稳定ID
+      parameters:
+        - in: header
+          name: X-Context-Token
+          required: true
+          schema: { type: string }
+          description: 短期上下文令牌（绑定用户、地区、数据版本、允许工具）
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [parameters]
+              properties:
+                parameters:
+                  type: object
+                  required: [query]
+                  properties:
+                    query: { type: string, description: 企业名称或6位股票代码 }
+                    visible_scopes: { type: array, items: { type: string } }
+      responses:
+        '200':
+          description: 候选企业列表（matches 含稳定 scode、可用年度）
+        '403': { description: token 无效或工具不在允许清单 }
+        '503': { description: 服务端未配置 TOOL_CONTEXT_SECRET }
+
+  /api/v1/tools/search_companies:
+    post:
+      operationId: search_companies
+      summary: 按地区/年份/产业/方向筛选企业（真实总数与分页）
+      parameters:
+        - in: header
+          name: X-Context-Token
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [parameters]
+              properties:
+                parameters:
+                  type: object
+                  properties:
+                    province: { type: string }
+                    industry: { type: string, enum: [全部, 电气设备, 光伏, 光伏主链, 风电设备, 储能与电源, 电网设备, 工业控制, 家电消费, 其他] }
+                    year: { type: integer, minimum: 2018, maximum: 2023 }
+                    direction:
+                      type: string
+                      enum: [capacity_production, market_expansion, channel_supply_chain,
+                             local_organization_readiness, rd_localization, investment_ma]
+                    page: { type: integer, default: 1 }
+                    page_size: { type: integer, default: 20, maximum: 100 }
+                    sort: { type: string, enum: [window, score], default: window }
+      responses:
+        '200':
+          description: total 为企业-年真实总数（不是去重企业数）；items 为当页；filter_explanation 为筛选解释
+
+  /api/v1/tools/get_company_context:
+    post:
+      operationId: get_company_context
+      summary: 企业画像+信号+供应链摘要+规则候选（统一年度上下文，不回退未来年份）
+      parameters:
+        - in: header
+          name: X-Context-Token
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [parameters]
+              properties:
+                parameters:
+                  type: object
+                  required: [scode]
+                  properties:
+                    scode: { type: string, description: 6位股票代码 }
+                    year: { type: integer }
+                    snapshot_id: { type: string }
+      responses:
+        '200':
+          description: 证据包（含 signal_refs/evidence_ref、metric_refs、rule_candidates、coverage）
+
+  /api/v1/tools/get_evidence:
+    post:
+      operationId: get_evidence
+      summary: 按 evidence_ref 读取原文/引文/偏移/来源/版本
+      parameters:
+        - in: header
+          name: X-Context-Token
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [parameters]
+              properties:
+                parameters:
+                  type: object
+                  required: [evidence_ref]
+                  properties:
+                    evidence_ref: { type: string, description: "ev:<chunk_id>:<claim_number>:<text_version>" }
+      responses:
+        '200':
+          description: 原文文本、证据锚点区间（start/end）、来源与文本版本
+
+  /api/v1/tools/compare_companies:
+    post:
+      operationId: compare_companies
+      summary: 同一年度多企业确定性对比表及参考范围（最多3家）
+      parameters:
+        - in: header
+          name: X-Context-Token
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [parameters]
+              properties:
+                parameters:
+                  type: object
+                  required: [scodes, year]
+                  properties:
+                    scodes:
+                      type: array
+                      items: { type: string }
+                      maxItems: 3
+                    year: { type: integer, description: 统一年份（同年度口径） }
+                    fields: { type: array, items: { type: string } }
+      responses:
+        '200':
+          description: 对比表（缺失标 None，不补0、不取其他年度）、参考范围、compare_ref
+
+  /api/v1/tools/get_rule_candidates:
+    post:
+      operationId: get_rule_candidates
+      summary: 规则候选服务（推理链产品步，可限定行动方向）
+      parameters:
+        - in: header
+          name: X-Context-Token
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [parameters]
+              properties:
+                parameters:
+                  type: object
+                  required: [scode]
+                  properties:
+                    scode: { type: string }
+                    year: { type: integer }
+                    directions: { type: array, items: { type: string } }
+      responses:
+        '200':
+          description: 候选服务（rule_id/signal_id/evidence_id/product_ref/card_status）
+
+  /api/v1/tools/search_product_knowledge:
+    post:
+      operationId: search_product_knowledge
+      summary: 产品卡检索（行动、服务偏好；卡片带 status：verified/placeholder）
+      parameters:
+        - in: header
+          name: X-Context-Token
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [parameters]
+              properties:
+                parameters:
+                  type: object
+                  properties:
+                    actions: { type: array, items: { type: string } }
+                    country: { type: string }
+                    service_focus: { type: array, items: { type: string } }
+                    as_of: { type: string }
+      responses:
+        '200':
+          description: 产品卡（含 ref、来源、状态；placeholder 卡片不构成正式适配建议）
+
+  /api/v1/tools/search_regional_knowledge:
+    post:
+      operationId: search_regional_knowledge
+      summary: 地区授权资料检索（权限=服务端地区绑定，不信任模型自报地区）
+      parameters:
+        - in: header
+          name: X-Context-Token
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [parameters]
+              properties:
+                parameters:
+                  type: object
+                  properties:
+                    query: { type: string }
+                    allowed_source_ids: { type: array, items: { type: string } }
+      responses:
+        '200':
+          description: 片段（regional ref 带 source_id/scope/version；详情读取时再次检查权限）

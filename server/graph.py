@@ -1,12 +1,5 @@
 # -*- coding: utf-8 -*-
-"""图适配层。
-
-最小闭环默认使用 SQLite 构建子图 JSON（与 Neo4j 返回结构一致）。
-若设置 NEO4J_URI 环境变量且 neo4j 驱动可用，则切换到 Neo4j 查询
-（kg_api 模式，连接参数与 kg_api 相同）。前端不感知实现差异。
-
-v1.3：子图以选定年度为上下文；国别节点使用 geo 层 canonical 名称。
-"""
+"""SQLite 证据子图；银行实名关系与 Neo4j 仅为系统设计，本项目不实现。"""
 import os
 
 import pandas as pd
@@ -14,30 +7,10 @@ import pandas as pd
 from .geo import is_region, normalize_name
 from .logic import _claims, _coname_map, rules
 
-NEO4J_URI = os.getenv("NEO4J_URI")
-
-
-def _neo4j_driver():
-    if not NEO4J_URI:
-        return None
-    try:
-        from neo4j import GraphDatabase
-    except ImportError:
-        return None
-    driver = GraphDatabase.driver(
-        NEO4J_URI,
-        auth=(os.getenv("NEO4J_USER", "neo4j"),
-              os.getenv("NEO4J_PASSWORD", "")),
-    )
-    return driver
-
-
 def get_company_graph(scode, year=None):
-    """企业-信号-方向-国别 子图（演示可视化用）。"""
-    driver = _neo4j_driver()
-    if driver is not None:
-        return _neo4j_graph(driver, scode, year)
-    return _sqlite_graph(scode, year)
+    """本项目仅运行 SQLite 证据子图；Neo4j 为银行实名数据预留设计。"""
+    from .logic import resolve_year
+    return _sqlite_graph(scode, resolve_year(scode, year))
 
 
 def _sqlite_graph(scode, year=None):
@@ -67,51 +40,6 @@ def _sqlite_graph(scode, year=None):
                 seen_ctry.add(country)
                 nodes.append({"id": f"c{country}", "label": country, "type": "国别"})
             edges.append({"source": sid, "target": f"c{country}", "rel": "TARGETS"})
-    return {"scode": scode, "year": year, "nodes": nodes, "edges": edges}
-
-
-def _neo4j_graph(driver, scode, year=None):
-    """Neo4j 实现：结构与 SQLite 版一致。当前骨架数据入图后启用。"""
-    query = ("MATCH (c:Company {scode:$scode})-[:DISCLOSED]->(s:Signal) "
-             "OPTIONAL MATCH (s)-[:HAS_DIRECTION]->(d:Direction) "
-             "OPTIONAL MATCH (s)-[:TARGETS]->(t:Country) "
-             "RETURN c, s, d, t LIMIT 200")
-    params = {"scode": scode}
-    if year is not None:
-        query = ("MATCH (c:Company {scode:$scode})-[:DISCLOSED]->(s:Signal) "
-                 "OPTIONAL MATCH (s)-[:HAS_DIRECTION]->(d:Direction) "
-                 "OPTIONAL MATCH (s)-[:TARGETS]->(t:Country) "
-                 "WHERE s.year = $year RETURN c, s, d, t LIMIT 200")
-        params["year"] = int(year)
-    with driver.session() as s:
-        recs = s.run(query, **params)
-        nodes, edges, seen = [], [], set()
-
-        def nid(lbl, key):
-            return f"{lbl}{key}"
-
-        for r in recs:
-            c, s, d, t = r["c"], r["s"], r["d"], r["t"]
-            if nid("c", c["scode"]) not in seen:
-                seen.add(nid("c", c["scode"]))
-                nodes.append({"id": nid("c", c["scode"]), "label": c.get("coname", c["scode"]), "type": "企业"})
-            sid = nid("s", f"{s['chunk_id']}_{s['claim_number']}")
-            if sid not in seen:
-                seen.add(sid)
-                nodes.append({"id": sid, "label": s.get("direction", ""), "type": "信号"})
-            edges.append({"source": nid("c", c["scode"]), "target": sid, "rel": "DISCLOSED"})
-            if d is not None:
-                did = nid("d", d["name"])
-                if did not in seen:
-                    seen.add(did)
-                    nodes.append({"id": did, "label": d["name"], "type": "方向"})
-                edges.append({"source": sid, "target": did, "rel": "HAS_DIRECTION"})
-            if t is not None:
-                tid = nid("t", t["name"])
-                if tid not in seen:
-                    seen.add(tid)
-                    nodes.append({"id": tid, "label": t["name"], "type": "国别"})
-                edges.append({"source": sid, "target": tid, "rel": "TARGETS"})
     return {"scode": scode, "year": year, "nodes": nodes, "edges": edges}
 
 

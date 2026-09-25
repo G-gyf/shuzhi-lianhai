@@ -1,17 +1,66 @@
 {
   "dimensions": [
-    { "key": "intl_base",  "label": "国际化基础", "field": "overseas_sub_count", "weight": 0.25, "direction": 1 },
-    { "key": "size",       "label": "企业规模",     "field": "assets",             "weight": 0.20, "direction": 1 },
-    { "key": "profit",     "label": "盈利能力",     "field": "roa",                "weight": 0.20, "direction": 1 },
-    { "key": "rd",         "label": "研发强度",     "field": "rd_intensity",       "weight": 0.15, "direction": 1 },
-    { "key": "safety",     "label": "财务安全",     "field": "leverage",           "weight": 0.20, "direction": -1 },
-    { "key": "cust_dep",   "label": "客户依赖（反向）", "field": "customer_concentration", "weight": 0.10, "direction": -1, "table": "sc",
-      "note": "前五大客户销售占比（CSMAR 供应链集中度），占比越高对单一客户依赖风险越大" }
+    {
+      "key": "intl_base",
+      "label": "国际化基础",
+      "field": "overseas_sub_count",
+      "weight": 0.25,
+      "direction": 1
+    },
+    {
+      "key": "size",
+      "label": "企业规模",
+      "field": "assets",
+      "weight": 0.2,
+      "direction": 1
+    },
+    {
+      "key": "profit",
+      "label": "盈利能力",
+      "field": "roa",
+      "weight": 0.2,
+      "direction": 1
+    },
+    {
+      "key": "rd",
+      "label": "研发强度",
+      "field": "rd_intensity",
+      "weight": 0.15,
+      "direction": 1
+    },
+    {
+      "key": "safety",
+      "label": "财务安全",
+      "field": "leverage",
+      "weight": 0.2,
+      "direction": -1
+    },
+    {
+      "key": "cust_dep",
+      "label": "客户依赖（反向）",
+      "field": "customer_concentration",
+      "weight": 0.1,
+      "direction": -1,
+      "table": "sc",
+      "note": "前五大客户销售占比（CSMAR 供应链集中度），占比越高对单一客户依赖风险越大"
+    }
   ],
   "grades": [
-    { "min": 0.70, "label": "就绪", "desc": "能力条件较充分，建议优先上门" },
-    { "min": 0.40, "label": "蓄力", "desc": "具备基础条件，可结合行业与动因跟进" },
-    { "min": 0.0,  "label": "薄弱", "desc": "能力条件不足，建议观察为主" }
+    {
+      "min": 0.7,
+      "label": "就绪",
+      "desc": "能力条件较充分，建议优先上门"
+    },
+    {
+      "min": 0.4,
+      "label": "蓄力",
+      "desc": "具备基础条件，可结合行业与动因跟进"
+    },
+    {
+      "min": 0.0,
+      "label": "薄弱",
+      "desc": "能力条件不足，建议观察为主"
+    }
   ],
-  "note": "各维度按行业内分位归一化（0-1）后加权求和；输出分级为辅助判断，不替代人工尽调。"
+  "note": "六维以所选年度现有电气设备样本分别计算分位；按可得维度权重之和归一。配置权重合计1.10是相对权重，不直接作为百分比分配；缺失维度不填0。不替代人工尽调。"
 }

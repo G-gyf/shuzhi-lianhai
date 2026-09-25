@@ -4,3 +4,6 @@ __pycache__/
 _err.log
 _out.log
 .dockerignore
+# 运行数据库、会话与上传资料不作为公开仓库静态文件发布
+runtime/
+.env

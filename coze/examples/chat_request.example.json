@@ -1,0 +1,16 @@
+{
+  "$note": "合成协议样例：非真实案例，仅演示 chat/stream 请求体结构（方案 7.3 节）。经理身份与地区权限由服务器会话注入，不能由本 JSON 自报。",
+  "session_id": "session_example",
+  "client_request_id": "request_example_01",
+  "message": "结合客户集中度，帮我做一个以结算服务为主的拜访方案（合成示例）",
+  "page_context": {
+    "scode": "002860",
+    "year": 2023,
+    "snapshot_id": "kb-2023@<内容哈希>",
+    "view": "company"
+  },
+  "preferences": {
+    "service_focus": ["settlement"],
+    "exclude_financing": true
+  }
+}

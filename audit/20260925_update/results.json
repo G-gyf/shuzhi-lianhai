@@ -1,0 +1,121 @@
+{
+  "meta": {
+    "kb_version": "kb-2023",
+    "built_at": "2026-09-19T21:17:58",
+    "chunks": 37946,
+    "claims": 23718,
+    "firm_years": 1594,
+    "firms_el": 317,
+    "firms_pv_text": 0,
+    "pv_overlap_with_panel": 37,
+    "years": "2018-2023",
+    "industries": "电气设备现有样本细分；不扩样",
+    "source": "出海预测/outputs（冻结语料）"
+  },
+  "active_chunks": 37946,
+  "excluded_chunks": 3,
+  "claim_labels": {
+    "已有出海行为": 12209,
+    "出海无关": 5876,
+    "战略意图": 2278,
+    "经营部署": 1789,
+    "出海口号": 1566
+  },
+  "windows": {
+    "expansion": 695,
+    "new_country": 177,
+    "first": 88,
+    "layout_unknown": 21,
+    "label_incomplete": 2
+  },
+  "segments": [
+    {
+      "segment": "光伏主链",
+      "desc": "硅料硅片→电池组件→逆变器→辅材",
+      "firms": 37,
+      "demand_firms": 35,
+      "ratio": 0.946,
+      "deploy": 253,
+      "intent": 303
+    },
+    {
+      "segment": "储能与电源",
+      "desc": "锂电池+其他电源设备+风电零部件",
+      "firms": 43,
+      "demand_firms": 40,
+      "ratio": 0.93,
+      "deploy": 346,
+      "intent": 368
+    },
+    {
+      "segment": "其他",
+      "desc": "电子/机械/汽车零部件等",
+      "firms": 53,
+      "demand_firms": 48,
+      "ratio": 0.906,
+      "deploy": 360,
+      "intent": 438
+    },
+    {
+      "segment": "工业控制",
+      "desc": "工控自动化（汇川等）",
+      "firms": 10,
+      "demand_firms": 9,
+      "ratio": 0.9,
+      "deploy": 45,
+      "intent": 73
+    },
+    {
+      "segment": "风电设备",
+      "desc": "整机+塔筒+零部件",
+      "firms": 31,
+      "demand_firms": 27,
+      "ratio": 0.871,
+      "deploy": 187,
+      "intent": 228
+    },
+    {
+      "segment": "家电消费",
+      "desc": "白电+小家电+厨卫+照明",
+      "firms": 48,
+      "demand_firms": 39,
+      "ratio": 0.812,
+      "deploy": 292,
+      "intent": 387
+    },
+    {
+      "segment": "电网设备",
+      "desc": "输变电+配电+电网自动化",
+      "firms": 95,
+      "demand_firms": 77,
+      "ratio": 0.811,
+      "deploy": 306,
+      "intent": 481
+    }
+  ],
+  "country_dictionary_count": 102,
+  "baseline_path": "C:\\Users\\lenovo\\Desktop\\出海预测\\archives\\pre_current_demand_mainline_20260901\\outputs\\06_exploratory_attempts\\keyword_llm_extraction_attempts\\baseline\\classified_all_478.csv",
+  "baseline_sha256": "178c9fccf2db29e10c4120f5fe8cc0a715ab249a0deffbc3b61a9f62188aabdd",
+  "baseline_candidate": {
+    "n": 344,
+    "tp": 66,
+    "fp": 15,
+    "fn": 9,
+    "tn": 254,
+    "accuracy": 0.9302325581395349,
+    "precision": 0.8148148148148148,
+    "recall": 0.88,
+    "f1": 0.8461538461538461
+  },
+  "baseline_all": {
+    "n": 478,
+    "tp": 66,
+    "fp": 15,
+    "fn": 16,
+    "tn": 381,
+    "accuracy": 0.9351464435146444,
+    "precision": 0.8148148148148148,
+    "recall": 0.8048780487804879,
+    "f1": 0.8098159509202454
+  }
+}

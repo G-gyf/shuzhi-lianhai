@@ -4,7 +4,7 @@
 所有判定均为确定性规则（规则引擎），LLM 不参与计算。
 
 v1.3 口径原则：
-- 年份上下文：企业详情/推理链/简报/子图均以选定年度为准，未选时取最新窗口年度。
+- 年份上下文：企业详情/推理链/简报/子图均以选定年度为准，未选时取企业最新可用数据年度。
 - 当前与历史分离：产品推荐只消费所选年度信号；历史信号仅存档展示。
 - 新国别：以“截至所选年度之前”的子公司国别集合为基准（as-of 口径）。
 - 国别归一：geo 层统一 canonical（国家）/region（区域），完整名优先、别名归一。
@@ -40,7 +40,8 @@ PANEL_LABELS = [
 
 RULE_IDS = {
     "window": {"first": "RULE_WINDOW_FIRST", "new_country": "RULE_WINDOW_NEW_COUNTRY",
-               "expansion": "RULE_WINDOW_EXPANSION", "pv_text": "RULE_WINDOW_PV_TEXT"},
+               "expansion": "RULE_WINDOW_EXPANSION", "label_incomplete": "RULE_WINDOW_LABEL_INCOMPLETE",
+               "layout_unknown": "RULE_WINDOW_LAYOUT_UNKNOWN"},
 }
 
 
@@ -67,6 +68,29 @@ def segment_of(scode):
     return m.get("segment", "其他")
 
 
+def resolve_year(scode, year=None):
+    """显式年度不回退；缺省统一取企业最新面板/文本年度。"""
+    if year is not None:
+        return int(year)
+    row = _conn().execute("SELECT MAX(year) FROM (SELECT year FROM firm_year WHERE scode=? UNION ALL SELECT year FROM chunks WHERE scode=?)", (scode, scode)).fetchone()
+    return int(row[0]) if row and row[0] is not None else None
+
+
+def filter_industry(g, industry):
+    if industry in (None, "", "全部", "电气设备"):
+        return g
+    segment = "光伏主链" if industry == "光伏" else industry
+    return g[g["scode"].map(segment_of) == segment]
+
+
+def layout_status(subs, revenue):
+    if (pd.notna(subs) and subs > 0) or (pd.notna(revenue) and revenue > 0):
+        return "existing"
+    if pd.notna(subs) and pd.notna(revenue) and subs == 0 and revenue == 0:
+        return "none"
+    return "unknown"
+
+
 @lru_cache(maxsize=1)
 def industry_tags():
     """多标签：电气设备（全部 317 家）+ 光伏（申万 6305xx 重叠部分）。"""
@@ -77,7 +101,7 @@ def industry_tags():
     return {
         "all": sorted(all_codes),
         "pv": sorted(pv_codes & all_codes),   # 当前样本内可标光伏的企业
-        "pv_full": sorted(pv_codes),          # 申万口径全量（含待补标）
+        "pv_full": sorted(pv_codes),          # 外部分类名单；不是待建设清单
     }
 
 
@@ -176,10 +200,13 @@ def agg():
 
     def window_type(row):
         if pd.isna(row["overseas_demand"]):
-            return "pv_text"   # 光伏新增企业：结构数据待补，仅文本信号
+            return "label_incomplete"
         if row["overseas_demand"] != 1:
             return None
-        if (row["overseas_sub_count"] or 0) == 0 and (row["overseas_rev_share"] or 0) <= 0:
+        status = layout_status(row["overseas_sub_count"], row["overseas_rev_share"])
+        if status == "unknown":
+            return "layout_unknown"
+        if status == "none":
             return "first"
         if any(c not in entered_before(row["scode"], row["year"]) for c in row["countries"]):
             return "new_country"
@@ -207,17 +234,12 @@ def radar(province=None, industry=None, year=None, limit=200, sort_mode="window"
     g = g[g["window_type"].notna()].copy()
     if segment:
         g = g[g["scode"].map(segment_of) == segment]
-    if industry == "光伏":
-        pv = set(industry_tags()["pv"])
-        g = g[g["scode"].isin(pv)]
-    elif industry == "电气设备":
-        pv = set(industry_tags()["pv"])
-        g = g[~g["scode"].isin(pv)]
+    g = filter_industry(g, industry)
     if province:
         g = g[g["province"] == province]
     if year:
         g = g[g["year"] == int(year)]
-    w_order = {"first": 0, "new_country": 1, "expansion": 2, "pv_text": 3}
+    w_order = {"first": 0, "new_country": 1, "expansion": 2, "layout_unknown": 3, "label_incomplete": 4}
     s_order = {"landing": 0, "prep": 1}
     g["_w"] = g["window_type"].map(w_order)
     g["_s"] = g["stage_layer"].map(s_order)
@@ -236,8 +258,8 @@ def radar(province=None, industry=None, year=None, limit=200, sort_mode="window"
             "scode": r["scode"],
             "coname": names.get(r["scode"], ""),
             "province": r["province"] if pd.notna(r["province"]) else "待核实",
-            "industry": "光伏" if r["scode"] in pv else "电气设备",
-            "industry_tags": (["电气设备", "光伏"] if r["scode"] in pv else ["电气设备"]),
+            "industry": segment_of(r["scode"]),
+            "industry_tags": ["电气设备", segment_of(r["scode"])],
             "segment": segment_of(r["scode"]),
             "year": int(r["year"]),
             "window_type": r["window_type"],
@@ -262,12 +284,20 @@ def provinces():
     return sorted(agg()["province"].dropna().unique().tolist())
 
 
-def segments():
+def segments(year=None, province=None, industry=None):
     """产业链环节出海需求统计（电力全链，claims 口径）。"""
     chain = rules()["chain_map"]["segments"]
     cl = _claims()
+    p = _panel()
+    if year is not None:
+        cl = cl[cl["year"] == int(year)]
+        p = p[p["year"] == int(year)]
+    if province:
+        p = p[p["province"] == province]
+    p = filter_industry(p, industry)
     dem = cl[cl["program_label"].isin(DEMAND_LABELS)]
-    all_codes = set(rules()["segment_map"].keys())
+    all_codes = set(p["scode"])
+    dem = dem[dem["scode"].isin(all_codes)]
     out = []
     for seg, cfg in chain.items():
         codes = {c for c in all_codes if segment_of(c) == seg}
@@ -310,11 +340,16 @@ def _claim_out(c):
     }
 
 
-def company_detail(scode, year=None):
-    """企业详情：以选定年度为上下文；历史信号单独归档，不参与当年推荐。"""
+def company_detail(scode, year=None, strict_year=True):
+    """企业详情：以选定年度为上下文；历史信号单独归档，不参与当年推荐。
+
+    strict_year=True（AI 工具口径）：选定年度无数据时如实返回该年度缺失，
+    不回退到其他年份（方案 M0：无该年度数据时不回退未来年份）。
+    """
     names = _coname_map()
     if scode not in names:
         return None
+    year = resolve_year(scode, year)
     g = agg()
     gy = g[g["scode"] == scode]
     p = _panel()
@@ -332,8 +367,6 @@ def company_detail(scode, year=None):
     top_year = int(top["year"]) if top is not None else (int(year) if year is not None else None)
 
     row_sel = prow[prow["year"] == top_year] if top_year is not None else prow
-    if row_sel.empty:
-        row_sel = prow.sort_values("year", ascending=False)
     has_panel = not row_sel.empty
     row = row_sel.iloc[0] if has_panel else None
 
@@ -371,9 +404,11 @@ def company_detail(scode, year=None):
         "scode": scode,
         "coname": names.get(scode, ""),
         "province": str(row["province"]) if has_panel and pd.notna(row["province"]) else "待核实",
-        "industry": "光伏" if scode in set(industry_tags()["pv"]) else "电气设备",
+        "industry": segment_of(scode),
+        "industry_tags": ["电气设备", segment_of(scode)],
         "year": top_year,
-        "years": sorted(gy["year"].unique().tolist()),
+        "years": sorted(prow["year"].unique().tolist()),
+        "layout_status": layout_status(gv("overseas_sub_count"), gv("overseas_rev_share")),
         "window": window,
         "panel_status": "full" if has_panel else "text_only",
         "data_completeness": {
@@ -409,7 +444,9 @@ def capability_score(scode, year=None):
     """能力评分卡：行业分位归一 + 加权。缺失维度输出 None（待核实），
     总分按可得维度重新归一，并给出数据完整度。"""
     sc_rules = rules()["scoring"]
+    year = resolve_year(scode, year)
     p = _panel()
+    p = p[p["year"] == year]
     sub = p[p["scode"] == scode]
     if year is not None:
         sub = sub[sub["year"] == int(year)]
@@ -441,7 +478,8 @@ def capability_score(scode, year=None):
             raw = scdata.customer_concentration(scode, year)
             pv = None
             if raw is not None:
-                col = scdata.concentration()["CustomerConcentration"].dropna()
+                ref = scdata.concentration()
+                col = ref[ref["year"] == year]["CustomerConcentration"].dropna()
                 if not col.empty:
                     pv = float((col <= raw).mean())
         else:
@@ -473,12 +511,14 @@ def capability_score(scode, year=None):
     if missing_labels:
         desc += f"（{len(missing_labels)} 个维度缺失：{'、'.join(missing_labels)}，待核实）"
     return {"score": score, "grade": grade["label"], "desc": desc,
+            "reference_year": year, "reference_firms": int(p["scode"].nunique()),
             "completeness": completeness, "dims": dims}
 
 
 # ---------------- 推理链 ----------------
 
 def _chain_top(scode, year):
+    year = resolve_year(scode, year)
     g = agg()
     gy = g[g["scode"] == scode]
     if gy.empty:
@@ -664,7 +704,7 @@ def briefing(scode, year=None):
                     f"关键维度：{dims_txt}。本项为辅助判断，不替代人工尽调。")
     conc = d.get("customer_concentration")
     if conc is not None:
-        cap_line += (f" 客户依赖：前五大客户集中度 {conc:.0f}%（样本中位 32%），"
+        cap_line += (f" 客户依赖：前五大客户集中度 {conc:.0f}%（能力评分参照同年度样本），"
                      + ("偏高，建议关注订单稳定性。" if conc > 50 else "可控。"))
 
     win_ev = win_step.get("evidence") or {}
@@ -727,6 +767,7 @@ def evidence(chunk_id):
         spans.append({
             "claim_number": int(c["claim_number"]),
             "program_label": c["program_label"],
+            "is_demand": c["program_label"] in DEMAND_LABELS,
             "direction": c["direction"],
             "start": int(c["evidence_start"]),
             "end": int(c["evidence_end"]),
@@ -747,6 +788,7 @@ def evidence(chunk_id):
 def supply_chain(scode, year=None):
     """供应链示例：结构化边（CSMAR 前五大客户/供应商，量化）+ 文本具名锚点
     + 子公司国家边（as-of）+ 二跳链；供应商边自 v1.4 起为真实数据。"""
+    year = resolve_year(scode, year)
     cl = _claims()
     subs = _sub_countries()
     names = _coname_map()
@@ -761,6 +803,7 @@ def supply_chain(scode, year=None):
                     + (" · 境外主体" if c["overseas"] else ""),
         })
     text_cust = cl[(cl["scode"] == scode) &
+                   (cl["year"] == year) &
                    (cl["execution_anchor_type"] == "named_customer")]
     for _, c in text_cust.drop_duplicates("execution_anchor").head(3).iterrows():
         if any(x["name"] == c["execution_anchor"] for x in customers):
@@ -768,7 +811,8 @@ def supply_chain(scode, year=None):
         customers.append({
             "name": c["execution_anchor"], "rank": None, "proportion": None,
             "overseas": None, "source": "text",
-            "note": (c["evidence_quote"] or "")[:80],
+            "year": int(c["year"]), "time_state": c["time_state"],
+            "note": "文本提及线索，非已核实交易：" + (c["evidence_quote"] or "")[:80],
         })
 
     suppliers = []
@@ -791,7 +835,7 @@ def supply_chain(scode, year=None):
     for i, c in enumerate(customers):
         nodes.append({"id": f"cust{i}", "label": c["name"], "type": "客户"})
         edges.append({"source": "self", "target": f"cust{i}",
-                      "rel": "SELLS_TO", "note": c["note"]})
+                      "rel": "MENTIONS_CUSTOMER" if c["source"] == "text" else "SELLS_TO", "note": c["note"]})
     for i, c in enumerate(suppliers):
         nodes.append({"id": f"sup{i}", "label": c["name"], "type": "供应商"})
         edges.append({"source": "self", "target": f"sup{i}",
@@ -799,13 +843,14 @@ def supply_chain(scode, year=None):
     for i, c in enumerate(countries):
         nodes.append({"id": f"c{i}", "label": c, "type": "国家"})
         edges.append({"source": "self", "target": f"c{i}",
-                      "rel": "OWNS_SUB_IN", "note": "子公司所在国"})
+                      "rel": "OWNS_SUB_IN", "note": f"截至 {year} 年曾记录的子公司国家，非当期存续断言"})
 
     return {
         "scode": scode,
+        "year": year,
         "sample": bool(scinfo["customers"]),
         "note": f"演示样例（{as_of}）：客户/供应商边来自 CSMAR 前五大明细（结构化量化），"
-                "具名锚点来自年报文本，国家边来自子公司数据；全量供应链为 P2 扩展。",
+                "匿名名称只表示本企业披露排名，不跨企业合并；文本为当年提及线索，国家为截至当年记录。银行实名关系及 Neo4j 仅预留设计，本项目不实现。",
         "nodes": nodes,
         "edges": edges,
         "detail": scinfo,

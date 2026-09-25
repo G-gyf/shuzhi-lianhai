@@ -3,6 +3,14 @@ const API = window.DSH_API_BASE || "";
 let CUR = null;       // 当前企业 scode
 let CUR_YEAR = null;  // 当前企业选定年度（年份上下文贯穿详情/推理链/简报/子图）
 let CUR_SEGMENT = null; // 当前产业链环节筛选
+let companyRequest = 0;
+
+/* 对话工作台页面上下文（chat.js 消费；切换企业/视图时更新） */
+window.DSH_CHAT_CONTEXT = { scode: null, year: null, view: "radar" };
+function setChatContext(view) {
+  window.DSH_CHAT_CONTEXT = { scode: CUR, year: CUR_YEAR, view };
+  if (window.DSH_CHAT && window.DSH_CHAT.contextChanged) window.DSH_CHAT.contextChanged();
+}
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
@@ -22,7 +30,7 @@ async function init() {
     m.years.forEach((v) => y.add(new Option(String(v), String(v))));
     ind.innerHTML = "";
     m.industries.forEach((v) => ind.add(new Option(v, v)));
-    $("health").textContent = "● 知识库 kb-2023 在线（" + m.provinces.length + " 省份 · 光伏成分 " + m.pv_overlap + "/" + m.pv_full + "）";
+    $("health").textContent = "● 知识库 kb-2023 在线（" + m.provinces.length + " 省份 · 样本内光伏 " + m.pv_overlap + " 家；外部分类名单 " + m.pv_full + " 家，非完成率）";
     await loadSegments();
     await loadRadar();
   } catch (e) {
@@ -33,7 +41,12 @@ async function init() {
 
 /* ---------------- 产业链出海 ---------------- */
 async function loadSegments() {
-  const d = await jget("/api/segments");
+  const q = new URLSearchParams();
+  for (const k of ["year", "province", "industry"]) {
+    const v = $("f-" + k).value;
+    if (v && v !== "全部") q.set(k, v);
+  }
+  const d = await jget("/api/segments?" + q);
   $("chain-strip").innerHTML = d.items.map((s) => `
     <div class="chainbar ${CUR_SEGMENT === s.segment ? "on" : ""}" onclick="pickSegment('${esc(s.segment)}')"
          title="${esc(s.desc)}">
@@ -61,6 +74,7 @@ const DIR_CN = {
 };
 
 async function loadRadar() {
+  await loadSegments();
   const q = new URLSearchParams();
   if ($("f-province").value) q.set("province", $("f-province").value);
   if ($("f-year").value) q.set("year", $("f-year").value);
@@ -75,7 +89,7 @@ async function loadRadar() {
     tr.innerHTML = `
       <td class="muted">${i + 1}</td>
       <td><b style="color:var(--head)">${esc(it.coname)}</b>
-          ${it.industry_tags && it.industry_tags.includes("光伏") ? '<span class="tag" style="margin-left:6px">光伏</span>' : ""}
+          <span class="tag" style="margin-left:6px">${esc(it.segment)}</span>
           <br><span class="muted">${esc(it.scode)}</span></td>
       <td>${esc(it.province)}</td>
       <td class="muted">${it.year}</td>
@@ -92,22 +106,25 @@ async function loadRadar() {
     body.appendChild(tr);
   });
   $("radar-note").textContent =
-    `共 ${d.items.length} 个出海需求企业-年（电气设备 2018-2023 全量样本）。排序：窗口期优先 → 落地层 > 筹备层 → 强度分。点击企业即按该行年度打开详情（年份上下文贯穿推理链与简报）。`;
+    `筛选共 ${d.total} 个需求线索企业-年，当前展示 ${d.items.length} 个。年份：${$("f-year").value || "2018—2023全期"}；热度为披露强度，不是出海概率。点击按该行年度打开详情。`;
 }
 
 /* ---------------- 企业详情 ---------------- */
 function yearQs() { return CUR_YEAR ? `?year=${CUR_YEAR}` : ""; }
 
 async function openCompany(scode, year = null) {
+  const request = ++companyRequest;
   CUR = scode;
   CUR_YEAR = year;
   const qs = yearQs();
   const [d, ch, sc, g] = await Promise.all([
     jget("/api/company/" + scode + qs),
-    jget("/api/company/" + scode + "/chain" + qs),
+    jget("/api/company/" + scode + "/chain" + qs).catch(() => ({steps: [], countries: [], regions: []})),
     jget("/api/company/" + scode + "/supply-chain" + qs),
     jget("/api/company/" + scode + "/graph" + qs),
   ]);
+  if (request !== companyRequest) return;
+  CUR_YEAR = d.year;
   $("co-name").textContent = d.coname;
   $("co-sub").textContent = `${d.province} · ${d.industry} · 数据年度 ${d.year ?? "—"}`;
   $("co-tags").innerHTML =
@@ -121,6 +138,7 @@ async function openCompany(scode, year = null) {
   renderSupplyChain(sc, scode);
   renderCountries(ch.countries || [], ch.regions || []);
   switchView("view-company");
+  setChatContext("company");
 }
 
 function renderCapability(d) {
@@ -388,6 +406,8 @@ function switchView(id) {
   document.querySelectorAll(".view").forEach((v) => v.classList.remove("on"));
   $(id).classList.add("on");
   window.scrollTo(0, 0);
+  if (!window.DSH_CHAT_CONTEXT) window.DSH_CHAT_CONTEXT = {};
+  window.DSH_CHAT_CONTEXT.view = id.replace("view-", "");
 }
 
 $("btn-radar").onclick = () => { loadRadar(); switchView("view-radar"); };
@@ -412,5 +432,22 @@ function bindEvidence(containerId) {
 }
 bindEvidence("chain-steps");
 bindEvidence("sig-list");
+
+/* ---------------- 对话工作台全局钩子（drawer.js / chat.js 调用） ---------------- */
+window.DSHOpenCompany = openCompany;
+
+/* 从对话分析渲染一页简报（analysis_id 复用，不重新计算事实） */
+window.DSHShowBriefing = function (b) {
+  $("brief-title").textContent = b.title;
+  $("brief-sections").innerHTML = b.sections.map((s) => `
+    <div class="sec"><h4>${esc(s.heading)}</h4>
+      ${(s.body || "").split("\n").map((line) => `<p>${esc(line)}</p>`).join("")}
+      ${(s.refs || []).length
+        ? `<div class="muted tiny">依据引用：${s.refs.map((r) =>
+            `<a class="evlink" onclick="window.DSHDrawer.open('${esc(r)}','依据详情')">${esc(r)}</a>`).join(" · ")}</div>`
+        : ""}
+    </div>`).join("");
+  switchView("view-briefing");
+};
 
 init();

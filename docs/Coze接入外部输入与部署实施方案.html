@@ -1,0 +1,1051 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>数智链海 · Coze 接入外部输入与部署实施方案</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,600;0,700;1,400&family=Noto+Sans+SC:wght@300;400;500;700&display=swap');
+
+:root {
+  --bg: #07090f; --bg2: #0d1117; --panel: #0d1117; --panel2: #161b22;
+  --border: #21262d; --border2: #30363d;
+  --blue: #58a6ff; --green: #3fb950; --cyan: #39d0f0; --purple: #bc8cff;
+  --orange: #e3b341; --red: #f85149; --pink: #f778ba; --gold: #d4af6a;
+  --text: #e6edf3; --text-mid: #8b949e; --text-dim: #484f58;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body { background: var(--bg); color: var(--text);
+       font-family: 'Noto Sans SC', 'Microsoft YaHei', sans-serif;
+       font-size: 13.5px; line-height: 1.75; }
+
+/* ── TOP NAV ── */
+.topnav { background: var(--bg2); border-bottom: 1px solid var(--border);
+  padding: 12px 32px; display: flex; align-items: center; gap: 12px;
+  position: sticky; top: 0; z-index: 100; flex-wrap: wrap; }
+.topnav .logo { font-family: 'JetBrains Mono', monospace; font-size: 12.5px;
+  font-weight: 700; color: var(--gold); letter-spacing: .04em; }
+.topnav .breadcrumb { font-size: 11px; color: var(--text-dim);
+  font-family: 'JetBrains Mono', monospace; }
+.topnav .phase-pills { margin-left: auto; display: flex; gap: 6px; flex-wrap: wrap; }
+.phase-pill { font-size: 9px; font-family: 'JetBrains Mono', monospace;
+  font-weight: 700; padding: 3px 8px; border-radius: 20px; border: 1px solid;
+  letter-spacing: .06em; cursor: pointer; text-decoration: none; }
+.phase-pill:hover { filter: brightness(1.3); }
+
+/* ── LAYOUT ── */
+.layout { display: grid; grid-template-columns: 232px 1fr;
+  min-height: calc(100vh - 48px); }
+.sidebar { background: var(--bg2); border-right: 1px solid var(--border);
+  padding: 22px 0 40px; position: sticky; top: 48px;
+  height: calc(100vh - 48px); overflow-y: auto; }
+.sidebar-group-label { font-size: 9px; font-family: 'JetBrains Mono', monospace;
+  font-weight: 700; letter-spacing: .12em; color: var(--text-dim);
+  padding: 10px 20px 4px; text-transform: uppercase; }
+.sidebar-item { display: flex; align-items: center; gap: 8px; padding: 5px 20px;
+  color: var(--text-mid); text-decoration: none; font-size: 12px;
+  border-left: 2px solid transparent; }
+.sidebar-item:hover { color: var(--text); background: rgba(88,166,255,.06);
+  border-left-color: var(--blue); }
+.sidebar-item .num { width: 20px; height: 20px; border-radius: 6px;
+  display: inline-flex; align-items: center; justify-content: center;
+  font-size: 10px; font-family: 'JetBrains Mono', monospace; font-weight: 700; }
+.sidebar-item.done { color: var(--green); }
+.sidebar-item.done .num { background: #12261e; color: var(--green); }
+
+.main { padding: 34px 44px 80px; max-width: 980px; min-width: 0; }
+
+/* ── HERO ── */
+.hero { border: 1px solid var(--border); border-radius: 14px;
+  background: linear-gradient(135deg, rgba(212,175,106,.07), transparent 55%),
+              var(--panel); padding: 28px 32px; margin-bottom: 26px; }
+.hero h1 { font-size: 23px; color: var(--text); letter-spacing: 1px; margin-bottom: 8px; }
+.hero h1 .accent { color: var(--gold); }
+.hero .sub { color: var(--text-mid); font-size: 13px; }
+.hero .meta { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 14px;
+  font-size: 11px; font-family: 'JetBrains Mono', monospace; color: var(--text-dim); }
+.hero .meta b { color: var(--text-mid); font-weight: 600; }
+.status-chip { display: inline-block; font-size: 10.5px; font-weight: 700;
+  padding: 2px 10px; border-radius: 20px; border: 1px solid; letter-spacing: .05em; }
+.chip-green { color: var(--green); border-color: rgba(63,185,80,.4); background: rgba(63,185,80,.08); }
+.chip-amber { color: var(--orange); border-color: rgba(227,179,65,.4); background: rgba(227,179,65,.08); }
+.chip-red   { color: var(--red);   border-color: rgba(248,81,73,.4);  background: rgba(248,81,73,.08); }
+
+/* ── PHASE DIVIDER ── */
+.section-divider { display: flex; align-items: center; gap: 14px;
+  margin: 44px 0 26px; }
+.section-divider span { font-family: 'JetBrains Mono', monospace; font-size: 11px;
+  font-weight: 700; letter-spacing: .14em; color: var(--gold); white-space: nowrap; }
+.section-divider::after { content: ""; flex: 1; height: 1px;
+  background: linear-gradient(90deg, var(--border2), transparent); }
+
+/* ── PHASE HEADER ── */
+.phase-header { display: flex; gap: 14px; align-items: flex-start;
+  margin: 26px 0 14px; }
+.phase-num { font-family: 'JetBrains Mono', monospace; font-size: 10px;
+  font-weight: 700; letter-spacing: .08em; padding: 4px 10px; border-radius: 8px;
+  margin-top: 3px; white-space: nowrap; }
+.bg-blue  { background: #0d1f33; color: var(--blue); }
+.bg-green { background: #12261e; color: var(--green); }
+.bg-orange{ background: #2b2010; color: var(--orange); }
+.bg-purple{ background: #241b38; color: var(--purple); }
+.bg-pink  { background: #2d1545; color: var(--pink); }
+.bg-gold  { background: #2b2413; color: var(--gold); }
+.bg-gray  { background: #1a1e24; color: var(--text-mid); }
+.phase-title { font-size: 16px; font-weight: 700; color: var(--text); }
+.phase-sub { font-size: 12px; color: var(--text-mid); }
+
+/* ── STEP CARD ── */
+.step { background: var(--panel); border: 1px solid var(--border);
+  border-radius: 12px; margin-bottom: 16px; overflow: hidden; }
+.step-head { display: flex; align-items: center; gap: 10px; padding: 11px 18px;
+  border-bottom: 1px solid var(--border); background: rgba(255,255,255,.02); }
+.step-head .dot { width: 8px; height: 8px; border-radius: 50%; }
+.dot-blue{ background: var(--blue); box-shadow: 0 0 8px rgba(88,166,255,.6); }
+.dot-green{ background: var(--green); box-shadow: 0 0 8px rgba(63,185,80,.6); }
+.dot-gold{ background: var(--gold); box-shadow: 0 0 8px rgba(212,175,106,.6); }
+.step-head b { font-size: 13.5px; color: var(--text); }
+.step-head .tag { margin-left: auto; font-size: 10px; font-family: 'JetBrains Mono', monospace;
+  color: var(--text-dim); border: 1px solid var(--border2); padding: 1px 8px; border-radius: 12px; }
+.step-body { padding: 16px 18px; }
+.step-body p { margin: 6px 0; color: var(--text); }
+.step-body ul, .step-body ol { margin: 8px 0 8px 22px; color: var(--text); }
+.step-body li { margin-bottom: 4px; }
+.step-body strong { color: var(--gold); }
+
+/* ── CODE ── */
+.code-wrap { border: 1px solid var(--border2); border-radius: 10px;
+  overflow: hidden; margin: 10px 0; background: #0a0d13; }
+.code-header { display: flex; justify-content: space-between; align-items: center;
+  padding: 6px 14px; background: var(--panel2); border-bottom: 1px solid var(--border); }
+.code-header .lang { font-family: 'JetBrains Mono', monospace; font-size: 9.5px;
+  font-weight: 700; letter-spacing: .12em; color: var(--blue); }
+.code-header .fname { font-family: 'JetBrains Mono', monospace; font-size: 10.5px;
+  color: var(--text-dim); }
+pre { font-family: 'JetBrains Mono', 'Consolas', monospace; font-size: 12px;
+  line-height: 1.75; padding: 14px 16px; overflow-x: auto; color: #c9d1d9; }
+pre .cmt { color: #7d8590; }
+pre .var { color: var(--purple); }
+pre .str { color: #a5d6ff; }
+pre .key { color: var(--gold); }
+pre .ok  { color: var(--green); }
+code { font-family: 'JetBrains Mono', 'Consolas', monospace; font-size: 12px;
+  background: var(--panel2); border: 1px solid var(--border);
+  padding: 1px 6px; border-radius: 5px; color: var(--blue); }
+
+/* ── CALLOUT ── */
+.callout { display: flex; gap: 10px; padding: 12px 14px; border-radius: 10px;
+  border: 1px solid; margin: 12px 0; font-size: 12.5px; }
+.callout .icon { font-size: 15px; line-height: 1.5; }
+.callout .body { flex: 1; color: var(--text); }
+.callout.info    { background: rgba(88,166,255,.07);  border-color: rgba(88,166,255,.3); }
+.callout.warn    { background: rgba(227,179,65,.07);  border-color: rgba(227,179,65,.35); }
+.callout.error   { background: rgba(248,81,73,.08);   border-color: rgba(248,81,73,.35); }
+.callout.success { background: rgba(63,185,80,.07);   border-color: rgba(63,185,80,.3); }
+.callout.gold    { background: rgba(212,175,106,.07); border-color: rgba(212,175,106,.35); }
+
+/* ── TABLE ── */
+table { width: 100%; border-collapse: collapse; margin: 10px 0;
+  font-size: 12.5px; background: var(--panel2); border-radius: 10px;
+  overflow: hidden; border: 1px solid var(--border); }
+th { background: #1a202b; color: var(--gold); text-align: left;
+  font-weight: 600; padding: 9px 12px; border-bottom: 1px solid var(--border2);
+  font-size: 12px; white-space: nowrap; }
+td { padding: 8px 12px; border-bottom: 1px solid var(--border);
+  color: var(--text); vertical-align: top; }
+tr:last-child td { border-bottom: none; }
+td .ok-mark { color: var(--green); font-weight: 700; }
+td .todo-mark { color: var(--orange); font-weight: 700; }
+td .no-mark { color: var(--red); font-weight: 700; }
+
+/* ── CHECKLIST ── */
+.checklist { list-style: none; margin: 10px 0 !important; }
+.checklist li { display: flex; gap: 10px; align-items: flex-start;
+  padding: 7px 10px; border: 1px solid var(--border); border-radius: 8px;
+  margin-bottom: 6px; background: var(--panel); }
+.checklist .box { width: 16px; height: 16px; border-radius: 4px;
+  border: 1px solid var(--border2); margin-top: 3px; flex-shrink: 0;
+  background: var(--panel2); }
+.checklist li b { color: var(--text); }
+.checklist li span { color: var(--text-mid); font-size: 12px; }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 860px) {
+  .layout { grid-template-columns: 1fr; }
+  .sidebar { display: none; }
+  .main { padding: 20px 16px 60px; }
+  .topnav { padding: 10px 14px; }
+  .hero { padding: 20px 18px; }
+}
+
+@media print {
+  .topnav, .sidebar { display: none; }
+  .layout { grid-template-columns: 1fr; }
+  body { background: #fff; color: #111; }
+  .step, .hero { border-color: #ccc; background: #fff; }
+  pre, td, th, p, li { color: #111 !important; }
+}
+</style>
+</head>
+<body>
+
+<header class="topnav">
+  <span class="logo">数智链海 · COZE 接入</span>
+  <span class="breadcrumb">docs / Coze接入外部输入与部署实施方案.html</span>
+  <div class="phase-pills">
+    <a class="phase-pill" style="color:#8b949e;border-color:#30363d;" href="#prereq">PRE</a>
+    <a class="phase-pill" style="color:#e3b341;border-color:#e3b34155;" href="#phase0">PHASE 0</a>
+    <a class="phase-pill" style="color:#3fb950;border-color:#3fb95055;" href="#phase1">PHASE 1</a>
+    <a class="phase-pill" style="color:#58a6ff;border-color:#58a6ff55;" href="#phase2">PHASE 2</a>
+    <a class="phase-pill" style="color:#bc8cff;border-color:#bc8cff55;" href="#phase3">PHASE 3</a>
+    <a class="phase-pill" style="color:#f778ba;border-color:#f778ba55;" href="#phase4">PHASE 4</a>
+    <a class="phase-pill" style="color:#d4af6a;border-color:#d4af6a55;" href="#phase5">PHASE 5</a>
+    <a class="phase-pill" style="color:#f85149;border-color:#f8514955;" href="#phase6">PHASE 6</a>
+  </div>
+</header>
+
+<div class="layout">
+<nav class="sidebar">
+  <div class="sidebar-group">
+    <div class="sidebar-group-label">Phase 0 · 外部输入</div>
+    <a href="#phase0" class="sidebar-item"><span class="num" style="background:#2b2010;color:#e3b341;">◈</span>输入清单与责任分工</a>
+  </div>
+  <div class="sidebar-group">
+    <div class="sidebar-group-label">Phase 1 · 工具服务公网部署</div>
+    <a href="#p1s1" class="sidebar-item done"><span class="num" style="background:#12261e;color:#3fb950;">1</span>推送代码到 GitHub</a>
+    <a href="#p1s2" class="sidebar-item done"><span class="num" style="background:#12261e;color:#3fb950;">2</span>Railway 更新部署</a>
+    <a href="#p1s3" class="sidebar-item"><span class="num" style="background:#12261e;color:#3fb950;">3</span>配置 TOOL_CONTEXT_SECRET</a>
+    <a href="#p1s4" class="sidebar-item"><span class="num" style="background:#12261e;color:#3fb950;">4</span>验证工具服务连通</a>
+  </div>
+  <div class="sidebar-group">
+    <div class="sidebar-group-label">Phase 2 · Coze 工作空间与授权</div>
+    <a href="#p2s1" class="sidebar-item"><span class="num" style="background:#0d1f33;color:#58a6ff;">5</span>注册 / 开发者空间</a>
+    <a href="#p2s2" class="sidebar-item"><span class="num" style="background:#0d1f33;color:#58a6ff;">6</span>创建 PAT 令牌</a>
+    <a href="#p2s3" class="sidebar-item"><span class="num" style="background:#0d1f33;color:#58a6ff;">7</span>令牌保管与最小权限</a>
+  </div>
+  <div class="sidebar-group">
+    <div class="sidebar-group-label">Phase 3 · Coze 插件（工具接入）</div>
+    <a href="#p3s1" class="sidebar-item"><span class="num" style="background:#241b38;color:#bc8cff;">8</span>导入 OpenAPI 创建插件</a>
+    <a href="#p3s2" class="sidebar-item"><span class="num" style="background:#241b38;color:#bc8cff;">9</span>鉴权：X-Context-Token</a>
+    <a href="#p3s3" class="sidebar-item"><span class="num" style="background:#241b38;color:#bc8cff;">10</span>插件试跑与 /dispatch 备选</a>
+  </div>
+  <div class="sidebar-group">
+    <div class="sidebar-group-label">Phase 4 · 工作流搭建与发布</div>
+    <a href="#p4s1" class="sidebar-item"><span class="num" style="background:#2d1545;color:#f778ba;">11</span>新建工作流（9 节点）</a>
+    <a href="#p4s2" class="sidebar-item"><span class="num" style="background:#2d1545;color:#f778ba;">12</span>大模型节点提示词</a>
+    <a href="#p4s3" class="sidebar-item"><span class="num" style="background:#2d1545;color:#f778ba;">13</span>插件节点与 context_token</a>
+    <a href="#p4s4" class="sidebar-item"><span class="num" style="background:#2d1545;color:#f778ba;">14</span>代码节点自检</a>
+    <a href="#p4s5" class="sidebar-item"><span class="num" style="background:#2d1545;color:#f778ba;">15</span>试运行与发布</a>
+  </div>
+  <div class="sidebar-group">
+    <div class="sidebar-group-label">Phase 5 · 后端接通与验收</div>
+    <a href="#p5s1" class="sidebar-item"><span class="num" style="background:#2b2413;color:#d4af6a;">16</span>配置 COZE_* 环境变量</a>
+    <a href="#p5s2" class="sidebar-item"><span class="num" style="background:#2b2413;color:#d4af6a;">17</span>全链路验证</a>
+    <a href="#p5s3" class="sidebar-item"><span class="num" style="background:#2b2413;color:#d4af6a;">18</span>验收用例对照</a>
+  </div>
+  <div class="sidebar-group">
+    <div class="sidebar-group-label">Phase 6 · 安全与运维</div>
+    <a href="#p6s1" class="sidebar-item"><span class="num" style="background:#3a1412;color:#f85149;">19</span>密钥管理与轮换</a>
+    <a href="#p6s2" class="sidebar-item"><span class="num" style="background:#3a1412;color:#f85149;">20</span>运行记录与降级演练</a>
+    <a href="#p6s3" class="sidebar-item"><span class="num" style="background:#3a1412;color:#f85149;">21</span>持久化与成本监控</a>
+  </div>
+  <div class="sidebar-group">
+    <div class="sidebar-group-label">附录</div>
+    <a href="#appendix1" class="sidebar-item"><span class="num" style="background:#1a1e24;color:#8b949e;">A</span>与 kg_api 实施对照</a>
+    <a href="#appendix2" class="sidebar-item"><span class="num" style="background:#1a1e24;color:#8b949e;">B</span>最终检查清单</a>
+  </div>
+</nav>
+
+<main class="main">
+
+<!-- ══ HERO ══ -->
+<div class="hero">
+  <h1>Coze 接入 <span class="accent">外部输入与部署</span> 实施方案</h1>
+  <div class="sub">把“规则演示模式”切换为真实 Coze 工作流模式所需的全部外部输入、获取步骤与实施细节。
+  工程侧（M0—M5）已完成；本文档覆盖剩余的外部依赖与云端配置。</div>
+  <div class="meta">
+    <span>版本 <b>v1.0</b></span>
+    <span>日期 <b>2026-09-25</b></span>
+    <span>性质 <b>待实施方案</b></span>
+    <span>参照 <b>技术链/kg_api 部署模式</b></span>
+    <span>依据 <b>docs/Coze智能体与光球交互_完整实施方案.md 第 5、6、16 章</b></span>
+  </div>
+  <div style="margin-top:16px;display:flex;gap:8px;flex-wrap:wrap">
+    <span class="status-chip chip-green">✅ 工程代码与测试：已就绪（38/38 + 47/47）</span>
+    <span class="status-chip chip-green">✅ Coze 配套工件：已就绪（coze/ 目录）</span>
+    <span class="status-chip chip-amber">◈ 外部输入 1：Coze 工作空间 + PAT —— 待申请</span>
+    <span class="status-chip chip-amber">◈ 外部输入 2：已发布工作流 —— 待搭建发布</span>
+    <span class="status-chip chip-amber">◈ 外部输入 3：公网 HTTPS 工具服务 —— 待部署</span>
+  </div>
+</div>
+
+<!-- ══ PREREQ ══ -->
+<section id="prereq">
+  <div class="phase-header">
+    <div class="phase-num bg-gray">PRE</div>
+    <div>
+      <div class="phase-title">前置检查</div>
+      <div class="phase-sub">开始前确认所有依赖项就绪（参照 kg_api 前置检查，替换为本项目项）</div>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-body">
+      <table>
+        <tr><th>项目</th><th>要求</th><th>当前状态 / 检查方法</th></tr>
+        <tr><td>数智链海代码</td><td>v2.0（对话网关/工具/光球/扩展全部就绪）</td><td><span class="ok-mark">✅ 已就绪</span> · <code>python -m unittest discover -s tests</code>（38/38）</td></tr>
+        <tr><td>Coze 账号</td><td>已注册并进入开发者空间</td><td><span class="todo-mark">◈ 待申请</span> · coze.cn（见 PHASE 2）</td></tr>
+        <tr><td>公网部署平台</td><td>Railway / Render 等可部署 HTTPS 服务</td><td><span class="ok-mark">✅ 已有</span> · Railway 项目 shuzhi-lianhai（PROGRESS.md 记录在案）</td></tr>
+        <tr><td>GitHub 仓库</td><td>可推送（Railway 自动构建）</td><td><span class="ok-mark">✅ 已有</span> · github.com/G-gyf/shuzhi-lianhai</td></tr>
+        <tr><td>产品资料卡</td><td>5—8 张重点服务卡及来源</td><td><span class="ok-mark">✅ 已备</span> · knowledge/products/product_cards.json（15 卡 · 8 张 verified）</td></tr>
+        <tr><td>口径修正决定</td><td>年份/缺失/总数口径（M0）</td><td><span class="ok-mark">✅ 已备</span> · tests/test_m0_protocol.py</td></tr>
+        <tr><td>地区扩展验收资料</td><td>一份授权资料（无真实资料用标注合成示范）</td><td><span class="ok-mark">✅ 已备</span> · knowledge/regional/demo_region_a_notes.json（标注“合成示范，非真实分行数据”）</td></tr>
+      </table>
+      <div class="callout info">
+        <div class="icon">ℹ️</div>
+        <div class="body"><strong>与 kg_api 的关键差异：</strong>kg_api 需要 Neo4j AuraDB 与 <code>neo4j+s://</code> 连接；本项目工具服务<b>自包含</b>（SQLite 随镜像部署），<b>没有</b>外部图数据库依赖，因此“外部输入”更少——缺的只有 Coze 账号侧与公网服务侧两项。</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"><span id="phase0">PHASE 0 · 外部输入清单与责任分工</span></div>
+
+<section id="p0s1">
+  <div class="phase-header" style="margin-top:0;">
+    <div class="phase-num bg-orange">STEP 0</div>
+    <div>
+      <div class="phase-title">五项外部输入总览（方案第 16 章）</div>
+      <div class="phase-sub">哪些已备、哪些需要谁在何时提供</div>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-body">
+      <table>
+        <tr><th>#</th><th>外部输入</th><th>用途</th><th>提供方</th><th>状态</th><th>完成节点</th></tr>
+        <tr><td>1</td><td><b>Coze 工作空间 + API 授权令牌（PAT）</b></td><td>后端以 Bearer 令牌调用工作流流式接口</td><td>团队（任一队员注册/申请）</td><td><span class="todo-mark">◈ 待提供</span></td><td>PHASE 2 → STEP 5—7</td></tr>
+        <tr><td>2</td><td><b>已发布工作流（workflow_id + 版本）</b></td><td>AI 分析主流程（意图→工具→分析→结果）</td><td>实施队员按本文档搭建</td><td><span class="todo-mark">◈ 待搭建发布</span></td><td>PHASE 4 → STEP 11—15</td></tr>
+        <tr><td>3</td><td><b>可供 Coze 访问的公网 HTTPS 工具服务</b></td><td>Coze 云端经 context_token 调用受控业务工具</td><td>实施队员部署</td><td><span class="todo-mark">◈ 待部署</span></td><td>PHASE 1 → STEP 1—4</td></tr>
+        <tr><td>4</td><td>5—8 张重点服务资料卡及来源</td><td>产品依据光球与方案分析</td><td>金融队员</td><td><span class="ok-mark">✅ 已备</span></td><td>已交付（15 卡 · 8 verified）</td></tr>
+        <tr><td>5</td><td>快照与口径修正决定</td><td>统一年份上下文、缺失口径</td><td>数据队员</td><td><span class="ok-mark">✅ 已备</span></td><td>已交付（M0）</td></tr>
+      </table>
+      <div class="callout warn">
+        <div class="icon">⚠️</div>
+        <div class="body"><strong>重要边界（方案 5.2/16 章）：</strong>Coze 云端无法访问本机 <code>127.0.0.1</code>；PAT 是长期令牌，<b>只允许</b>存放在后端服务端环境变量，浏览器与仓库一律不存。在输入 1—3 齐备前，系统保持“本地规则引擎演示模式”，功能可用、回答标注规则演示。</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"><span id="phase1">PHASE 1 · 工具服务公网部署（参照 kg_api 部署链路）</span></div>
+
+<!-- ══ P1S1 ══ -->
+<section id="p1s1">
+  <div class="phase-header" style="margin-top:0;">
+    <div class="phase-num bg-green">STEP 1</div>
+    <div>
+      <div class="phase-title">推送 v2.0 代码到 GitHub</div>
+      <div class="phase-sub">Railway 已连接仓库时，推送即触发自动构建部署</div>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-head"><span class="dot dot-green"></span><b>推送代码</b><span class="tag">GIT</span></div>
+    <div class="step-body">
+      <div class="code-wrap">
+        <div class="code-header"><span class="lang">BASH</span><span class="fname">数智链海/</span></div>
+        <pre><span class="cmt"># 提交 v2.0（对话网关/工具/Coze 工件/前端对话台）</span>
+git add -A
+git commit -m <span class="str">"v2.0 Coze 对话工作台：SSE 网关/受控工具/光球抽屉/地区扩展"</span>
+git push origin main</pre>
+      </div>
+      <div class="callout success">
+        <div class="icon">✅</div>
+        <div class="body"><strong>无需改 Dockerfile：</strong>现有 <code>Dockerfile</code> 的 <code>COPY . .</code> 会自动携带 <code>server/</code> 新模块、<code>kb/</code>、<code>knowledge/</code>、<code>coze/</code>；<code>runtime/</code> 已在 <code>.gitignore</code>（运行库不发布），服务启动时自动建库。依赖零新增——Coze 客户端用标准库 <code>urllib</code> 实现，<code>requirements.txt</code> 不变。</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ P1S2 ══ -->
+<section id="p1s2">
+  <div class="phase-header">
+    <div class="phase-num bg-green">STEP 2</div>
+    <div>
+      <div class="phase-title">Railway 更新部署</div>
+      <div class="phase-sub">确认构建与启动成功（线上为 HTTPS，Coze 可达）</div>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-head"><span class="dot dot-green"></span><b>Railway Dashboard</b><span class="tag">RAILWAY</span></div>
+    <div class="step-body">
+      <ol>
+        <li>打开 <code>railway.app</code> → 项目 <b>shuzhi-lianhai</b> → Deployments；若仓库已连接，push 后自动构建。</li>
+        <li>首次部署：New Project → <b>Deploy from GitHub repo</b> → 选择 <code>G-gyf/shuzhi-lianhai</code>。</li>
+        <li>等待构建完成，日志出现 <code>Application startup complete</code>。</li>
+        <li>确认线上地址：<code>https://shuzhi-lianhai-production.up.railway.app</code>（Settings → Networking → Public domain）。</li>
+      </ol>
+      <div class="callout info">
+        <div class="icon">ℹ️</div>
+        <div class="body">容器启动命令已由 <code>Dockerfile</code> 定义：<code>uvicorn server.main:app --host 0.0.0.0 --port ${PORT:-8000}</code>，无需在 Railway 配置 Start Command（kg_api 同样依赖 Dockerfile 的 CMD）。</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ P1S3 ══ -->
+<section id="p1s3">
+  <div class="phase-header">
+    <div class="phase-num bg-green">STEP 3</div>
+    <div>
+      <div class="phase-title">配置 TOOL_CONTEXT_SECRET</div>
+      <div class="phase-sub">工具接口鉴权密钥：只在服务端，与 Coze 工作流传 token 共用</div>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-head"><span class="dot dot-green"></span><b>生成强随机密钥</b><span class="tag">SECRET</span></div>
+    <div class="step-body">
+      <div class="code-wrap">
+        <div class="code-header"><span class="lang">PYTHON</span><span class="fname">生成密钥</span></div>
+        <pre>python -c <span class="str">"import secrets; print(secrets.token_hex(32))"</span>
+<span class="cmt"># 输出示例（请使用你自己的值）：</span>
+<span class="var">9f3c8a41d0b74e2f9c1d3b7a5e0f2c6a8b4d1e7f0a3c5b9d2e8f4a1c6b0d3e7</span></pre>
+      </div>
+      <p>Railway → 项目 → <b>Variables</b> → New Variable：</p>
+      <div class="code-wrap">
+        <div class="code-header"><span class="lang">ENV</span><span class="fname">Railway Variables</span></div>
+        <pre><span class="key">TOOL_CONTEXT_SECRET</span> = <span class="var">9f3c8a41...（上方生成值）</span></pre>
+      </div>
+      <div class="callout warn">
+        <div class="icon">⚠️</div>
+        <div class="body">该密钥是 Coze 云端调用工具的<b>唯一凭证</b>（方案 5.2：每轮短期 context_token 用此密钥 HMAC 签名）。它不进入提示词、不进仓库、不进浏览器；本地联调时在启动命令前临时设置同名环境变量即可。</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ P1S4 ══ -->
+<section id="p1s4">
+  <div class="phase-header">
+    <div class="phase-num bg-green">STEP 4</div>
+    <div>
+      <div class="phase-title">验证工具服务连通</div>
+      <div class="phase-sub">健康检查 + 带 token 的真实工具调用</div>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-head"><span class="dot dot-green"></span><b>健康检查</b><span class="tag">CURL</span></div>
+    <div class="step-body">
+      <div class="code-wrap">
+        <div class="code-header"><span class="lang">BASH</span></div>
+        <pre>curl -s https://shuzhi-lianhai-production.up.railway.app/api/health
+<span class="cmt"># 期望输出（带 snapshot_id 即新版本）：</span>
+{<span class="str">"status"</span>:<span class="str">"ok"</span>,<span class="str">"kb"</span>:<span class="str">"kb-2023"</span>,<span class="str">"snapshot_id"</span>:<span class="str">"kb-2023@6a947ff19618"</span>}</pre>
+      </div>
+      <p>带 token 调用工具（本地签发，10 分钟有效）：</p>
+      <div class="code-wrap">
+        <div class="code-header"><span class="lang">PYTHON</span><span class="fname">verify_tool.py</span></div>
+        <pre><span class="key">import</span> json, urllib.request
+<span class="key">from</span> server <span class="key">import</span> context_token   <span class="cmt"># 在 数智链海/ 目录下运行</span>
+
+BASE = <span class="str">"https://shuzhi-lianhai-production.up.railway.app"</span>
+SECRET = <span class="str">"9f3c8a41...（与 Railway 一致）"</span>
+tok = context_token.sign_context_token({
+    <span class="str">"user_id"</span>: <span class="str">"u_demo_a"</span>, <span class="str">"regions"</span>: [<span class="str">"region_a"</span>],
+    <span class="str">"snapshot_id"</span>: <span class="str">"kb-2023@6a947ff19618"</span>,
+    <span class="str">"allowed_tools"</span>: [<span class="str">"get_company_context"</span>],
+}, SECRET, 600)
+req = urllib.request.Request(BASE + <span class="str">"/api/v1/tools/get_company_context"</span>,
+    data=json.dumps({<span class="str">"parameters"</span>: {<span class="str">"scode"</span>: <span class="str">"002860"</span>, <span class="str">"year"</span>: 2023}}).encode(),
+    headers={<span class="str">"X-Context-Token"</span>: tok, <span class="str">"Content-Type"</span>: <span class="str">"application/json"</span>})
+print(json.loads(urllib.request.urlopen(req).read())[<span class="str">"coname"</span>])  <span class="cmt"># 星帅尔</span></pre>
+      </div>
+      <div class="callout success">
+        <div class="icon">✅</div>
+        <div class="body"><strong>本地已实测的鉴权行为</strong>（8001 端口验证通过）：正常调用 200；越权工具 403；伪造 token 403；token 快照与运行快照不一致 409。线上行为一致。</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"><span id="phase2">PHASE 2 · COZE 工作空间与授权（外部输入 1 的获取）</span></div>
+
+<!-- ══ P2S1 ══ -->
+<section id="p2s1">
+  <div class="phase-header" style="margin-top:0;">
+    <div class="phase-num bg-blue">STEP 5</div>
+    <div>
+      <div class="phase-title">注册并进入开发者空间</div>
+      <div class="phase-sub">由一名队员完成，工作空间对团队共享</div>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-head"><span class="dot dot-blue"></span><b>coze.cn</b><span class="tag">ACCOUNT</span></div>
+    <div class="step-body">
+      <ol>
+        <li>打开 <code>https://www.coze.cn</code> 注册 / 登录（手机号或邮箱）。</li>
+        <li>进入「工作空间」：创建 <b>团队空间</b>（例如“数智链海”）并把队员拉入，插件、工作流、令牌均在该空间内管理。</li>
+        <li>确认界面出现「插件」「工作流」「Bot」等开发者入口。</li>
+      </ol>
+      <div class="callout info">
+        <div class="icon">ℹ️</div>
+        <div class="body">国际版为 coze.com、接口域名为 <code>api.coze.com</code>；本项目后端默认 <code>COZE_API_BASE=https://api.coze.cn</code>，若用国际版请同步改该环境变量。</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ P2S2 ══ -->
+<section id="p2s2">
+  <div class="phase-header">
+    <div class="phase-num bg-blue">STEP 6</div>
+    <div>
+      <div class="phase-title">创建 Personal Access Token（PAT）</div>
+      <div class="phase-sub">后端调用工作流的 Bearer 凭证，只显示一次</div>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-head"><span class="dot dot-blue"></span><b>设置 → API 授权</b><span class="tag">PAT</span></div>
+    <div class="step-body">
+      <ol>
+        <li>coze.cn → 左下角头像 → <b>设置</b> → <b>API 授权</b> → <b>新增令牌</b>。</li>
+        <li>名称：<code>shuzhi-lianhai-workflow</code>；权限勾选<b>工作流调用</b>相关权限（最小授权原则，不勾选多余能力）。</li>
+        <li>复制生成的 PAT —— <b>只显示一次</b>，立即存入 Railway Variables（STEP 16），不要粘贴到聊天/文档/仓库。</li>
+      </ol>
+      <div class="callout error">
+        <div class="icon">🔒</div>
+        <div class="body"><strong>令牌安全边界（方案 5.2）：</strong>浏览器只连接项目后端，<b>不保存 Coze 长期令牌</b>；PAT 只存在于后端环境变量。若怀疑泄漏 → 立即在 Coze 控制台吊销并重新签发，同时轮换 <code>TOOL_CONTEXT_SECRET</code>。</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ P2S3 ══ -->
+<section id="p2s3">
+  <div class="phase-header">
+    <div class="phase-num bg-blue">STEP 7</div>
+    <div>
+      <div class="phase-title">令牌保管与调用方式说明</div>
+      <div class="phase-sub">本项目后端如何用 PAT；与 kg_api 的差异</div>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-head"><span class="dot dot-blue"></span><b>调用链</b><span class="tag">FLOW</span></div>
+    <div class="step-body">
+      <div class="code-wrap">
+        <div class="code-header"><span class="lang">TEXT</span></div>
+        <pre>网页对话台 ──▶ 项目后端（server/chat.py）
+                 │  AI_ENABLED=1
+                 ▼
+           POST {COZE_API_BASE}/v1/workflow/stream_run
+                 │  Authorization: Bearer &lt;PAT&gt;
+                 ▼
+           Coze 工作流（N05/N06 插件节点）
+                 │  X-Context-Token: {{context_token}}（每轮签发）
+                 ▼
+           公网工具服务 /api/v1/tools/*（验证 token）</pre>
+      </div>
+      <div class="callout info">
+        <div class="icon">ℹ️</div>
+        <div class="body"><strong>与 kg_api 的差异：</strong>kg_api 使用 <code>cozepy</code> + <code>PyJWT</code> 做 Coze OAuth token 代理与 SDK 调用；本项目<b>不引入这两个依赖</b>——后端直接用标准库 <code>urllib</code> 调流式接口（<code>server/coze_client.py</code>），Coze 侧插件鉴权改用每轮签发的 <code>context_token</code>（比静态 API Key 更贴近“短期、绑定用户与数据版本”的要求）。</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"><span id="phase3">PHASE 3 · COZE 插件（工具接入，外部输入 3 的消费方）</span></div>
+
+<!-- ══ P3S1 ══ -->
+<section id="p3s1">
+  <div class="phase-header" style="margin-top:0;">
+    <div class="phase-num bg-purple">STEP 8</div>
+    <div>
+      <div class="phase-title">导入 OpenAPI 创建插件</div>
+      <div class="phase-sub">沿用 kg_api 的插件导入经验；规格文件已备在 coze/tool_openapi.yaml</div>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-head"><span class="dot dot-blue"></span><b>插件市场 → 创建插件 → 导入 OpenAPI</b><span class="tag">PLUGIN</span></div>
+    <div class="step-body">
+      <ol>
+        <li>工作空间 → <b>插件</b> → <b>创建插件</b> → 选择「通过 OpenAPI 创建」。</li>
+        <li>上传 <code>数智链海/coze/tool_openapi.yaml</code>（8 个工具：resolve_company / search_companies / get_company_context / get_evidence / compare_companies / get_rule_candidates / search_product_knowledge / search_regional_knowledge）。</li>
+        <li>服务器 URL 填 <code>https://shuzhi-lianhai-production.up.railway.app</code>（OpenAPI 内 servers.url 占位也同步替换）。</li>
+        <li>保存插件，名称：<b>数智链海受控业务工具</b>。</li>
+      </ol>
+      <div class="callout warn">
+        <div class="icon">⚠️</div>
+        <div class="body"><strong>kg_api 经验复刻：</strong>kg_api 为规避 Coze 多分支与嵌套对象数组传递限制，设计了 <code>/dispatch</code> 单接口统一分发。本项目 8 个独立工具在 OpenAPI 中声明，若工作流调试发现「对象/数组嵌套传递受限」，按 STEP 10 的备选方案加一个 <code>/api/v1/tools/dispatch</code> 统一入口（约 20 行代码），插件只保留一个工具。</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ P3S2 ══ -->
+<section id="p3s2">
+  <div class="phase-header">
+    <div class="phase-num bg-purple">STEP 9</div>
+    <div>
+      <div class="phase-title">鉴权配置：X-Context-Token</div>
+      <div class="phase-sub">插件认证方式绑定工作流变量，实现“每轮 token”</div>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-head"><span class="dot dot-blue"></span><b>插件鉴权设置</b><span class="tag">AUTH</span></div>
+    <div class="step-body">
+      <ol>
+        <li>插件详情 → <b>鉴权方式</b> → 选择 <b>API Key</b>。</li>
+        <li>API Key 位置：<b>Header</b>；Key 名称：<code>X-Context-Token</code>。</li>
+        <li>Key 值：选择<b>引用工作流变量</b>（如 <code>{{context_token}}</code>）——由对话网关每轮签发、10 分钟有效、绑定用户/地区/数据版本/允许工具。</li>
+      </ol>
+      <div class="callout warn">
+        <div class="icon">⚠️</div>
+        <div class="body">若所在 Coze 空间不支持把 API Key 值绑定为工作流变量（版本差异），<b>临时降级</b>：在插件里静态填入一个调试密钥，后端临时用该固定值启动（<code>TOOL_CONTEXT_SECRET</code> 设为同一值并说明限制）；但正式验收必须回到每轮 token 模式（方案 5.2：工具接口验证 token，不信任模型传来的地区ID）。</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ P3S3 ══ -->
+<section id="p3s3">
+  <div class="phase-header">
+    <div class="phase-num bg-purple">STEP 10</div>
+    <div>
+      <div class="phase-title">插件试跑与 /dispatch 备选</div>
+      <div class="phase-sub">先在插件页验证连通，再进工作流</div>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-head"><span class="dot dot-blue"></span><b>插件试跑</b><span class="tag">TEST</span></div>
+    <div class="step-body">
+      <ol>
+        <li>在插件页对 <code>resolve_company</code> 输入 <code>query=002860</code> → 期望返回 <code>matches[0].coname=星帅尔</code>。</li>
+        <li>对 <code>get_company_context</code> 输入 <code>scode=002860, year=2023</code> → 期望返回证据包（signal_refs / rule_candidates / coverage）。</li>
+      </ol>
+      <table>
+        <tr><th>现象</th><th>原因</th><th>处理</th></tr>
+        <tr><td>403</td><td>token 无效/过期/工具不在允许清单</td><td>确认密钥与 token 签发一致；确认 allowed_tools 包含该工具</td></tr>
+        <tr><td>409</td><td>token 绑定的快照与运行快照不一致</td><td>重新发起对话，获取新 token</td></tr>
+        <tr><td>503</td><td>服务端未配置 TOOL_CONTEXT_SECRET</td><td>检查 Railway Variables 并重启</td></tr>
+        <tr><td>网络超时</td><td>Coze 无法访问服务域名</td><td>确认是 HTTPS 公网域名；Coze 访问不了 127.0.0.1</td></tr>
+      </table>
+      <div class="callout gold">
+        <div class="icon">◈</div>
+        <div class="body"><strong>备选：/dispatch 统一分发接口（如遇 Coze 参数嵌套限制）</strong>，在后端 <code>server/tool_api.py</code> 追加：</div>
+      </div>
+      <div class="code-wrap">
+        <div class="code-header"><span class="lang">PYTHON</span><span class="fname">server/tool_api.py（备选追加）</span></div>
+        <pre>@router.post(<span class="str">"/tools/dispatch"</span>)
+async def dispatch(request: Request):
+    payload = _verify(request)                       <span class="cmt"># 与单工具接口同一鉴权</span>
+    body = await request.json()
+    name = body.get(<span class="str">"tool"</span>); params = body.get(<span class="str">"parameters"</span>) or {}
+    ctx = tools.build_context({
+        <span class="str">"user_id"</span>: payload.get(<span class="str">"user_id"</span>, <span class="str">"coze-worker"</span>),
+        <span class="str">"display_name"</span>: payload.get(<span class="str">"display_name"</span>, <span class="str">"Coze 工作流"</span>),
+        <span class="str">"regions"</span>: payload.get(<span class="str">"regions"</span>) or [],
+        <span class="str">"identity_mode"</span>: <span class="str">"workflow"</span>},
+        allowed_tools=payload.get(<span class="str">"allowed_tools"</span>))
+    return tools.call_tool(name, ctx, params)       <span class="cmt"># 结果扁平化，规避嵌套对象限制</span></pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"><span id="phase4">PHASE 4 · 工作流搭建与发布（外部输入 2 的产出）</span></div>
+
+<!-- ══ P4S1 ══ -->
+<section id="p4s1">
+  <div class="phase-header" style="margin-top:0;">
+    <div class="phase-num bg-pink">STEP 11</div>
+    <div>
+      <div class="phase-title">新建工作流（9 节点）</div>
+      <div class="phase-sub">完整节点配置见 coze/workflow_design.md，这里给搭建顺序与要点</div>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-head"><span class="dot dot-blue"></span><b>工作流 → 创建工作流</b><span class="tag">WORKFLOW</span></div>
+    <div class="step-body">
+      <p>名称：<b>数智链海出海助手</b>；按顺序放置节点：</p>
+      <table>
+        <tr><th>节点</th><th>类型</th><th>输入</th><th>处理 / 输出</th></tr>
+        <tr><td>N01 开始</td><td>开始</td><td>message、page_context、history_summary、preferences、context_token、data_snapshot、product_version</td><td>透传，验证必要参数</td></tr>
+        <tr><td>N02 意图与参数</td><td>大模型</td><td>message、page_context、history_summary</td><td>intent / 企业指代 / 年份 / 筛选 / 方案偏好（结构化任务，不作业务结论）</td></tr>
+        <tr><td>N03 上下文决议</td><td>大模型</td><td>N02 + 后端会话状态</td><td>明确企业、年份；歧义走澄清分支</td></tr>
+        <tr><td>N04 工具路由</td><td>条件分支</td><td>intent</td><td>search / explain / compare / plan / clarify</td></tr>
+        <tr><td>N05 事实检索</td><td>插件</td><td>参数 + context_token</td><td>facts、evidence_refs、coverage</td></tr>
+        <tr><td>N06 资料检索</td><td>插件</td><td>行动与服务范围</td><td>product_refs、适用条件</td></tr>
+        <tr><td>N07 AI 分析</td><td>大模型</td><td>N05、N06、偏好</td><td>综合行动/画像/产品条件 → 结构化分析草稿</td></tr>
+        <tr><td>N08 自检/格式整理</td><td>代码 + 大模型</td><td>草稿</td><td>检查事实引用、未知字段、类型格式 → analysis_draft</td></tr>
+        <tr><td>N09 结束</td><td>结束（文本）</td><td>标准结果</td><td>返回完整 JSON 结果包，交给后端校验与发布</td></tr>
+      </table>
+      <div class="callout info">
+        <div class="icon">ℹ️</div>
+        <div class="body">按方案第 6 章：单一主流程，<b>不引入多个自治智能体</b>；N08 是辅助检查，<b>不能替代后端验证</b>（后端校验、生成 analysis_id、构建光球才是正式发布步骤）。</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ P4S2 ══ -->
+<section id="p4s2">
+  <div class="phase-header">
+    <div class="phase-num bg-pink">STEP 12</div>
+    <div>
+      <div class="phase-title">大模型节点提示词</div>
+      <div class="phase-sub">直接使用 coze/prompts/ 下的版本化提示词</div>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-head"><span class="dot dot-blue"></span><b>提示词文件映射</b><span class="tag">PROMPTS</span></div>
+    <div class="step-body">
+      <table>
+        <tr><th>节点</th><th>提示词文件</th><th>要点</th></tr>
+        <tr><td>N02 意图与参数</td><td><code>coze/prompts/intent.md</code></td><td>“最近”=最新可用数据年度；指代绑定上一条结果集稳定ID，不按重排序名单猜测</td></tr>
+        <tr><td>N03 上下文决议 / 澄清</td><td><code>coze/prompts/clarify.md</code></td><td>同名候选必须让经理确认；不提前生成方案</td></tr>
+        <tr><td>N07 AI 分析</td><td><code>coze/prompts/analyze.md</code></td><td>五类分区：已知事实/需求假设/候选服务/待核实事项/行动建议；只引用本轮允许的 ref</td></tr>
+        <tr><td>N07（plan 分支）</td><td><code>coze/prompts/plan.md</code></td><td>偏好只改候选范围与顺序；placeholder 卡只列讨论方向；地区资料冲突展示差异</td></tr>
+      </table>
+      <div class="callout gold">
+        <div class="icon">◈</div>
+        <div class="body">N02 输出 JSON 模板（复制进大模型节点的输出格式）：<br>
+        <code>{"intent": "search|explain|compare|plan|clarify|general", "companies": [{"scode": "002860"}], "year": 2023, "filters": {"province": "江苏省", "industry": "光伏", "direction": "capacity_production"}, "service_preferences": {"service_focus": ["settlement"], "exclude_financing": true}}</code></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ P4S3 ══ -->
+<section id="p4s3">
+  <div class="phase-header">
+    <div class="phase-num bg-pink">STEP 13</div>
+    <div>
+      <div class="phase-title">插件节点与 context_token</div>
+      <div class="phase-sub">N05/N06 绑定 STEP 8 插件；token 由工作流变量透传</div>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-head"><span class="dot dot-blue"></span><b>插件节点配置</b><span class="tag">NODES</span></div>
+    <div class="step-body">
+      <ol>
+        <li><b>N05 事实检索</b>：按 intent 分别调用 <code>get_company_context</code>（explain/plan）、<code>search_companies</code>（search）、<code>compare_companies</code>（compare）、<code>get_evidence</code>（按需）；输入参数取自 N02/N03 的变量。</li>
+        <li><b>N06 资料检索</b>：<code>get_rule_candidates</code> + <code>search_product_knowledge</code> + <code>search_regional_knowledge</code>（地区资料由 token 权限决定，不传地区ID）。</li>
+        <li>两个节点都把 <code>context_token</code> 绑定到工作流变量：<b>开始节点透传 → 插件 Header</b>。token 每轮由项目后端签发（10 分钟），工作流自身不生成 token。</li>
+      </ol>
+      <div class="callout warn">
+        <div class="icon">⚠️</div>
+        <div class="body">“未接通外网工具服务时可先由后端预取当前企业证据包传给工作流”——本项目网关已内置此降级：即使工具服务异常，后端仍可把 <code>get_company_context</code> 结果直接塞进工作流参数，此模式会标注功能限制，不假装可查询所有企业（方案 5.2）。</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ P4S4 ══ -->
+<section id="p4s4">
+  <div class="phase-header">
+    <div class="phase-num bg-pink">STEP 14</div>
+    <div>
+      <div class="phase-title">代码节点自检（N08）</div>
+      <div class="phase-sub">JS 代码节点：字段白名单、ref 前缀、未知字段剔除</div>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-head"><span class="dot dot-blue"></span><b>代码节点（JavaScript）</b><span class="tag">CODE NODE</span></div>
+    <div class="step-body">
+      <div class="code-wrap">
+        <div class="code-header"><span class="lang">JS</span><span class="fname">N08 自检节点</span></div>
+        <pre>async function main({ params }) {
+  const draft = typeof params.draft === 'string' ? JSON.parse(params.draft) : params.draft;
+  const kinds = ['fact','hypothesis','product','checklist','note'];
+  const refPrefix = ['ev:','metric:','product:','analysis:','compare:','regional:','company:'];
+  const issues = [];
+  if (!Array.isArray(draft.answer_blocks)) issues.push('answer_blocks 必须是数组');
+  if (!Array.isArray(draft.recommendations)) issues.push('recommendations 必须是数组');
+  (draft.answer_blocks || []).forEach((b, i) =&gt; {
+    if (!kinds.includes(b.kind)) { issues.push(`block[${i}] 未知 kind: ${b.kind}`); b.kind = 'note'; }
+    b.refs = (b.refs || []).filter(r =&gt; refPrefix.some(p =&gt; String(r).startsWith(p)));
+    delete b._refs_extra;                      /* 剔除未知字段 */
+  });
+  (draft.recommendations || []).forEach(r =&gt; {
+    if (r.product_ref &amp;&amp; !String(r.product_ref).startsWith('product:')) {
+      issues.push(`${r.id} 产品引用非法，已降为讨论方向`); r.product_ref = null;
+    }
+    if (!['discussion_first','standard','later','not_applicable'].includes(r.priority)) {
+      issues.push(`${r.id} priority 非法`); r.priority = 'standard';
+    }
+  });
+  return { valid: issues.length === 0, issues: issues.join('; '),
+           draft: JSON.stringify(draft) };
+}</pre>
+      </div>
+      <div class="callout info">
+        <div class="icon">ℹ️</div>
+        <div class="body">N08 只做<b>格式整理</b>；事实引用存在性、年度一致性、产品资格、权限等<b>硬性校验由后端</b> <code>server/analysis_service.py</code> 完成（非法引用不生成光球，方案 12.1）。</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ P4S5 ══ -->
+<section id="p4s5">
+  <div class="phase-header">
+    <div class="phase-num bg-pink">STEP 15</div>
+    <div>
+      <div class="phase-title">试运行与发布</div>
+      <div class="phase-sub">合成样例入参 → 逐节点核对 → 发布并记录版本</div>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-head"><span class="dot dot-blue"></span><b>试运行 → 发布</b><span class="tag">PUBLISH</span></div>
+    <div class="step-body">
+      <ol>
+        <li>试运行入参用 <code>coze/examples/chat_request.example.json</code>（合成样例，明确非真实案例）：message、page_context、preferences。</li>
+        <li>逐节点查看：N02 的 intent 是否正确；N05 是否返回 facts/evidence_refs；N07 是否输出五类分区；N08 是否 valid。</li>
+        <li>重点核对：模型不自行产出企业事实数值；不输出 URL/HTML/脚本；产品之外概念不伪造产品ID。</li>
+        <li>通过后点<b>发布</b>，记录版本号（即 workflow_id 对应的 pinned_version），写入运行记录。</li>
+      </ol>
+      <div class="code-wrap">
+        <div class="code-header"><span class="lang">TEXT</span><span class="fname">记录</span></div>
+        <pre>工作流名称：数智链海出海助手
+workflow_id：7484xxxxxxxxxxxxxxx   <span class="cmt"># 发布后从工作流详情复制</span>
+版本说明：v1（按 workflow_design.md 9 节点）
+提示词版本：intent.md / analyze.md / plan.md / clarify.md（2026-09-25）</pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"><span id="phase5">PHASE 5 · 后端接通与验收</span></div>
+
+<!-- ══ P5S1 ══ -->
+<section id="p5s1">
+  <div class="phase-header" style="margin-top:0;">
+    <div class="phase-num bg-gold">STEP 16</div>
+    <div>
+      <div class="phase-title">配置 COZE_* 环境变量</div>
+      <div class="phase-sub">配齐后自动从规则引擎切换为 Coze 工作流，无需改代码</div>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-head"><span class="dot dot-gold"></span><b>Railway Variables</b><span class="tag">ENV</span></div>
+    <div class="step-body">
+      <div class="code-wrap">
+        <div class="code-header"><span class="lang">ENV</span><span class="fname">Railway Variables（完整清单）</span></div>
+        <pre><span class="key">AI_ENABLED</span>=1
+<span class="key">COZE_API_BASE</span>=https://api.coze.cn          <span class="cmt"># 国际版用 api.coze.com</span>
+<span class="key">COZE_ACCESS_TOKEN</span>=&lt;STEP 6 的 PAT&gt;
+<span class="key">COZE_WORKFLOW_ID</span>=&lt;STEP 15 发布的 workflow_id&gt;
+<span class="key">COZE_APP_ID</span>=                              <span class="cmt"># 可选，按发布方式选用；bot/app 不混填</span>
+<span class="key">TOOLS_BASE_URL</span>=https://shuzhi-lianhai-production.up.railway.app
+<span class="key">TOOL_CONTEXT_SECRET</span>=&lt;STEP 3 的密钥&gt;
+<span class="key">AI_TIMEOUT_SECONDS</span>=60
+<span class="key">AI_MAX_TOOL_CALLS</span>=6
+<span class="key">AI_MAX_COMPARE_COMPANIES</span>=3</pre>
+      </div>
+      <div class="callout warn">
+        <div class="icon">⚠️</div>
+        <div class="body">这些是<b>项目配置</b>，不是平台额度声明；建议首版最多比较 3 家、限制工具调用次数与上下文长度。保存后 Railway 自动重启，对话流的 <code>request_started</code> 事件中 <code>engine</code> 字段应变为 <code>coze</code>。</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ P5S2 ══ -->
+<section id="p5s2">
+  <div class="phase-header">
+    <div class="phase-num bg-gold">STEP 17</div>
+    <div>
+      <div class="phase-title">全链路验证</div>
+      <div class="phase-sub">浏览器对话台或 curl SSE 双通道验证</div>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-head"><span class="dot dot-gold"></span><b>验证路径</b><span class="tag">E2E</span></div>
+    <div class="step-body">
+      <ol>
+        <li>打开线上页面 → 右下角「AI 助手」→ 企业详情页问“这家公司值得关注什么？”。</li>
+        <li>观察状态条：查询中 → 分析中（Coze）→ 校验中 → 回答逐段出现 → 光球依次点亮。</li>
+        <li>点原文球 → 抽屉按文本版本高亮；点产品球 → 显示来源与核实状态；点 AI 方案球 → 标注“分析结果，不冒充原文”。</li>
+        <li>curl 复核 SSE（事件名与本地一致，engine=coze）：</li>
+      </ol>
+      <div class="code-wrap">
+        <div class="code-header"><span class="lang">BASH</span></div>
+        <pre>curl -N -X POST https://shuzhi-lianhai-production.up.railway.app/api/v1/chat/stream \
+  -H <span class="str">"Authorization: Bearer demo-token-region-a"</span> \
+  -H <span class="str">"Content-Type: application/json"</span> \
+  -d <span class="str">'{"client_request_id":"e2e_01","message":"这家公司为何入选？","page_context":{"scode":"002860","year":2023}}'</span></pre>
+      </div>
+      <div class="callout success">
+        <div class="icon">✅</div>
+        <div class="body">运行记录核对（方案 12.2）：数据库 <code>runtime/app_runtime.sqlite</code> 的 <code>analyses</code> 表应记录 engine=<b>coze</b>、workflow_version=<b>workflow_id</b>、snapshot_id、product_version、引用集合；日志不记录访问令牌。</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ P5S3 ══ -->
+<section id="p5s3">
+  <div class="phase-header">
+    <div class="phase-num bg-gold">STEP 18</div>
+    <div>
+      <div class="phase-title">验收用例对照（方案 15.1）</div>
+      <div class="phase-sub">本地规则引擎已过的用例，Coze 模式逐条复验</div>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-head"><span class="dot dot-gold"></span><b>16 项必测 + 2 项新增</b><span class="tag">ACCEPT</span></div>
+    <div class="step-body">
+      <table>
+        <tr><th>#</th><th>验收用例（方案 15.1）</th><th>本地规则引擎</th><th>Coze 模式复验</th></tr>
+        <tr><td>1</td><td>地区＋光伏＋行动方向筛选，真实总数可翻页</td><td><span class="ok-mark">✅ 已过</span></td><td>复验（工具链路不变）</td></tr>
+        <tr><td>2</td><td>名称不明确澄清；“第二家”定位原结果企业</td><td><span class="ok-mark">✅ 已过</span></td><td><span class="todo-mark">◈ 重点复验</span>（N02 指代解析）</td></tr>
+        <tr><td>3</td><td>详情页提问不重输代码；切年份数据同步</td><td><span class="ok-mark">✅ 已过</span></td><td>复验</td></tr>
+        <tr><td>4</td><td>无该年度数据不回退未来年份</td><td><span class="ok-mark">✅ 已过</span></td><td>复验（后端硬校验）</td></tr>
+        <tr><td>5</td><td>两家比较同年度＋缺失标识</td><td><span class="ok-mark">✅ 已过</span></td><td>复验</td></tr>
+        <tr><td>6</td><td>“只考虑结算”后调整方案并保留证据</td><td><span class="ok-mark">✅ 已过</span></td><td><span class="todo-mark">◈ 重点复验</span>（N07 偏好遵循）</td></tr>
+        <tr><td>7</td><td>无产品资料不造正式产品</td><td><span class="ok-mark">✅ 已过</span></td><td><span class="todo-mark">◈ 重点复验</span></td></tr>
+        <tr><td>8</td><td>原文球按文本版本高亮；产品球显示来源</td><td><span class="ok-mark">✅ 已过</span></td><td>复验</td></tr>
+        <tr><td>9</td><td>AI 分析球标为推断/方案，不冒充原文</td><td><span class="ok-mark">✅ 已过</span></td><td><span class="todo-mark">◈ 重点复验</span>（模型输出审查）</td></tr>
+        <tr><td>10</td><td>无结果/Coze 超时/检索失败/详情失败有明确处理</td><td>部分（本地引擎无超时）</td><td><span class="todo-mark">◈ 重点复验</span>（真实超时与降级）</td></tr>
+        <tr><td>11</td><td>切换两家公司旧请求不覆盖新面板</td><td><span class="ok-mark">✅ 已过</span></td><td>复验（前端 request_id 门控）</td></tr>
+        <tr><td>12</td><td>A 区资料 B 区不可检索/按 ID 打开</td><td><span class="ok-mark">✅ 已过</span></td><td>复验</td></tr>
+        <tr><td>13</td><td>停用资料源后不再引用旧缓存</td><td><span class="ok-mark">✅ 已过</span></td><td>复验</td></tr>
+        <tr><td>14</td><td>无效企业代码/年度导入能预览错误并阻止绑定</td><td><span class="ok-mark">✅ 已过</span></td><td>复验</td></tr>
+        <tr><td>15</td><td>同一 analysis_id 的对话/详情方案/简报一致</td><td><span class="ok-mark">✅ 已过</span></td><td>复验</td></tr>
+        <tr><td>16</td><td>匿名客户不解析为实名节点；拟合作不写成已交易</td><td><span class="ok-mark">✅ 已过</span></td><td><span class="todo-mark">◈ 重点复验</span>（生成式输出审查）</td></tr>
+        <tr><td>17</td><td>（新增）AI_ENABLED=1 时 engine=coze、workflow_version 记录正确</td><td>—</td><td><span class="todo-mark">◈ 新增验收</span></td></tr>
+        <tr><td>18</td><td>（新增）Coze 失败自动降级 rules-demo 并注明原因</td><td>—</td><td><span class="todo-mark">◈ 新增验收</span></td></tr>
+      </table>
+      <div class="callout info">
+        <div class="icon">ℹ️</div>
+        <div class="body">另选 20—30 个不同信息完整度的业务问题人工检查建议质量（是否具体、证据是否支持理由、是否提出有效问题），记录通过数与失败类型，不预先宣称准确率（方案 15.2）。</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"><span id="phase6">PHASE 6 · 安全、运维与降级</span></div>
+
+<!-- ══ P6S1 ══ -->
+<section id="p6s1">
+  <div class="phase-header" style="margin-top:0;">
+    <div class="phase-num bg-pink" style="background:#3a1412;color:#f85149;">STEP 19</div>
+    <div>
+      <div class="phase-title">密钥管理与轮换</div>
+      <div class="phase-sub">每种秘密的存放位置与处置边界</div>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-head"><span class="dot dot-blue" style="background:#f85149;box-shadow:0 0 8px rgba(248,81,73,.6);"></span><b>Secret 清单</b><span class="tag">SECURITY</span></div>
+    <div class="step-body">
+      <table>
+        <tr><th>秘密</th><th>存放</th><th>禁止</th><th>轮换时机</th></tr>
+        <tr><td>COZE_ACCESS_TOKEN（PAT）</td><td>Railway Variables（服务端）</td><td>仓库 / 浏览器 / 前端 / 日志</td><td>怀疑泄漏立即吊销重签</td></tr>
+        <tr><td>TOOL_CONTEXT_SECRET</td><td>Railway Variables + 本地临时环境变量</td><td>仓库 / 提示词 / 前端</td><td>与 PAT 同步轮换</td></tr>
+        <tr><td>演示身份令牌</td><td>代码内常量（明确标注演示）</td><td>—（正式上线前替换为行内身份系统）</td><td>正式多人使用前废弃</td></tr>
+        <tr><td>context_token（每轮）</td><td>请求 Header，10 分钟有效</td><td>拼入模型提示词</td><td>每轮自动签发</td></tr>
+      </table>
+      <div class="callout error">
+        <div class="icon">🔒</div>
+        <div class="body"><strong>方案 5.2 重申：</strong>未来若接入行内非公开数据，需重新确定外部模型可接收的数据范围；本方案不预设私人数据可以直接发送到 Coze 云端。</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ P6S2 ══ -->
+<section id="p6s2">
+  <div class="phase-header">
+    <div class="phase-num bg-pink" style="background:#3a1412;color:#f85149;">STEP 20</div>
+    <div>
+      <div class="phase-title">运行记录与降级演练</div>
+      <div class="phase-sub">方案 12.2 / 12.3 的落地核对</div>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-head"><span class="dot dot-blue" style="background:#f85149;box-shadow:0 0 8px rgba(248,81,73,.6);"></span><b>记录与降级</b><span class="tag">OPS</span></div>
+    <div class="step-body">
+      <p><strong>运行记录（已实现，接通后核对）</strong>：<code>analyses</code> 表记录 request_id、analysis_id、workflow_version、snapshot_id、product_version、引擎、结果状态与引用集合；日志不记录令牌。</p>
+      <p><strong>降级演练步骤：</strong></p>
+      <ol>
+        <li>Railway 把 <code>AI_ENABLED</code> 临时改为 0 → 对话立即回退本地规则引擎，回答注明“规则演示”。</li>
+        <li>改回 1 但填错 <code>COZE_WORKFLOW_ID</code> → 网关捕获 CozeError，回答带“Coze 工作流不可用（…），已降级”说明。</li>
+        <li>停用产品库 / 引用详情失败 → 对话不消失，分别出现“可解释事实不编造方案”与“可重试状态”。</li>
+      </ol>
+      <div class="callout info">
+        <div class="icon">ℹ️</div>
+        <div class="body">Coze 失败时现有名单、详情、证据继续工作（旧 <code>/api/*</code> 接口不依赖 Coze）；规则模板简报作为标注清楚的降级产物（方案 12.3）。</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ══ P6S3 ══ -->
+<section id="p6s3">
+  <div class="phase-header">
+    <div class="phase-num bg-pink" style="background:#3a1412;color:#f85149;">STEP 21</div>
+    <div>
+      <div class="phase-title">持久化与成本监控</div>
+      <div class="phase-sub">Railway 卷、调用量、演示阈值</div>
+    </div>
+  </div>
+  <div class="step">
+    <div class="step-head"><span class="dot dot-blue" style="background:#f85149;box-shadow:0 0 8px rgba(248,81,73,.6);"></span><b>运维要点</b><span class="tag">COST</span></div>
+    <div class="step-body">
+      <ul>
+        <li><b>运行库持久化</b>：Railway 容器文件系统是临时的，<code>runtime/app_runtime.sqlite</code>（会话/分析/偏好）在重新部署后会重置。演示可接受；若需保留，在 Railway 挂载 Volume 到 <code>/app/runtime</code>（方案 11.2：演示用 SQLite，正式多人建议换服务端数据库）。</li>
+        <li><b>调用量</b>：每轮对话 = 1 次工作流调用 + 若干工具调用；取消时上游可能仍计费（前端已注明）。</li>
+        <li><b>额度</b>：AI_MAX_TOOL_CALLS / AI_MAX_COMPARE_COMPANIES / AI_TIMEOUT_SECONDS 为项目内限制，不等同 Coze 平台额度；关注 Coze 控制台的调用统计。</li>
+        <li><b>响应时间</b>：接通后实测“首个状态反馈 / 完整答案 / 详情加载”的中位数与较慢分位数，再确定演示阈值，不预先承诺固定秒数（方案 15.2）。</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"><span id="appendix1">附录 A · 与 kg_api 实施对照</span></div>
+
+<section id="a1">
+  <div class="step">
+    <div class="step-body">
+      <table>
+        <tr><th>kg_api 的做法</th><th>数智链海 对应实现</th><th>说明</th></tr>
+        <tr><td><code>main.py</code> 单文件 + Neo4j AuraDB 外部依赖</td><td><code>server/</code> 多模块 + SQLite 随镜像部署</td><td>本项目无外部数据库依赖，部署更简单</td></tr>
+        <tr><td><code>X-API-Key</code> 静态密钥鉴权</td><td><code>X-Context-Token</code> 每轮签发（HMAC，10 分钟）</td><td>绑定用户/地区/数据版本/允许工具，方案 5.2 要求</td></tr>
+        <tr><td><code>/dispatch</code> 单接口规避多分支/嵌套限制</td><td>8 个独立工具 + 可选 <code>/dispatch</code> 备选</td><td>STEP 10 已给备选实现</td></tr>
+        <tr><td><code>cozepy</code> + <code>PyJWT</code> 做 Coze token 代理与 SDK 调用</td><td>标准库 <code>urllib</code> 直连流式接口（server/coze_client.py）</td><td>零新增依赖，requirements.txt 不变</td></tr>
+        <tr><td>OpenAPI 插件导入 + 工作流编排</td><td>同款：coze/tool_openapi.yaml + workflow_design.md</td><td>沿用 kg_api 已验证的接入经验</td></tr>
+        <tr><td>前端嵌入 Coze WebSDK 聊天窗</td><td>自定义对话台 + SSE + 光球/抽屉</td><td>方案 5.1 明确：不嵌入固定样式聊天窗口</td></tr>
+        <tr><td>Railway + Dockerfile 部署</td><td>同款（Dockerfile 已存在并验证）</td><td>STEP 1—4 即为该链路</td></tr>
+      </table>
+    </div>
+  </div>
+</section>
+
+<div class="section-divider"><span id="appendix2">附录 B · 最终检查清单</span></div>
+
+<section id="a2">
+  <div class="step">
+    <div class="step-body">
+      <ul class="checklist">
+        <li><span class="box"></span><div><b>输入 1：</b><span>Coze 工作空间已建、PAT 已创建并仅存 Railway Variables</span></div></li>
+        <li><span class="box"></span><div><b>输入 3：</b><span>线上工具服务 /api/health 带 snapshot_id，带 token 调用返回 星帅尔</span></div></li>
+        <li><span class="box"></span><div><b>插件：</b><span>tool_openapi.yaml 导入成功，8 工具试跑通过，鉴权绑定工作流变量</span></div></li>
+        <li><span class="box"></span><div><b>输入 2：</b><span>9 节点工作流搭建、试运行（合成样例）、发布，workflow_id 已记录</span></div></li>
+        <li><span class="box"></span><div><b>后端：</b><span>Railway 配置全部 COZE_* 变量后，request_started.engine=coze</span></div></li>
+        <li><span class="box"></span><div><b>验收：</b><span>18 项用例对照完成（16 复验 + 2 新增）；20—30 题人工检查记录</span></div></li>
+        <li><span class="box"></span><div><b>降级：</b><span>关凭证/错 workflow_id 均能回退规则引擎并注明原因</span></div></li>
+        <li><span class="box"></span><div><b>记录：</b><span>analyses 表含 workflow_version/snapshot_id/引用集合；日志无令牌</span></div></li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<footer style="margin-top:44px;padding-top:16px;border-top:1px solid var(--border);color:var(--text-dim);font-size:11.5px;">
+  数智链海 · Coze 接入外部输入与部署实施方案 v1.0 · 2026-09-25 ·
+  依据《Coze智能体与光球交互_完整实施方案.md》第 5/6/16 章 ·
+  参照 技术链/kg_api 部署与插件接入经验 · 工程侧（M0—M5）已就绪，本文档覆盖外部依赖与云端配置。
+</footer>
+
+</main>
+</div>
+</body>
+</html>

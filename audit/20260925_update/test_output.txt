@@ -1,0 +1,165 @@
+test_meta_has_snapshot (test_m0_protocol.TestM0Protocol) ... ok
+test_ref_parse_aliases (test_m0_protocol.TestM0Protocol) ... ok
+test_search_total_real_and_paged (test_m0_protocol.TestM0Protocol) ... ok
+test_snapshot_stable (test_m0_protocol.TestM0Protocol) ... ok
+test_strict_year_no_fallback (test_m0_protocol.TestM0Protocol)
+无该年度数据时不回退未来年份（验收用例 4）。 ... ok
+test_text_version_stable (test_m0_protocol.TestM0Protocol) ... ok
+test_company_context_same_year_pack (test_m1_tools.TestM1Tools)
+验收用例 3：从企业详情提问，不重复输入代码；年份一致。 ... ok
+test_compare_caps_at_three (test_m1_tools.TestM1Tools) ... ok
+test_compare_same_year_and_missing (test_m1_tools.TestM1Tools)
+验收用例 5：两家企业比较使用同一年度和清楚的缺失标识。 ... ok
+test_evidence_ref_roundtrip (test_m1_tools.TestM1Tools)
+验收用例 8：原文球按指定文本版本高亮。 ... ok
+test_no_financing_when_excluded (test_m1_tools.TestM1Tools)
+偏好排除融资：候选不含出海金融类（验收用例 6 后端口径）。 ... ok
+test_product_cards_complete (test_m1_tools.TestM1Tools) ... ok
+test_product_search_focus (test_m1_tools.TestM1Tools) ... ok
+test_resolve_company_code_and_name (test_m1_tools.TestM1Tools) ... ok
+test_rule_candidates_direction_filter (test_m1_tools.TestM1Tools) ... ok
+test_briefing_consistent_with_analysis (test_m2_analysis.TestM2Analysis)
+验收用例 15：同一 analysis_id 的对话、详情方案和简报内容一致。 ... ok
+test_historical_year_noted (test_m2_analysis.TestM2Analysis)
+历史年度：注明采用当前服务资料的演示建议（方案 1.1）。 ... ok
+test_local_engine_plan_flow (test_m2_analysis.TestM2Analysis)
+查企业→分析→方案连续完成；偏好调整方案、证据保留（用例 6）。 ... ok
+test_persist_and_read_back (test_m2_analysis.TestM2Analysis) ... ok
+test_placeholder_card_not_eligible (test_m2_analysis.TestM2Analysis)
+placeholder 产品卡不能标 eligible（用例 7：无资料不造正式产品）。 ... ok
+test_validation_drops_illegal_ref (test_m2_analysis.TestM2Analysis)
+非法引用不生成光球（用例 9 后端口径）。 ... ok
+test_analysis_endpoint_and_briefing (test_m3_chat.TestM3Chat) ... ok
+test_cancel_endpoint (test_m3_chat.TestM3Chat) ... ok
+test_clarification_when_no_company (test_m3_chat.TestM3Chat)
+验收用例 2：企业不明确且没有页面上下文时先澄清。 ... ok
+test_references_endpoint (test_m3_chat.TestM3Chat) ... C:\Users\lenovo\AppData\Local\Programs\Python\Python310\lib\site-packages\anyio\streams\memory.py:313: ResourceWarning: Unclosed <MemoryObjectSendStream at 24390f5f460>
+  warnings.warn(
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+C:\Users\lenovo\AppData\Local\Programs\Python\Python310\lib\site-packages\anyio\streams\memory.py:183: ResourceWarning: Unclosed <MemoryObjectReceiveStream at 24390f5f880>
+  warnings.warn(
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+C:\Users\lenovo\AppData\Local\Programs\Python\Python310\lib\site-packages\anyio\streams\memory.py:313: ResourceWarning: Unclosed <MemoryObjectSendStream at 24390f5f010>
+  warnings.warn(
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+C:\Users\lenovo\AppData\Local\Programs\Python\Python310\lib\site-packages\anyio\streams\memory.py:183: ResourceWarning: Unclosed <MemoryObjectReceiveStream at 24390f5eb90>
+  warnings.warn(
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+C:\Users\lenovo\AppData\Local\Programs\Python\Python310\lib\site-packages\anyio\streams\memory.py:313: ResourceWarning: Unclosed <MemoryObjectSendStream at 2438cf55780>
+  warnings.warn(
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+C:\Users\lenovo\AppData\Local\Programs\Python\Python310\lib\site-packages\anyio\streams\memory.py:183: ResourceWarning: Unclosed <MemoryObjectReceiveStream at 2438cf557e0>
+  warnings.warn(
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+ok
+test_second_company_reference (test_m3_chat.TestM3Chat)
+验收用例 2：“第二家”定位原结果中的企业（稳定ID）。 ... ok
+test_session_isolation_between_users (test_m3_chat.TestM3Chat) ... C:\Users\lenovo\AppData\Local\Programs\Python\Python310\lib\site-packages\anyio\streams\memory.py:313: ResourceWarning: Unclosed <MemoryObjectSendStream at 24390f5ec80>
+  warnings.warn(
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+C:\Users\lenovo\AppData\Local\Programs\Python\Python310\lib\site-packages\anyio\streams\memory.py:183: ResourceWarning: Unclosed <MemoryObjectReceiveStream at 24390f5ef20>
+  warnings.warn(
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+ok
+test_session_restore (test_m3_chat.TestM3Chat) ... ok
+test_stream_event_order (test_m3_chat.TestM3Chat) ... C:\Users\lenovo\AppData\Local\Programs\Python\Python310\lib\site-packages\anyio\streams\memory.py:313: ResourceWarning: Unclosed <MemoryObjectSendStream at 2438c05fa00>
+  warnings.warn(
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+C:\Users\lenovo\AppData\Local\Programs\Python\Python310\lib\site-packages\anyio\streams\memory.py:183: ResourceWarning: Unclosed <MemoryObjectReceiveStream at 2438c05ee90>
+  warnings.warn(
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+ok
+test_unauthorized_rejected (test_m3_chat.TestM3Chat) ... ok
+test_disable_source_stops_new_requests (test_m4_regions.TestM4Regions)
+验收用例 13：停用资料源后，新请求不能继续引用。 ... ok
+test_extension_catalog_and_binding (test_m4_regions.TestM4Regions) ... C:\Users\lenovo\AppData\Local\Programs\Python\Python310\lib\site-packages\anyio\streams\memory.py:313: ResourceWarning: Unclosed <MemoryObjectSendStream at 24390f5d750>
+  warnings.warn(
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+C:\Users\lenovo\AppData\Local\Programs\Python\Python310\lib\site-packages\anyio\streams\memory.py:183: ResourceWarning: Unclosed <MemoryObjectReceiveStream at 24390f5cd90>
+  warnings.warn(
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+C:\Users\lenovo\AppData\Local\Programs\Python\Python310\lib\site-packages\anyio\streams\memory.py:313: ResourceWarning: Unclosed <MemoryObjectSendStream at 24390f5cb80>
+  warnings.warn(
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+C:\Users\lenovo\AppData\Local\Programs\Python\Python310\lib\site-packages\anyio\streams\memory.py:183: ResourceWarning: Unclosed <MemoryObjectReceiveStream at 24390f5ccd0>
+  warnings.warn(
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+ok
+test_preferences_roundtrip (test_m4_regions.TestM4Regions) ... ok
+test_region_a_can_read_demo_source (test_m4_regions.TestM4Regions)
+验收用例 12：地区A的资料可检索并打开。 ... ok
+test_region_b_cannot_search_or_read (test_m4_regions.TestM4Regions)
+验收用例 12：地区B不能检索或直接按ID打开A区资料。 ... C:\Users\lenovo\AppData\Local\Programs\Python\Python310\lib\site-packages\anyio\streams\memory.py:313: ResourceWarning: Unclosed <MemoryObjectSendStream at 24390f5dc60>
+  warnings.warn(
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+C:\Users\lenovo\AppData\Local\Programs\Python\Python310\lib\site-packages\anyio\streams\memory.py:183: ResourceWarning: Unclosed <MemoryObjectReceiveStream at 24390f5f430>
+  warnings.warn(
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+C:\Users\lenovo\AppData\Local\Programs\Python\Python310\lib\site-packages\anyio\streams\memory.py:313: ResourceWarning: Unclosed <MemoryObjectSendStream at 24390f871c0>
+  warnings.warn(
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+C:\Users\lenovo\AppData\Local\Programs\Python\Python310\lib\site-packages\anyio\streams\memory.py:183: ResourceWarning: Unclosed <MemoryObjectReceiveStream at 24390f86ef0>
+  warnings.warn(
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+ok
+test_source_lifecycle_validate_activate (test_m4_regions.TestM4Regions)
+登记→上传→质量检查→预览→激活（验收用例 14）。 ... ok
+test_source_region_must_belong_to_manager (test_m4_regions.TestM4Regions)
+登记数据源：region_id 以服务器权限校验后的值为准。 ... ok
+test_table_import_issues (test_m4_regions.TestM4Regions)
+上传含无效企业代码/年度的数据，能预览错误并阻止错误绑定。 ... C:\Users\lenovo\AppData\Local\Programs\Python\Python310\lib\site-packages\anyio\streams\memory.py:313: ResourceWarning: Unclosed <MemoryObjectSendStream at 2438cf56470>
+  warnings.warn(
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+C:\Users\lenovo\AppData\Local\Programs\Python\Python310\lib\site-packages\anyio\streams\memory.py:183: ResourceWarning: Unclosed <MemoryObjectReceiveStream at 2438cf54310>
+  warnings.warn(
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+C:\Users\lenovo\AppData\Local\Programs\Python\Python310\lib\site-packages\anyio\streams\memory.py:313: ResourceWarning: Unclosed <MemoryObjectSendStream at 24390f5f970>
+  warnings.warn(
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+C:\Users\lenovo\AppData\Local\Programs\Python\Python310\lib\site-packages\anyio\streams\memory.py:183: ResourceWarning: Unclosed <MemoryObjectReceiveStream at 24390f5e8f0>
+  warnings.warn(
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+ok
+test_all_segments_and_no_unresolved (test_scope_year.TestScopeYear) ... ok
+test_default_year_shared (test_scope_year.TestScopeYear) ... C:\Users\lenovo\AppData\Local\Programs\Python\Python310\lib\site-packages\anyio\streams\memory.py:313: ResourceWarning: Unclosed <MemoryObjectSendStream at 24390f5f4f0>
+  warnings.warn(
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+C:\Users\lenovo\AppData\Local\Programs\Python\Python310\lib\site-packages\anyio\streams\memory.py:183: ResourceWarning: Unclosed <MemoryObjectReceiveStream at 24390f5d810>
+  warnings.warn(
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+C:\Users\lenovo\AppData\Local\Programs\Python\Python310\lib\site-packages\anyio\streams\memory.py:313: ResourceWarning: Unclosed <MemoryObjectSendStream at 24390f84760>
+  warnings.warn(
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+C:\Users\lenovo\AppData\Local\Programs\Python\Python310\lib\site-packages\anyio\streams\memory.py:183: ResourceWarning: Unclosed <MemoryObjectReceiveStream at 24390f84f70>
+  warnings.warn(
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+C:\Users\lenovo\AppData\Local\Programs\Python\Python310\lib\site-packages\anyio\streams\memory.py:313: ResourceWarning: Unclosed <MemoryObjectSendStream at 24390f84d30>
+  warnings.warn(
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+C:\Users\lenovo\AppData\Local\Programs\Python\Python310\lib\site-packages\anyio\streams\memory.py:183: ResourceWarning: Unclosed <MemoryObjectReceiveStream at 24390f86800>
+  warnings.warn(
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+C:\Users\lenovo\AppData\Local\Programs\Python\Python310\lib\site-packages\anyio\streams\memory.py:313: ResourceWarning: Unclosed <MemoryObjectSendStream at 24390f878b0>
+  warnings.warn(
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+C:\Users\lenovo\AppData\Local\Programs\Python\Python310\lib\site-packages\anyio\streams\memory.py:183: ResourceWarning: Unclosed <MemoryObjectReceiveStream at 24390f87940>
+  warnings.warn(
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+C:\Users\lenovo\AppData\Local\Programs\Python\Python310\lib\site-packages\anyio\streams\memory.py:313: ResourceWarning: Unclosed <MemoryObjectSendStream at 24390fbda50>
+  warnings.warn(
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+C:\Users\lenovo\AppData\Local\Programs\Python\Python310\lib\site-packages\anyio\streams\memory.py:183: ResourceWarning: Unclosed <MemoryObjectReceiveStream at 24390fbdab0>
+  warnings.warn(
+ResourceWarning: Enable tracemalloc to get the object allocation traceback
+ok
+test_future_customer_never_leaks (test_scope_year.TestScopeYear) ... ok
+test_missing_is_not_zero (test_scope_year.TestScopeYear) ... ok
+test_public_detail_never_falls_back (test_scope_year.TestScopeYear) ... ok
+test_radar_total_not_page_length (test_scope_year.TestScopeYear) ... ok
+test_score_uses_same_year_reference (test_scope_year.TestScopeYear) ... ok
+test_segment_year_counts (test_scope_year.TestScopeYear) ... ok
+
+----------------------------------------------------------------------
+Ran 46 tests in 16.275s
+
+OK

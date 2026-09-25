@@ -1,3 +1,5 @@
+> 当前状态：见 [20260925更新说明](docs/当前口径与实施更新_20260925.md)。下方版本记录保留历史，不代表所有云端能力已经上线。
+
 # 数智链海 · 实施进度清单（截至 kb-2023 最小闭环 + 线上部署）
 
 ## 一、已完成（文件级明细）
@@ -12,16 +14,16 @@
 | 项 | 文件 | 内容 |
 |---|---|---|
 | 产品与匹配规则 | `rules/products.json` | 15 产品目录（五位一体+前置服务）、direction_map（6 方向→模式+产品）、anchor_extra（7 类锚点补充）、window_extra（3 窗口类型补充）、country_extra、10 条前置条件 |
-| 能力评分卡 | `rules/scoring.json` | 5 维度（国际化基础/规模/盈利/研发/财务安全）+ 行业内分位归一 + 3 级分级（就绪/蓄力/薄弱） |
+| 能力评分卡 | `rules/scoring.json` | 6 维度（国际化基础/规模/盈利/研发/财务安全/客户依赖）+ 同年度样本内分位归一 + 3 级分级（就绪/蓄力/薄弱） |
 | 推理链模板 | `rules/chains.json` | 4 步顺序（窗口期/方向模式/产品匹配/前置条件）+ 窗口与分层标签 |
-| 国别占位卡 | `rules/countries.json` | 20 国区域归属 + 清算/司库/避险占位文案 |
+| 国别占位卡 | `rules/countries.json` | 102个规范国家/地区词条归属 + 清算/司库/避险占位文案 |
 
 ### 服务层
 | 项 | 文件 | 内容 |
 |---|---|---|
-| 规则引擎 | `server/logic.py` | 窗口期三分口径（first 首次/new_country 新国别/expansion 扩张）、筹备-落地分层、强度分公式、radar 双排序模式（window/score）、能力评分、4 步推理链、4 段简报、证据查询、供应链示例（named_customer 客户边+子公司国家边，sample 标记） |
-| 图适配层 | `server/graph.py` | SQLite 子图实现 + Neo4j 双实现预留（NEO4J_URI 环境变量切换）+ 国别卡片 |
-| API | `server/main.py` | 10 接口：meta / radar（province,industry,year,sort）/ company / graph / supply-chain / chain / briefing / evidence / country / health；CORS 全放行；静态挂载 web |
+| 规则引擎 | `server/logic.py` | 窗口分类（当期未见布局/新国别/扩张/布局未知/标签不完整）、筹备-落地分层、强度分公式、radar 双排序模式（window/score）、能力评分、4 步推理链、4 段简报、证据查询、供应链示例（named_customer 客户边+子公司国家边，sample 标记） |
+| 图适配层 | `server/graph.py` | SQLite 证据子图；Neo4j仅银行实名数据扩展设计，本项目不实现+ 国别卡片 |
+| API | `server/main.py` | 网页及v1对话/扩展接口，以docs/当前接口清单.md实际路由导出为准；radar返回真实total，segments支持年度等筛选 |
 
 ### 展示层（零外部依赖，SVG 手绘）
 | 项 | 文件 | 内容 |
@@ -44,21 +46,21 @@
 
 | # | 项 | 框架位置 | 状态/计划 |
 |---|---|---|---|
-| 1 | **Coze 工作流 / 自然语言助手** | 应用层 | ❌ 暂缓（用户决定）；定位=同一中台的第二个触点（NL→调 API→生成式输出+产品手册 RAG） |
-| 2 | 光伏行业接入 | 数据接入层 | ❌ industry 参数已预留；需语料采集+标注+面板（1-1.5 周） |
+| 1 | **Coze 工作流 / 自然语言助手** | 应用层 | 待实施：Coze云端工作流未发布联调；网页对话/光球/网关及本地规则接入基础已实现 |
+| 2 | 现有样本细分 | 标签层 | 已按七个细分标注；不扩样 |
 | 3 | 动因字段抽取 | 信号层 Layer2 | ❌ 提示词加 motive 字段+增量标注（2-3 天） |
 | 4 | 方向验证 | 验证层 | ❌ 400 条人工标注+判别效度+双模型一致性（约 3 天） |
 | 5 | 国别归一化 | 信号层 | ✅ v1.3 完成：geo 层最长匹配+别名归一+区域分列+排除误匹配；抽检报告 `audit/geo_audit.txt` |
-| 6 | Neo4j 实库切换 | 图存储层 | ❌ 适配层已写好，设 NEO4J_URI 即切；待数据规模 |
-| 7 | 实控人边 / 全量供应链边 | P1/P2 扩展 | ⚠️ v1.4 已接入 CSMAR 前五大客户/供应商量化边 + 二跳链（36 家）；实控人边与全量供应链仍为扩展位 |
+| 6 | Neo4j | 系统设计 | 银行实名数据扩展预留，本项目不实现 |
+| 7 | 实控人边 / 全量供应链边 | P1/P2 扩展 | ⚠️ v1.4 已接入 CSMAR 前五大客户/供应商量化边 + 二跳链（36 家）；银行授权实名关联仅为设计预留，不属本项目实施范围 |
 | 8 | 供应链示例真实性核查 | 示例库 | ✅ v1.4：量化边来自 CSMAR 结构化数据（前五大+金额+占比）；具名客户多为"客户一~五"匿名，境外具名客户 3 家示例已识别（汇源通信-丹麦、通达股份-巴基斯坦/秘鲁、康平科技-越南） |
-| 9 | 线上端到端验证 | 部署 | ✅ 已完成（2026-09-19：health + Pages 全链路通过） |
+| 9 | 线上端到端验证 | 部署 | 历史版本2026-09-19已验证；本轮2026-09-25更改尚未部署线上 |
 | 10 | 演示故事线打磨 | 展示层 | ❌ 3-5 家明星企业案例包装 |
 
 ## 三、已知口径提醒（对外材料前必查）
 
 - 强度分默认排序键 = 窗口类型 → 分层 → 强度分（业务口径）；前端已提供"强度分优先"切换。
-- 供应链示例仅 002860 等具名客户企业有数据；供应商边为 P2 占位。
+- 已接入匿名前五大客户及供应商；匿名排名不作为跨企业实体标识。
 - 国别卡片为占位文案，不构成行内产品事实。
 - 能力分级为辅助判断，不替代人工尽调。
 
@@ -76,7 +78,7 @@
 | 8 | 修正产品触发条件 | anchor_extra 改为条件触发（if_directions 语境守卫+reason），并购融资仅限投资并购方向 | 如"投资或合同"锚点在非并购方向不再触发 ma_loan |
 | 9 | 建议绑定对应证据 | 推理链/简报每条建议携带 rule_id / signal_id（chunk#claim）/ evidence_id，前端展示并可跳原文 | 产品步骤逐条显示规则ID·信号ID·证据引文 |
 
-改动文件：`server/geo.py`（新增）、`rules/countries.json`（72 国+别名+区域+排除）、`rules/products.json`（条件锚点触发）、`rules/chains.json`（标签+口径注记）、`server/logic.py`（重写核心）、`server/graph.py`、`server/main.py`、`web/assets/app.js`、`web/assets/style.css`（新增 .rc/.prod/.tiny/.hist-note，桌面原样式未动）、`audit_geo.py`（新增）、`smoke_test.py`（新增）。
+改动文件：`server/geo.py`（新增）、`rules/countries.json`（当时72词条；现有102个规范国家/地区词条+别名+区域+排除）、`rules/products.json`（条件锚点触发）、`rules/chains.json`（标签+口径注记）、`server/logic.py`（重写核心）、`server/graph.py`、`server/main.py`、`web/assets/app.js`、`web/assets/style.css`（新增 .rc/.prod/.tiny/.hist-note，桌面原样式未动）、`audit_geo.py`（新增）、`smoke_test.py`（新增）。
 
 ## 五、v1.3.1 交互与口径修正（smoke_test.py 34/34 通过）
 
@@ -97,3 +99,22 @@
 - **雷达新列**："海外客户占比"（top5 中境外客户销售占比之和）。
 - **二跳链示例**（network 表，2019）：000922→(客户)002598→(客户)600388；002471→(客户)920167→(供应商)000630。
 - 验证：47/47 smoke 通过；`app.js` 语法通过；Dockerfile `COPY . .` 自动携带新库。
+
+## 七、v2.0 Coze 对话工作台（本地接入基础已实现；Coze云端待实施；历史测试38/38，2026-09-25）
+
+依据 `docs/Coze智能体与光球交互_完整实施方案.md` 实施；详见 `docs/Coze对话工作台_实施说明.md`。
+
+| 阶段 | 关键交付 |
+|---|---|
+| M0 口径修复/协议冻结 | `server/schemas.py`（请求/结果/引用/SSE 事件协议）、快照ID（kb 内容哈希）、文本版本（稳定引用）、严格年度（无数据不回退未来年份）、真实总数与分页 |
+| M1 工具与产品卡 | `server/tools.py` 8 个受控工具（resolve/search/get_company_context/get_evidence/compare/rule_candidates/product/regional）、`knowledge/products/product_cards.json`（15 卡 · 8 张 verified）、证据包 evidence_ref 可还原 |
+| M2 Coze 与分析网关 | `coze/`（workflow_design.md / tool_openapi.yaml / prompts×4 / 合成样例×2）、`server/coze_client.py`（stream_run/超时/错误映射）、`server/local_engine.py`（降级规则引擎：意图/指代/偏好/资格判定）、`server/analysis_service.py`（硬性校验/持久化/光球/简报复用）、`server/tool_api.py` + `server/context_token.py`（Coze 云端调用受控工具：HMAC 短期令牌/允许工具/快照漂移保护） |
+| M3 网页对话/光球/抽屉 | `web/assets/chat.js`（SSE 消费/取消/会话恢复/上下文代际防串台）、`orbs.js`（类型光球/点亮/悬停/引用高亮）、`drawer.js`（七类引用详情/失败重试/Esc/滚动恢复）、`chat.css`、`server/chat.py`（SSE 网关 8 事件）、`server/references.py` |
+| M4 偏好与地区扩展 | `server/profiles.py`（偏好 GET/PATCH、capabilities）、`server/extensions.py` + `server/adapters/`（document_reader_v1/table_reader_v1：登记→校验→预览→激活→停用）、`runtime/app_runtime.sqlite`（方案 11.2 全部元数据表）、合成示范地区资料（A 区可检索/B 区 403） |
+| M5 测试与文档 | `tests/`（M0—M4 五个文件 38 用例全通过）、本说明、README 更新 |
+
+### 模式与边界
+
+- **默认**：`AI_ENABLED` 未配置 → 本地规则分析引擎（回答标注“规则演示”，事实引用确定性数据库）；Coze 配置后走工作流流式接口，失败自动降级（方案 12.3）。
+- **演示身份**：`demo-token-region-a` / `demo-token-region-b`（Bearer 令牌，服务端解析辖区）；正式多人使用前必须替换为行内身份系统。
+- Coze 工作流本身为**待实施配置**：`coze/` 提供全部节点配置、提示词与 OpenAPI 插件协议；发布需 Coze 工作空间与 API 授权（方案 16 章输入）。

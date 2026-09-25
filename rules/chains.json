@@ -1,25 +1,39 @@
 {
   "step_order": [
-    { "key": "window",    "label": "窗口期判定" },
-    { "key": "direction", "label": "出海方向与模式" },
-    { "key": "product",   "label": "产品匹配" },
-    { "key": "prereq",    "label": "前置条件" }
+    {
+      "key": "window",
+      "label": "窗口期判定"
+    },
+    {
+      "key": "direction",
+      "label": "出海方向与模式"
+    },
+    {
+      "key": "product",
+      "label": "产品匹配"
+    },
+    {
+      "key": "prereq",
+      "label": "前置条件"
+    }
   ],
   "window_label": {
-    "first":       "出海线索首现期",
+    "first": "有需求且当期未见布局",
     "new_country": "新国别进入期",
-    "expansion":   "出海扩张期",
-    "pv_text":     "结构数据待核实（仅文本信号）"
+    "expansion": "出海扩张期",
+    "layout_unknown": "布局未知",
+    "label_incomplete": "标签不完整（已有需求线索）"
   },
   "window_note": {
-    "first": "口径：样本期内未见海外子公司与海外收入披露；是否属“首次出海”需结合企业完整历史人工核实，此处仅表述为“无已知布局线索”。",
+    "first": "当年需求标签为1，海外子公司数与海外收入占比均有记录且为0；不能认定企业历史首次出海。",
     "new_country": "口径：以截至所选年度之前的子公司国别集合为基准，当年信号中出现的新国别判定为进入期。",
     "expansion": "口径：所选年度信号国别均在既有布局集合内。",
-    "pv_text": "口径：结构化面板缺失，仅文本信号，评分与分层待核实。"
+    "layout_unknown": "有需求，但布局字段缺失且另一字段未证明已有布局；不填0、不归为首次或扩张。",
+    "label_incomplete": "存在已识别需求主张，但年度标注不完整；与光伏行业无关，不据此作完整年度判定。"
   },
   "stage_label": {
     "landing": "落地层",
-    "prep":    "筹备层"
+    "prep": "筹备层"
   },
   "note": "推理链由规则引擎按 方向×锚点×窗口类型 生成结构化步骤；每条建议绑定 rule_id（规则ID）/ signal_id（信号ID）/ evidence_id（证据ID）；LLM 不参与判定，仅用于简报文字润色。"
 }
