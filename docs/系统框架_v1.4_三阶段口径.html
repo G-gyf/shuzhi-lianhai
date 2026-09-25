@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>数智链海 · 系统框架 v1.4（出海全周期三阶段口径）</title>
+<style>
+  :root {
+    --bg0: #0a1220; --bg1: #0f1c31;
+    --panel: rgba(255,255,255,.035);
+    --line: rgba(255,255,255,.10);
+    --line-hi: rgba(212,175,106,.35);
+    --gold: #d4af6a; --gold-soft: #e8d5ac; --gold-dim: #9a8354;
+    --txt: #c9d4e2; --txt-soft: #8b9bb0; --head: #f4f7fb;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: "Segoe UI", "Microsoft YaHei", "PingFang SC", sans-serif;
+         color: var(--txt); background: var(--bg0); line-height: 1.7; font-size: 14.5px;
+         background-image: radial-gradient(1100px 500px at 85% -8%, rgba(212,175,106,.07), transparent 60%),
+                           linear-gradient(160deg, var(--bg0) 0%, var(--bg1) 55%, #0a1424 100%);
+         background-attachment: fixed; }
+  .wrap { max-width: 1060px; margin: 0 auto; padding: 64px 32px 90px; }
+
+  .mast { text-align: center; margin-bottom: 56px; }
+  .mast .brand { display: inline-block; font-size: 12px; letter-spacing: 5px; color: var(--gold);
+                 border: 1px solid var(--line-hi); border-radius: 30px; padding: 5px 18px; margin-bottom: 22px; }
+  .mast h1 { font-size: 40px; font-weight: 800; letter-spacing: 8px; color: var(--head); }
+  .mast .rule { width: 56px; height: 2px; background: var(--gold); margin: 18px auto; }
+  .mast .sub { font-size: 14px; color: var(--txt-soft); letter-spacing: 1px; }
+  .mast .ver { font-size: 12px; color: var(--gold-dim); margin-top: 10px; letter-spacing: 2px; }
+
+  section { margin-bottom: 54px; }
+  .sec-head { margin-bottom: 20px; }
+  .kicker { font-size: 12px; letter-spacing: 4px; color: var(--gold); font-weight: 600; }
+  .kicker::before { content: ""; display: inline-block; width: 24px; height: 1px;
+                    background: var(--gold); vertical-align: middle; margin-right: 10px; opacity: .7; }
+  h2 { font-size: 21px; color: var(--head); letter-spacing: 1px; margin-top: 2px; }
+  p.lead { color: var(--txt-soft); font-size: 13.5px; margin-top: 6px; }
+
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+          padding: 16px 18px; margin-bottom: 12px; }
+  .card.gold { border-left: 3px solid var(--gold); }
+  .card .t { color: var(--gold-soft); font-weight: 700; margin-bottom: 6px; font-size: 14px; }
+  .card ul { list-style: none; }
+  .card li { font-size: 13.5px; padding-left: 16px; position: relative; margin-bottom: 4px; }
+  .card li::before { content: "·"; position: absolute; left: 2px; color: var(--gold); font-weight: 700; }
+  .card li b { color: var(--gold-soft); }
+
+  /* 架构图 */
+  .arch { display: flex; flex-direction: column; align-items: stretch; gap: 0; }
+  .layer { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 18px 20px; }
+  .layer.top { border-color: var(--line-hi); }
+  .layer .lt { font-size: 14px; font-weight: 700; color: var(--head); letter-spacing: 2px; margin-bottom: 3px; }
+  .layer .lt small { font-size: 11.5px; color: var(--gold-dim); font-weight: 600; letter-spacing: 1px; margin-left: 8px; }
+  .layer .lp { font-size: 12.8px; color: var(--txt); }
+  .layer .lp b { color: var(--gold-soft); }
+  .arrow { text-align: center; color: var(--gold); font-size: 20px; line-height: 1; padding: 10px 0; }
+  .arrow small { display: block; font-size: 10.5px; color: var(--gold-dim); letter-spacing: 2px; margin-top: 2px; }
+  .dbs { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-top: 12px; }
+  .db { background: rgba(212,175,106,.05); border: 1px solid var(--line-hi); border-radius: 10px; padding: 10px 12px; }
+  .db .dn { color: var(--gold); font-weight: 700; font-size: 13px; margin-bottom: 4px; }
+  .db .dd { font-size: 11.8px; color: var(--txt-soft); line-height: 1.55; }
+
+  table.tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+  table.tbl th { color: var(--gold-soft); font-weight: 700; text-align: left;
+                 border-bottom: 1px solid var(--line-hi); padding: 11px 12px; background: rgba(212,175,106,.05); }
+  table.tbl td { border-bottom: 1px solid var(--line); padding: 11px 12px; vertical-align: top; }
+  table.tbl tr:last-child td { border-bottom: none; }
+  table.tbl td.hl { color: var(--gold-soft); font-weight: 700; white-space: nowrap; }
+  table.tbl td code { color: var(--gold-soft); font-family: Consolas, monospace; font-size: 12.5px; }
+  .tag { display: inline-block; font-size: 10.5px; border: 1px solid var(--line-hi); border-radius: 20px;
+         padding: 0 8px; color: var(--gold); margin-left: 6px; vertical-align: 1px; }
+
+  .note { background: rgba(212,175,106,.06); border: 1px solid var(--line-hi); border-radius: 10px;
+          padding: 12px 16px; font-size: 13px; color: var(--gold-soft); margin-top: 12px; }
+  .note b { color: var(--gold); }
+
+  .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .grid3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+  .flow { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+  .step { background: rgba(212,175,106,.07); border: 1px solid var(--line-hi); border-radius: 8px;
+          padding: 7px 13px; font-size: 12.8px; color: var(--gold-soft); }
+  .step.arrow2 { background: transparent; border: none; color: var(--gold); font-weight: 700; padding: 7px 2px; }
+
+  /* 三阶段专用 */
+  .stages { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .stage { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 16px 18px; }
+  .stage.win { border-color: var(--line-hi); box-shadow: inset 0 0 40px rgba(212,175,106,.05); }
+  .stage .sn { font-size: 12px; letter-spacing: 3px; color: var(--gold); font-weight: 700; }
+  .stage .sname { font-size: 17px; font-weight: 800; color: var(--head); margin: 2px 0 8px; letter-spacing: 2px; }
+  .stage .srule { font-size: 12.5px; color: var(--txt); margin-bottom: 8px; }
+  .stage .srule b { color: var(--gold-soft); }
+  .stage .smeta { font-size: 11.8px; color: var(--txt-soft); line-height: 1.6; }
+  .stage .smeta b { color: var(--gold-soft); }
+  .band { display: flex; align-items: stretch; gap: 12px; margin-top: 14px; }
+  .band .b { flex: 1; border-radius: 12px; padding: 12px 16px; font-size: 13px; }
+  .band .b.win { background: rgba(212,175,106,.10); border: 1px solid var(--line-hi); color: var(--gold-soft); }
+  .band .b.out { background: rgba(127,174,142,.08); border: 1px solid rgba(127,174,142,.35); color: #a9d3b8; }
+  .band .b .bt { font-weight: 700; display: block; margin-bottom: 3px; }
+
+  footer { text-align: center; color: var(--gold-dim); font-size: 12px; letter-spacing: 2px; margin-top: 40px; }
+  @media (max-width: 900px) {
+    .dbs, .stages, .grid3 { grid-template-columns: 1fr; }
+    .grid2 { grid-template-columns: 1fr; }
+    .band { flex-direction: column; }
+    .mast h1 { font-size: 28px; letter-spacing: 4px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="mast">
+    <div class="brand">SYSTEM ARCHITECTURE</div>
+    <h1>数智链海 · 系统框架</h1>
+    <div class="rule"></div>
+    <div class="sub">企业出海金融需求雷达与对公跨境营销助手</div>
+    <div class="ver">FRAMEWORK v1.4 · 按 2026-09-25 出海全周期三阶段口径修订 · 中心生产 · 边缘消费</div>
+  </div>
+
+  <!-- ============ 01 ============ -->
+  <section>
+    <div class="sec-head"><div class="kicker">01</div><h2>架构总览：三层分离</h2>
+      <p class="lead">总行侧集中处理年报并构建知识库，地区经理通过 API 消费结果——地区零算力、零算法依赖。</p>
+    </div>
+
+    <div class="arch">
+      <div class="layer top">
+        <div class="lt">数据生产层 <small>总行侧 · 离线批处理</small></div>
+        <div class="lp">
+          年报采集（<b>电气设备 317 家</b>）→ 可逆清洗 → 关键词粗筛 →
+          <b>受控 LLM 六字段抽取</b>（主体／时态／方向／锚点类型／锚点／逐字证据）→
+          <b>程序判定三阶段</b>（T0 筹备期 / T1 落地期 / T2 存量期）→ 知识库快照
+        </div>
+        <div class="dbs">
+          <div class="db"><div class="dn">① 原文库</div><div class="dd">清洗后年报文本 <b>37,946</b> 块（317 家），按公司-年份-行业索引，供证据溯源</div></div>
+          <div class="db"><div class="dn">② 信号库</div><div class="dd">claims <b>23,718</b> 条，其中出海需求信号 <b>4,067</b> 条，逐条带阶段归属与证据起止</div></div>
+          <div class="db"><div class="dn">③ 特征库</div><div class="dd">企业-年面板 <b>1,594</b> 公司-年度：财务／子公司／海外收入 + 六维能力画像</div></div>
+          <div class="db"><div class="dn">④ 规则库</div><div class="dd">三阶段判别 / 排序 / 能力评分卡 / 产品匹配 / 推理链模板 / 行业细分映射（JSON）</div></div>
+          <div class="db"><div class="dn">⑤ 供应链库</div><div class="dd">CSMAR 前五大客户/供应商 + 集中度（结构化量化边，317 家全覆盖）</div></div>
+        </div>
+      </div>
+
+      <div class="arrow">▼<small>导出知识库快照 kb-2023</small></div>
+
+      <div class="layer">
+        <div class="lt">服务层 <small>总行侧 · FastAPI 单服务</small></div>
+        <div class="lp">
+          查询与计算模块（规则引擎）均在服务端，地区侧只拿结果，不拿原始数据与算法。
+          <b>三阶段判别全部为确定性规则</b>，LLM 不参与阶段判定。<br>
+          图适配层：<b>SQLite 证据子图</b>（企业-信号-阶段-方向-国别骨架 + CSMAR 量化边）。
+          Neo4j 仅为系统设计预留，本项目不实现。
+        </div>
+      </div>
+
+      <div class="arrow">▼<small>HTTPS · Bearer 令牌鉴权 + 辖区隔离</small></div>
+
+      <div class="layer">
+        <div class="lt">展示层 <small>地区经理侧 · 纯前端</small></div>
+        <div class="lp">
+          选辖区 → 窗口期线索名单（T0/T1）→ 企业详情 → 推理链展开 → 访前简报，全程可视化点击；
+          另有<b>存量挖转名单（T2）</b>单独入口与<b>独立 AI 分析工作台</b>（对话 + 依据光球 + 详情抽屉）。
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 02 ============ -->
+  <section>
+    <div class="sec-head"><div class="kicker">02</div><h2>出海全周期三阶段：全系统统一口径</h2>
+      <p class="lead">唯一定义与判别规则在 <code>rules/stages.json</code>，界面、接口、推理链、简报一律按此表述。</p>
+    </div>
+
+    <div class="stages">
+      <div class="stage win">
+        <div class="sn">T0</div><div class="sname">筹备期</div>
+        <div class="srule"><b>判别：</b>所选年度存在出海需求信号，且其中<b>不含任何落点类信号</b>。</div>
+        <div class="smeta">
+          提前 1—2 年 · 尚未形成可识别落点<br>
+          典型信号：市场调研、认证准入、本地团队、渠道铺设、研发本地化<br>
+          <b>营销：</b>先于同业建立关系，锁定结算与保函
+        </div>
+      </div>
+      <div class="stage win">
+        <div class="sn">T1</div><div class="sname">落地期</div>
+        <div class="srule"><b>判别：</b>所选年度存在出海需求信号，且其中<b>至少 1 条为落点类信号</b>。</div>
+        <div class="smeta">
+          临近落地 · 已出现明确落点<br>
+          典型信号：产能建设、项目基地、投资并购、拟设境外主体、工程承包<br>
+          <b>营销：</b>融资与保函切入，额度投放精准对象
+        </div>
+      </div>
+      <div class="stage">
+        <div class="sn">T2</div><div class="sname">存量期</div>
+        <div class="srule"><b>判别：</b>存在海外布局——海外子公司数 &gt; 0，或海外收入占比 &gt; 0（任一项即可）。</div>
+        <div class="smeta">
+          已出海 · 越过窗口期<br>
+          典型依据：海外子公司名录、海外收入占比<br>
+          <b>营销：</b>从存量中寻找结算融资不在工行的挖转机会
+        </div>
+      </div>
+    </div>
+
+    <div class="band">
+      <div class="b win"><span class="bt">出海前窗口期 ＝ T0 筹备期 ＋ T1 落地期</span>
+        企业首次在公开披露中表达出海部署或意图（事前），到实际完成落地动作——设立海外主体、形成海外收入（事后）——之间的时段。
+        <b>窗口期企业＝尚未出海或布局未成熟的企业。</b></div>
+      <div class="b out"><span class="bt">T2 存量期 不属于窗口期</span>
+        已越过窗口期，不参与窗口期名单，单列为存量挖转入口。
+        <b>存量企业＝已出海但结算融资不在工行的挖转对象。</b>
+        两个名单互斥、不重复计数。</div>
+    </div>
+
+    <div class="note">
+      <b>落点类信号</b>是区分 T0 与 T1 的唯一判据，命中任一即成立：需求方向属于「产能建设」「投资并购」，
+      或执行锚点类型属于「项目/基地」「产能/设施」「境外主体」「投资/合同」。
+    </div>
+
+    <div class="card gold" style="margin-top:16px">
+      <div class="t">口径分层：从全部主张到三阶段</div>
+      <table class="tbl">
+        <thead><tr><th>层级</th><th>数量</th><th>说明</th></tr></thead>
+        <tbody>
+          <tr><td class="hl">全部主张</td><td><b>23,718</b></td><td>抽取结果全集</td></tr>
+          <tr><td class="hl">出海需求信号</td><td><b>4,067</b></td><td>满足出海需求判定条件的子集，进入三阶段归类</td></tr>
+          <tr><td>T0 筹备期信号</td><td><b>3,295</b></td><td>信号中不含任何落点类信号</td></tr>
+          <tr><td>T1 落地期信号</td><td><b>772</b></td><td>信号中至少 1 条为落点类信号</td></tr>
+          <tr><td>不计入任何阶段</td><td>19,651</td><td>既不构成出海部署准备、也不构成落点部署的表述，仅作内部过滤</td></tr>
+        </tbody>
+      </table>
+      <div class="note" style="margin-top:12px">
+        窗口期（T0/T1）覆盖 <b>983 个企业-年</b>：T0 筹备期 <b>591</b>、T1 落地期 <b>392</b>。
+        T2 存量期对应已有海外布局的 <b>1,232 个公司-年</b>，其中未落在窗口期内的进入存量挖转名单。
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:12px">
+      <div class="t">与「窗口布局细分」的关系（两个正交维度）</div>
+      <ul>
+        <li><b>三阶段</b>回答「企业走到哪一步」：T0 筹备 → T1 落地 → T2 存量</li>
+        <li><b>窗口布局细分</b>回答「既有布局到什么程度」：<code>first</code>（当期未见布局）／<code>new_country</code>（新国别进入期）／<code>expansion</code>（出海扩张期）／<code>layout_unknown</code>（布局未知）／<code>label_incomplete</code>（标签不完整但已有需求线索）</li>
+        <li>两个维度组合使用：例如「T1 落地期 · 新国别进入期」表示已出现落点且目标国别为新增</li>
+      </ul>
+    </div>
+
+    <div class="note">
+      <b>强度分</b>（描述所选年度披露强度，不是出海概率）：<br>
+      <code>2 × 落地期信号数 + 1 × 筹备期信号数 + 硬锚点数 + min(出海方向数, 3) − 1</code><br>
+      名单排序：窗口布局细分（first 优先）→ 阶段（落地期优先）→ 强度分 → 年份。
+    </div>
+  </section>
+
+  <!-- ============ 03 ============ -->
+  <section>
+    <div class="sec-head"><div class="kicker">03</div><h2>数据生产层</h2>
+      <p class="lead">现有资产直接映射：管道已跑通，本层为封装与快照化；沿用现有 317 家样本并标注七个细分行业，本期不扩样、不接入第二行业。</p>
+    </div>
+
+    <div class="card">
+      <div class="t">处理流程与资产映射</div>
+      <div class="flow">
+        <span class="step">年报采集（317 家）</span><span class="step arrow2">→</span>
+        <span class="step">可逆清洗</span><span class="step arrow2">→</span>
+        <span class="step">关键词粗筛</span><span class="step arrow2">→</span>
+        <span class="step">受控 LLM 六字段抽取</span><span class="step arrow2">→</span>
+        <span class="step">程序判定三阶段</span><span class="step arrow2">→</span>
+        <span class="step">企业-年聚合</span><span class="step arrow2">→</span>
+        <span class="step">知识库快照</span>
+      </div>
+      <ul style="margin-top:12px">
+        <li>抽取与判定：<code>build_overseas_demand_labels.py</code>（23,718 条主张已产出，其中出海需求信号 4,067 条）</li>
+        <li>聚合与特征：<code>build_overseas_demand_panel.py</code>（317 家、1,594 公司-年度，标签不完整 3 个年度单列）</li>
+        <li>原文库：冻结清洗文本 37,946 块（含可逆清洗层；失败文本 3 块从有效库排除并审计留档）</li>
+        <li>行业字段：信号库／特征库含 <code>industry</code> 字段，为现有样本按申万代码归并的七个细分——光伏主链 37 · 风电设备 8 · 储能与电源 66 · 电网设备 95 · 工业控制 10 · 家电消费 48 · 其他 53</li>
+        <li>供应链库：边取自 CSMAR 结构化数据（前五大客户 7,504 行／前五大供应商 7,448 行／集中度 1,594 行）；匿名「客户一/供应商一」仅表示单个披露主体与年度下的排名，不跨企业拼接；<b>本库只支撑单跳画像</b></li>
+      </ul>
+    </div>
+
+    <div class="grid2">
+      <div class="card"><div class="t">快照机制</div>
+        <ul>
+          <li>知识库按版本打包（<b>kb-2023</b>），快照 ID 为内容哈希</li>
+          <li>接口携带快照 ID，保证结论与原文一一对应</li>
+          <li>建库先写临时文件并校验，再替换快照</li>
+        </ul>
+      </div>
+      <div class="card"><div class="t">证据定位链路（零新增成本）</div>
+        <ul>
+          <li>信号表 <code>evidence_start/end</code> → chunk 表原文 → 前端高亮区间</li>
+          <li>每条主张标注 <code>is_demand</code> 与所属阶段</li>
+          <li>推理链与简报的每条建议携带 <code>rule_id / signal_id / evidence_id</code></li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="note">
+      <b>行业口径：</b>「储能与电源」是项目合并分组（电池／电机／其他电源设备），非申万原生行业名；
+      行业标签为静态展示，不代表 2018—2023 各年度当时的行业归属。
+      页面写「样本内光伏 37 家；外部分类名单 74 家」，这是交集与外部规模，<b>不是完成率</b>。
+    </div>
+  </section>
+
+  <!-- ============ 04 ============ -->
+  <section>
+    <div class="sec-head"><div class="kicker">04</div><h2>服务层：API 清单</h2>
+      <p class="lead">计算模块（三阶段判别、排序、评分卡、推理链）内置服务端。网页确定性接口为 <code>/api/*</code>；对话工作台为 <code>/api/v1/*</code>（Bearer 令牌鉴权，服务端注入辖区，不由 JSON 自报）。下表为现行实际路由，共 31 个。</p>
+    </div>
+    <div class="card">
+      <table class="tbl">
+        <thead><tr><th style="width:30%">接口</th><th>功能与输出</th></tr></thead>
+        <tbody>
+          <tr><td class="hl">GET /api/meta</td><td>知识库版本、快照 ID、省份/年份、六维数量、102 个国家/地区词典、全部主张 23,718 / 出海需求信号 4,067、有效文本 37,946 / 排除 3，以及 <code>lifecycle</code>（三阶段定义、窗口期界定、强度分公式）</td></tr>
+          <tr><td class="hl">GET /api/radar</td><td><b>窗口期名单（核心）</b>：参数 province / industry / year → 返回真实 total 与展示 items（布局细分优先 → 落地期优先 → 强度分降序）。<b>仅含 T0/T1</b>，响应带 <code>scope=window</code>、<code>stages=[T0,T1]</code></td></tr>
+          <tr><td class="hl">GET /api/stock</td><td><b>T2 存量挖转名单（单独入口）</b>：已出海、结算融资不在工行的挖转对象；返回判据字段（海外子公司数、海外收入占比、海外国别数）与 <code>stage_rule</code>。与窗口期名单互斥</td></tr>
+          <tr><td class="hl">GET /api/segments</td><td>七个细分统计：支持 year / province / industry；旧参数「光伏」兼容映射为光伏主链</td></tr>
+          <tr><td class="hl">GET /api/company/{scode}</td><td><b>企业详情（核心）</b>：六维能力画像 + 分级、出海阶段与判别依据、窗口布局细分、当年需求信号（历史信号单列、不参与推荐）、CSMAR 集中度与海外客户占比</td></tr>
+          <tr><td class="hl">GET /api/company/{scode}/chain</td><td><b>营销方案推理链（核心）</b>：4 步结构化 JSON（<b>出海阶段判定</b> → 方向模式 → 产品匹配 → 前置条件），每条建议带 rule_id / signal_id / evidence_id</td></tr>
+          <tr><td class="hl">GET /api/company/{scode}/briefing</td><td>访前简报：4 段模板 + 证据填充（模板保证结构，LLM 仅可润色）</td></tr>
+          <tr><td class="hl">GET /api/company/{scode}/graph</td><td>企业-信号-阶段-方向-国别证据子图（SQLite 图适配层）</td></tr>
+          <tr><td class="hl">GET /api/company/{scode}/supply-chain</td><td>CSMAR 前五大明细（名称+排名+金额+占比）、集中度、子公司国别（as-of）；<b>单跳画像</b>，不含多跳</td></tr>
+          <tr><td class="hl">GET /api/evidence/{chunk_id}</td><td><b>核心</b>：原文片段 + 证据锚点区间（前端高亮），每条主张标注 <code>is_demand</code> 与所属阶段</td></tr>
+          <tr><td class="hl">GET /api/country/{name}</td><td>国别卡片——<b>占位内容</b>，不构成行内产品事实；区域表述返回 type=region 提示</td></tr>
+          <tr><td class="hl">GET /api/health</td><td>服务与知识库版本健康检查、当前生效引擎；<code>engine_warming</code> 区分「冷启动中」与「不可用」</td></tr>
+          <tr><td class="hl">POST /api/v1/chat/stream</td><td>对话 SSE 八事件：request_started → status → clarification → answer_delta → orbs_ready → analysis_ready → error → done</td></tr>
+          <tr><td class="hl">/api/v1/chat/sessions/{id}<br>/api/v1/chat/requests/{id}/cancel</td><td>会话恢复（仅限本身份）；取消当前请求</td></tr>
+          <tr><td class="hl">/api/v1/analyses/{id}<br>/api/v1/references/{ref_id}</td><td>已保存的结构化分析（可深链恢复）；确定性引用详情（证据／指标／产品／分析／对比／地区／企业七类）</td></tr>
+          <tr><td class="hl">POST /api/v1/briefings</td><td>从 analysis_id 生成简报，<b>不重算事实</b></td></tr>
+          <tr><td class="hl">/api/v1/me/preferences<br>/api/v1/me/capabilities</td><td>经理偏好 GET/PATCH；功能与资料源清单</td></tr>
+          <tr><td class="hl">POST /api/v1/tools/{tool_name}<br>POST /api/v1/tools/dispatch</td><td><b>工具</b>：8 个受控业务工具（resolve / search / get_company_context / get_evidence / compare / rule_candidates / product / regional），<code>X-Context-Token</code> HMAC 短期令牌鉴权 + 快照漂移保护；dispatch 为统一分发入口</td></tr>
+          <tr><td class="hl">/api/v1/data-sources …<br>/api/v1/extensions …</td><td>资料源登记 → 校验 → 激活 → 停用（适配器 document_reader_v1 / table_reader_v1）；扩展目录与地区绑定</td></tr>
+          <tr><td class="hl">POST /api/v1/feedback</td><td>经理反馈</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="grid2">
+      <div class="card"><div class="t">鉴权与隔离</div>
+        <ul>
+          <li>Bearer 令牌鉴权；服务端解析辖区，客户端不能自报身份</li>
+          <li><b>辖区隔离</b>：A 区令牌检索不到 B 区资料（验收项）</li>
+          <li>当前为演示身份（<code>demo-token-region-a/b</code>）；行内身份系统接入位已预留，<b>不属本项目实现目标</b></li>
+        </ul>
+      </div>
+      <div class="card"><div class="t">推理链原则</div>
+        <ul>
+          <li>规则引擎输出<b>结构化 JSON 步骤列表</b>，前端逐步展开</li>
+          <li>首步即为<b>出海阶段判定</b>，给出 T0/T1 信号数与判别规则</li>
+          <li>不用 LLM 自由文本，杜绝演示翻车</li>
+          <li>每步可回溯证据原文与规则 ID</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 05 ============ -->
+  <section>
+    <div class="sec-head"><div class="kicker">05</div><h2>展示层：名单与三级 Drill-down</h2>
+      <p class="lead">客户经理的完整点击流，每一级都可回溯；窗口期名单与存量挖转名单并列呈现。</p>
+    </div>
+
+    <div class="flow">
+      <span class="step">① 选辖区</span><span class="step arrow2">→</span>
+      <span class="step">② 名单页（窗口期 T0/T1 + 存量 T2）</span><span class="step arrow2">→</span>
+      <span class="step">③ 企业详情页</span><span class="step arrow2">→</span>
+      <span class="step">④ 推理链展开</span><span class="step arrow2">→</span>
+      <span class="step">⑤ 访前简报</span>
+    </div>
+
+    <table class="tbl" style="margin-top:16px">
+      <thead><tr><th style="width:16%">页面</th><th>组件与内容</th></tr></thead>
+      <tbody>
+        <tr><td class="hl">名单页</td><td>
+          行业筛选（全部 / 七个细分，旧参数「光伏」兼容映射至光伏主链）；<br>
+          <b>辖区出海线索名单（窗口期）</b>：出海阶段 · 窗口布局细分 · 出海方向 · 目标国/地区 · T1/T0 信号数 · 强度分；<br>
+          <b>存量挖转名单（T2）</b>：海外子公司数 · 海外收入占比 · 海外客户占比 · 客户集中度 · 能力分级；<br>
+          产业链出海热度（按分组下钻名单，零新增数据）
+        </td></tr>
+        <tr><td class="hl">企业详情页</td><td>
+          六维能力画像（国际化基础／规模／盈利／研发／财务安全／客户依赖）→ <b>辅助分级</b>（就绪/蓄力/薄弱，缺失维度不画顶点）；
+          出海阶段标签与判别依据；方向与阶段判断卡；国别选项卡（司库/清算等<b>占位</b>）；
+          供应链 tab（CSMAR 前五大明细 + 集中度，317 家全覆盖；单跳画像）；证据原文高亮弹窗
+        </td></tr>
+        <tr><td class="hl">推理链页</td><td>出海阶段判定 → 方向模式 → 产品匹配（可展开卡片，含规则 ID/信号 ID/证据按钮）→ 前置条件，逐步展开，每步带证据链接</td></tr>
+        <tr><td class="hl">简报页</td><td>四段式：能力就绪度（含客户依赖风险句）／出海需求判断（含阶段判别依据与结构化供应链验证句）／模式阶段与产品建议／触达要点；支持浏览器打印与导出 PDF</td></tr>
+        <tr><td class="hl">AI 工作台</td><td>独立工作区：会话 + 分析页双栏；提问后显示查询/分析/校验进度与主光球 → 分析结果按事实/判断/服务思路/服务建议/待沟通问题整理 → 依据光球（原文·产品·企业·待核实）点击打开右侧抽屉；结果以 <code>#analysis=</code> 深链恢复；支持继续追问、生成简报、复制、打印</td></tr>
+      </tbody>
+    </table>
+
+    <div class="note">
+      <b>辅助判断定位：</b>能力画像输出分级而非结论，页面标注「辅助判断，不替代人工尽调」；
+      供应链为有限来源画像，不声称全量关系。
+    </div>
+  </section>
+
+  <!-- ============ 06 ============ -->
+  <section>
+    <div class="sec-head"><div class="kicker">06</div><h2>关键设计决策</h2></div>
+    <div class="grid2">
+      <div class="card gold"><div class="t">① 三阶段按「落点」判，不按抽取标签判</div>
+        <ul>
+          <li>底层文本抽取标签只用于<b>筛选</b>出海需求信号，<b>不作为对外口径</b></li>
+          <li>把某个抽取标签直接等同于某个阶段，会错分约 <b>28%</b> 的需求信号</li>
+          <li>判别规则集中在 <code>rules/stages.json</code>，单一事实来源</li>
+          <li>由测试锁定：对外输出出现旧标签即失败</li>
+        </ul>
+      </div>
+      <div class="card gold"><div class="t">② 窗口期与存量期分成两个入口</div>
+        <ul>
+          <li>窗口期名单只出 T0/T1；T2 走 <code>/api/stock</code> 单独入口</li>
+          <li>两个名单<b>互斥、不重复计数</b>：当年仍有新增出海需求的企业归 T0/T1</li>
+          <li>存量判据可核验：海外子公司数 / 海外收入占比逐行返回</li>
+        </ul>
+      </div>
+      <div class="card"><div class="t">③ 计算全部在服务端</div>
+        <ul><li>地区侧只拿结果（名单/画像/推理链），不传算法——对应「地区零算力」诉求</li></ul>
+      </div>
+      <div class="card"><div class="t">④ 图存储：当前 SQLite，Neo4j 仅设计预留</div>
+        <ul><li>现行实现为 SQLite 证据子图；<b>Neo4j 不属本项目交付范围</b>，已移除「设 <code>NEO4J_URI</code> 自动切换」运行分支</li></ul>
+      </div>
+      <div class="card"><div class="t">⑤ 推理链结构化</div>
+        <ul><li>规则引擎输出 JSON 步骤列表，前端展开；LLM 仅做简报文字润色</li></ul>
+      </div>
+      <div class="card"><div class="t">⑥ 知识库版本化</div>
+        <ul><li>快照命名（kb-2023）+ 快照 ID（内容哈希），接口携带版本；结论永远对齐对应年报版本</li></ul>
+      </div>
+      <div class="card"><div class="t">⑦ 供应链三层定位</div>
+        <ul><li>全量实名供应链与多跳关联查询 = 后续规划；demo 用 CSMAR 结构化量化边（单跳画像）；产业协同叙事用行业分组出海热度</li></ul>
+      </div>
+      <div class="card"><div class="t">⑧ 七细分行业口径</div>
+        <ul><li>不扩样：现有 317 家样本内按申万代码归并为七个细分；光伏 37/74 是「交集 / 外部规模」，不是完成率</li></ul>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 07 ============ -->
+  <section>
+    <div class="sec-head"><div class="kicker">07</div><h2>现状完成度（按 2026-09-25 实测）</h2>
+      <p class="lead">下表为对照实际代码与运行的核验结果。</p>
+    </div>
+    <div class="card">
+      <table class="tbl">
+        <thead><tr><th style="width:26%">环节</th><th style="width:30%">实现载体</th><th>实测状态</th></tr></thead>
+        <tbody>
+          <tr><td>年报 → 清洗文本</td><td>清洗管线 + 00 语料库</td><td>已完成（37,946 有效文本块）</td></tr>
+          <tr><td>六字段抽取</td><td><code>build_overseas_demand_labels.py</code></td><td>已完成（23,718 条主张 / 4,067 条出海需求信号）</td></tr>
+          <tr><td class="hl">三阶段判别</td><td><code>rules/stages.json</code> + <code>server/logic.py</code></td><td class="hl">已完成（T0 591 / T1 392 企业-年；T2 按布局判，2023 年 47 家）</td></tr>
+          <tr><td>企业-年面板 + 能力维度</td><td><code>build_overseas_demand_panel.py</code> + <code>rules/scoring.json</code></td><td>已完成（1,594 公司-年度，六维评分卡）</td></tr>
+          <tr><td>知识库封装</td><td><code>kb_build.py</code> / <code>sc_build.py</code></td><td>已完成（kb-2023 + kb-sc-2023，含排除与校验）</td></tr>
+          <tr><td>业务规则与匹配</td><td><code>rules/*.json</code></td><td>已完成（15 产品、102 国别词条、七细分映射）</td></tr>
+          <tr><td>API 服务 + 图适配层</td><td><code>server/</code></td><td>已完成（31 个路由）</td></tr>
+          <tr><td>名单 / 评分 / 推理链</td><td><code>server/logic.py</code></td><td>已完成，且年份与阶段上下文贯通</td></tr>
+          <tr><td>前端名单与详情</td><td><code>web/</code></td><td>已完成（窗口期名单 + 存量挖转名单 + 证据高亮）</td></tr>
+          <tr><td>对话工作台（网关/光球/抽屉）</td><td><code>server/chat.py</code> + <code>web/assets/</code></td><td>已完成，本地与线上均可运行</td></tr>
+          <tr><td>受控工具与令牌</td><td><code>server/tools.py</code> + <code>tool_api.py</code></td><td>已完成（8 个工具，HMAC 短期令牌）</td></tr>
+          <tr><td class="hl">测试</td><td><code>tests/</code> + <code>smoke_test.py</code></td><td class="hl">单元/验收测试 <b>150 项通过</b>；冒烟测试 <b>60 项通过</b></td></tr>
+          <tr><td>部署</td><td>Dockerfile + Railway + GitHub Pages</td><td>已上线，线上快照与本地一致（kb-2023@c080c94c0e56）</td></tr>
+          <tr><td>生成式 AI 引擎</td><td><code>server/langgraph_client.py</code></td><td><b>已上线可用</b>（扣子编程项目；<code>/api/health</code> 真实探活 200，落库 <code>engine=langgraph</code>）；不可用时自动降级本地分析引擎</td></tr>
+          <tr><td>Coze 云端工作流</td><td><code>coze/</code>（节点设计、OpenAPI、提示词、导入包）</td><td>工件齐备，未发布未联调</td></tr>
+          <tr><td>Neo4j</td><td>—</td><td>仅系统设计预留，不实现</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- ============ 08 ============ -->
+  <section>
+    <div class="sec-head"><div class="kicker">08</div><h2>框架评估结论</h2></div>
+    <div class="grid2">
+      <div class="card gold"><div class="t">站得住的设计</div>
+        <ul>
+          <li><b>中心生产 + 边缘消费</b>：符合银行 IT 现实，地区零算力</li>
+          <li><b>三阶段口径单一事实来源</b>：定义、判别规则、营销动作集中在 <code>stages.json</code>，界面与接口不分叉</li>
+          <li><b>窗口期与存量期分离</b>：口径边界诚实，两个名单互斥不重复计数</li>
+          <li><b>知识库分离</b>：原文/信号/特征/规则 + 供应链库，各司其职</li>
+          <li><b>规则引擎做计算</b>、推理链结构化、证据锚点可回溯</li>
+          <li><b>七细分行业 + CSMAR 供应链量化边</b>：行业分组贯通名单与详情</li>
+        </ul>
+      </div>
+      <div class="card"><div class="t">需补强的四点</div>
+        <ul>
+          <li><b>生成式 AI 引擎可用性</b>：已完成——扣子编程项目可连通，健康检查改为真实探活；并新增冷启动容错（warming 语义 + 自动重试 + 后端保活 + 页面预热）</li>
+          <li><b>鉴权 + 辖区隔离</b>：演示身份可用、隔离已验收；行内身份系统接入位已预留，<b>不属本项目实现目标</b></li>
+          <li><b>推理链不用 LLM 自由文本</b>：结构化 JSON + 逐步展开（已定）</li>
+          <li><b>辅助判断定位</b>：分级输出 + 「不替代人工尽调」标注（已定）</li>
+        </ul>
+      </div>
+    </div>
+    <div class="note">
+      <b>口径演进说明：</b>v1.3 及以前采用「窗口期二分 + 筹备/落地分层 + 底层抽取标签」的混合表述；
+      v1.4 统一为<b>出海全周期三阶段</b>，底层抽取标签收敛为内部筛选依据，不再出现在任何对外口径中。
+      因阶段判别基础由标签改为落点，<b>强度分与名单排序相对 v1.3 有变化</b>，历史截图与简报数字需按 v1.4 重出。
+    </div>
+  </section>
+
+  <!-- ============ 09 ============ -->
+  <section>
+    <div class="sec-head"><div class="kicker">09</div><h2>下一步待办</h2></div>
+    <div class="card">
+      <table class="tbl">
+        <thead><tr><th style="width:6%">#</th><th>待办项</th></tr></thead>
+        <tbody>
+          <tr><td class="hl">1</td><td>已关闭——生成式 AI 引擎已部署可连通，并完成冷启动容错；保留 coze.cn 低代码工作流作为备选路径</td></tr>
+          <tr><td class="hl">2</td><td>已关闭——三阶段口径全系统统一，测试数口径统一为 150（单元）+ 60（冒烟）</td></tr>
+          <tr><td class="hl">3</td><td>动因（motive）字段抽取 → 动因到方案路径</td></tr>
+          <tr><td class="hl">4</td><td>方向验证：400 条人工标注 + 判别效度 + 双模型一致性</td></tr>
+          <tr><td class="hl">5</td><td>不属本项目实现目标——正式身份系统与真实分行资料；已留行内认证接入位</td></tr>
+          <tr><td class="hl">6</td><td>少量实名客户边核实（现有文本具名客户为「提及线索」，不代表已发生交易）</td></tr>
+          <tr><td class="hl">7</td><td>演示故事线：3—5 家明星企业案例包装、录屏与同版本截图（<b>须按 v1.4 口径重出</b>）</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="note">
+      <b>明确不做：</b>第二行业接入与扩样、Neo4j 实名图谱、全量供应链。
+    </div>
+  </section>
+
+  <footer>
+    数智链海 · 系统框架 v1.4 · 按 2026-09-25 出海全周期三阶段口径修订<br>
+    基于已核验资产与实际运行结果
+  </footer>
+
+</div>
+</body>
+</html>
