@@ -99,7 +99,6 @@ async function loadRadar() {
       <td>${it.countries.slice(0, 4).map((c) => `<span class="dirchip">${esc(c)}</span>`).join("")}
           ${it.regions.slice(0, 2).map((r) => `<span class="dirchip rc">区域·${esc(r)}</span>`).join("")}
           ${(!it.countries.length && !it.regions.length) ? '<span class="muted">—</span>' : ""}</td>
-      <td>${it.overseas_cust_share != null ? `<span class="dirchip ov">${it.overseas_cust_share}%</span>` : '<span class="muted">—</span>'}</td>
       <td class="muted">${it.n_deploy} / ${it.n_intent}</td>
       <td class="score">${it.score}</td>`;
     tr.onclick = () => openCompany(it.scode, it.year);

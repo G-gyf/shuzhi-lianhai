@@ -7,13 +7,14 @@
 <link rel="stylesheet" href="assets/style.css?v=13">
 <link rel="stylesheet" href="assets/chat.css?v=21">
 <link rel="stylesheet" href="assets/workspace.css?v=22">
-<link rel="stylesheet" href="assets/interface.css?v=3">
+<link rel="stylesheet" href="assets/interface.css?v=5">
 </head>
 <body>
 
 <header>
   <div class="hd">
     <div class="logo">
+      <span class="bank-brand"><img src="assets/icbc-mark.png" alt="中国工商银行标志" width="72" height="51"></span>
       <span class="brand-mark" aria-hidden="true">
         <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
           <circle cx="24" cy="24" r="18" stroke="currentColor" stroke-opacity=".28" stroke-width=".7"/>
@@ -25,7 +26,6 @@
         </svg>
       </span>
       <span class="brand-name">数智链海<em>GLOBAL INTELLIGENCE</em></span>
-      <span class="bank-brand"><img src="assets/icbc-logo.png" alt="中国工商银行" width="190" height="40"></span>
     </div>
     <div class="filters">
       <select id="f-province"><option value="">全部省份</option></select>
@@ -58,7 +58,7 @@
       <div class="radar-scroll" tabindex="0" role="region" aria-label="企业线索列表，可横向滚动查看更多列">
         <table class="radar">
           <thead><tr>
-            <th>#</th><th>企业</th><th>省份</th><th>年份</th><th>窗口类型</th><th>分层</th><th>出海方向</th><th>目标国/地区</th><th>海外客户占比</th><th>部署/意图</th><th>强度分</th>
+            <th>#</th><th>企业</th><th>省份</th><th>年份</th><th>窗口类型</th><th>分层</th><th>出海方向</th><th>目标国/地区</th><th>部署/意图</th><th>强度分</th>
           </tr></thead>
           <tbody id="radar-body"></tbody>
         </table>
@@ -173,7 +173,7 @@
 </div>
 
 <script src="config.js"></script>
-<script src="assets/app.js?v=22"></script>
+<script src="assets/app.js?v=23"></script>
 <script src="assets/orbs.js?v=22"></script>
 <script src="assets/drawer.js?v=21"></script>
 <script src="assets/chat-protocol.js?v=21"></script>
