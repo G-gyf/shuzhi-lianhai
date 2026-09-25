@@ -45,17 +45,28 @@ def _debug_regions() -> list[str]:
 def _verify(request: Request) -> dict:
     secret = _secret()
     if not secret:
-        raise HTTPException(503, "未配置 TOOL_CONTEXT_SECRET，工具 HTTP 接口不可用。")
+        raise HTTPException(503, "本服务未配置 TOOL_CONTEXT_SECRET，工具接口不可用。"
+                                 "请在部署平台的环境变量中添加该密钥并重启。")
     token = request.headers.get("x-context-token")
-    if (token and os.environ.get(DEBUG_FLAG) == "1"
-            and hmac.compare_digest(token, secret)):
-        # 静态调试密钥：全工具放行、身份固定为演示经理；响应头标注，便于排查
-        return {"user_id": "u_demo_a", "display_name": "静态调试密钥（试运行）",
-                "regions": _debug_regions(), "snapshot_id": runtime.get_snapshot(),
-                "allowed_tools": None, "debug_static": True}
+    debug_on = os.environ.get(DEBUG_FLAG) == "1"
+    if token and hmac.compare_digest(token, secret):
+        if debug_on:
+            # 静态调试密钥：全工具放行、身份固定为演示经理
+            return {"user_id": "u_demo_a", "display_name": "静态调试密钥（试运行）",
+                    "regions": _debug_regions(), "snapshot_id": runtime.get_snapshot(),
+                    "allowed_tools": None, "debug_static": True}
+        raise HTTPException(403, "该值与本服务的 TOOL_CONTEXT_SECRET 相同，但静态调试模式未开启。"
+                                 "手工试跑请先设置环境变量 ALLOW_STATIC_DEBUG_TOKEN=1 并重新部署；"
+                                 "或改用 scripts/make_token.py 生成的正式令牌"
+                                 "（工作流运行时由后端每轮自动传入，不需要手工填写）。")
     payload = context_token.verify_context_token(token, secret)
     if not payload:
-        raise HTTPException(403, "context_token 无效或已过期。")
+        raise HTTPException(403, "context_token 无效或已过期。请依次排查："
+                                 "① X-Context-Token 是否与本服务 TOOL_CONTEXT_SECRET 完全一致"
+                                 "（插件试跑需同时开启 ALLOW_STATIC_DEBUG_TOKEN=1 并填密钥原值）；"
+                                 "② 正式令牌是否已过期（默认 10 分钟，可用 scripts/make_token.py 重签）；"
+                                 "③ 令牌签名密钥是否与部署侧一致；"
+                                 "④ 若提示的是 409，则是数据快照版本不一致（非本条错误）。")
     return payload
 
 

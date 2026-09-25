@@ -111,10 +111,26 @@ class TestToolApi(unittest.TestCase):
         self.assertEqual(r.status_code, 503)
 
     def test_static_debug_token_off_by_default(self):
-        """默认关闭静态调试密钥：把密钥本身当 token 用必须 403。"""
+        """默认关闭静态调试密钥：把密钥本身当 token 用必须 403，且提示如何开启。"""
         os.environ.pop("ALLOW_STATIC_DEBUG_TOKEN", None)
         r = self._post("/api/v1/tools/resolve_company", {"query": "002860"}, self.secret)
         self.assertEqual(r.status_code, 403)
+        self.assertIn("ALLOW_STATIC_DEBUG_TOKEN", r.json()["detail"])
+
+    def test_403_message_contains_troubleshooting(self):
+        """错误提示要能自解释（用户不再需要猜缺哪一步）。"""
+        os.environ.pop("ALLOW_STATIC_DEBUG_TOKEN", None)
+        r = self._post("/api/v1/tools/resolve_company", {"query": "002860"}, "wrong-value")
+        self.assertEqual(r.status_code, 403)
+        detail = r.json()["detail"]
+        self.assertIn("TOOL_CONTEXT_SECRET", detail)
+        self.assertIn("ALLOW_STATIC_DEBUG_TOKEN", detail)
+
+    def test_503_message_guides_setup(self):
+        os.environ.pop("TOOL_CONTEXT_SECRET", None)
+        r = self._post("/api/v1/tools/resolve_company", {"query": "002860"}, "any")
+        self.assertEqual(r.status_code, 503)
+        self.assertIn("TOOL_CONTEXT_SECRET", r.json()["detail"])
 
     def test_static_debug_token_when_enabled(self):
         """打开 ALLOW_STATIC_DEBUG_TOKEN=1 后，密钥本身即可作为试跑 token。"""
