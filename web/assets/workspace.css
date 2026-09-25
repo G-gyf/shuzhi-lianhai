@@ -72,6 +72,12 @@ body.assistant-active .assistant-launch { display:none; }
 .orb .orb-kind { font-size:10px;color:var(--txt-soft); }
 .orb.viewed { opacity:1; }
 .orb.viewed .orb-kind:after { content:" · 已查看";color:var(--green); }
+/* 后端补挂的证据球：引擎未给出合法引用时，由后端从确定性证据包补挂，须与模型引用区分。
+   用中性色而非金色/绿色，避免看起来像"已核实"。 */
+.orb.supplemented .orb-sphere { opacity:.85; }
+.orb.supplemented .orb-kind { color:var(--gold-dim); }
+/* 有依据、但一条可回溯原文证据都没有时给提示，不要静默 */
+.evidence-constellation>p.orb-hint { margin-top:12px;color:var(--gold-dim); }
 .orb.kind-product { --orb-color:#e6c380; }
 .orb.kind-analysis,.orb.kind-checklist { --orb-color:#d79c9a; }
 .orb.kind-profile { --orb-color:#c3a6ef; }

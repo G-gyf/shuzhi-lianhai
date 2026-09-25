@@ -1,16 +1,35 @@
 /* 每个真实引用保留独立光球；不再把同名依据折叠成不可访问的首条。 */
 window.DSHOrbs = (() => {
   const KIND_CN = {evidence:'原文依据',product:'产品依据',analysis:'服务方案',compare:'企业对比',company:'企业详情',profile:'企业画像',checklist:'待核实事项',regional:'地区资料'};
-  const PRODUCT_CN = {account_setup:'账户方案',settlement:'跨境结算',rmb_settlement:'跨境人民币结算',hedging:'汇率避险',bid_bond:'投标保函',advance_bond:'保函预授信',performance_bond:'履约保函',advance_payment_bond:'预付款保函',offshore:'境外账户',treasury:'跨境司库',trade_finance:'贸易融资',project_finance:'项目融资',export_credit:'出口信贷',ma_finance:'并购融资',lc:'信用证'};
-  const label = (o) => PRODUCT_CN[o.label] || o.label || KIND_CN[o.kind] || '查看依据';
+  /* 产品中文名：必须与后端 rules/products.json 的 catalog 逐键对齐（15 项）。
+     产品球的 orb.label 是产品键（如 project_loan），证据球的 orb.label 已是中文文案。
+     历史问题：旧表 15 条里有 7 个键后端已不存在（死代码）、7 个后端存在的键缺失，
+     导致 clearing_path / project_loan 等直接以英文键显示给客户经理。
+     维护提醒：新增产品时同步此表，最好改由 catalog 自动生成。 */
+  const PRODUCT_CN = {
+    account_setup:'账户方案', settlement_arch:'跨境结算架构', guarantee_prequal:'保函预授信',
+    settlement:'跨境人民币结算', clearing_path:'清算行网络接入', hedging:'汇率避险',
+    treasury:'工银全球司库', project_loan:'境外项目贷款', neibaowaidai:'内保外贷',
+    ma_loan:'跨境并购融资', bid_bond:'投标保函', performance_bond:'履约保函',
+    advance_bond:'预付款保函', offshore:'离岸账户（OSA/NRA）', offshore_cny:'离岸人民币融资',
+  };
+  /* 兜底链：产品键→中文；纯英文键查不到映射时退回类型中文名，绝不把英文键显示给用户 */
+  const label = (o) => PRODUCT_CN[o.label]
+    || (/^[a-z0-9_]+$/.test(o.label || '') ? '' : o.label)
+    || KIND_CN[o.kind] || '查看依据';
   function button(o, index, report) {
     const b = document.createElement('button'); b.type='button';
     const kind = Object.hasOwn(KIND_CN,o.kind) ? o.kind : 'evidence';
-    b.className='orb kind-'+kind+' lit'; b.style.setProperty('--arrival',Math.min(index,8)*110+'ms');
+    /* supplemented=true 表示该球是后端在引擎未给出合法引用时补挂的确定性证据，
+       不是模型引用——必须让客户经理一眼看出来，避免误当成模型结论的依据。 */
+    const sup = !!o.supplemented;
+    b.className='orb kind-'+kind+' lit'+(sup?' supplemented':'');
+    b.style.setProperty('--arrival',Math.min(index,8)*110+'ms');
     b.dataset.ref=o.ref_id || '';
-    b.setAttribute('aria-label',label(o)+'：'+(o.summary||KIND_CN[kind]));
-    b.title=o.summary || label(o);
-    for (const [cls,text] of [['orb-sphere',''],['orb-label',label(o)],['orb-kind',KIND_CN[kind]]]) {
+    b.dataset.supplemented=sup?'1':'';
+    b.setAttribute('aria-label',(sup?'后端补充依据：':'')+label(o)+'：'+(o.summary||KIND_CN[kind]));
+    b.title=(sup?'【后端补充】':'')+(o.summary || label(o));
+    for (const [cls,text] of [['orb-sphere',''],['orb-label',label(o)],['orb-kind',KIND_CN[kind]+(sup?' · 后端补充':'')]]) {
       const el=document.createElement('span');el.className=cls;el.textContent=text;
       if (cls==='orb-sphere') el.setAttribute('aria-hidden','true');b.appendChild(el);
     }

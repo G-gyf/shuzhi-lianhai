@@ -74,7 +74,13 @@ window.DSH_CHAT = (()=>{
     if(first.length)content().insertAdjacentHTML('beforeend',section('事实与核心发现',first.map(blockHTML).join('')));
     const constellation=document.createElement('div');constellation.className='evidence-constellation';
     constellation.innerHTML='<p>探索本次分析的依据 · 点击光球展开</p>';
-    if((payload.orbs||[]).length)window.DSHOrbs.render(constellation,payload.orbs,content());
+    const orbsAll=payload.orbs||[];
+    if(orbsAll.length){
+      window.DSHOrbs.render(constellation,orbsAll,content());
+      /* 有依据但没有任何可回溯原文证据时明确说明，避免用户以为"这个系统没有证据功能" */
+      if(!orbsAll.some(o=>o.kind==='evidence'))
+        constellation.insertAdjacentHTML('beforeend','<p class="orb-hint">本次分析未附可回溯的原文证据（可能为辖区名单类问题，或该企业当年暂无披露信号）。</p>');
+    }
     else constellation.innerHTML='<p>本次没有可展开的依据；可补充企业、年份或更具体的问题。</p>';
     content().appendChild(constellation);
     for(const [kind,label] of groups.slice(1)){const bs=blocks.filter(b=>b.kind===kind);if(bs.length)content().insertAdjacentHTML('beforeend',section(label,bs.map(blockHTML).join('')));}
