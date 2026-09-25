@@ -40,11 +40,12 @@ class LangGraphError(Exception):
 
 def config() -> dict:
     return {
-        "base_url": (os.environ.get("LANGGRAPH_BASE_URL", "") or "").rstrip("/"),
-        "run_path": os.environ.get("LANGGRAPH_RUN_PATH", "/run") or "/run",
-        "token": os.environ.get("LANGGRAPH_TOKEN", ""),
+        # strip() 很关键：从环境变量面板复制粘贴常带首尾空格/换行，会直接导致 InvalidURL
+        "base_url": (os.environ.get("LANGGRAPH_BASE_URL", "") or "").strip().rstrip("/"),
+        "run_path": (os.environ.get("LANGGRAPH_RUN_PATH", "/run") or "/run").strip(),
+        "token": (os.environ.get("LANGGRAPH_TOKEN", "") or "").strip(),
         "timeout_seconds": int(os.environ.get("AI_TIMEOUT_SECONDS", "60")),
-        "health_path": os.environ.get("LANGGRAPH_HEALTH_PATH", "/health") or "/health",
+        "health_path": (os.environ.get("LANGGRAPH_HEALTH_PATH", "/health") or "/health").strip(),
     }
 
 
@@ -52,13 +53,34 @@ def enabled() -> bool:
     return bool(config()["base_url"])
 
 
+def _validate_base(base: str) -> str:
+    """校验并归一化引擎地址，给出可执行的错误说明（不合法时抛 LangGraphError）。"""
+    base = (base or "").strip().strip('"').strip("'").rstrip("/")
+    if not base:
+        raise LangGraphError("no_base_url", "未配置 LANGGRAPH_BASE_URL。")
+    if any(ch in base for ch in (" ", "\n", "\t", "\\n")):
+        raise LangGraphError(
+            "bad_base_url",
+            f"LANGGRAPH_BASE_URL 含空格或换行，请删掉后保存（当前值：{base[:60]!r}）")
+    if not base.startswith(("http://", "https://")):
+        raise LangGraphError(
+            "bad_base_url",
+            "LANGGRAPH_BASE_URL 必须以 http:// 或 https:// 开头"
+            f"（当前值：{base[:60]!r}）")
+    if "code.coze.cn" in base and "/p/" in base:
+        raise LangGraphError(
+            "not_api_url",
+            "这是扣子编程的编辑器/预览页面地址，不是引擎的接口地址。请填部署后得到的服务地址"
+            "（形如 https://xxxx），或本地运行时的 http://127.0.0.1:5000"
+            f"（当前值：{base[:60]!r}）")
+    return base
+
+
 def run(params: dict, base_url: str | None = None, token: str | None = None,
         timeout: int | None = None) -> dict:
     """调用引擎的 /run，返回其响应字典。失败抛 LangGraphError。"""
     cfg = config()
-    base = (base_url or cfg["base_url"]).rstrip("/")
-    if not base:
-        raise LangGraphError("no_base_url", "未配置 LANGGRAPH_BASE_URL。")
+    base = _validate_base(base_url if base_url is not None else cfg["base_url"])
     url = base + cfg["run_path"]
     headers = {"Content-Type": "application/json"}
     tok = token if token is not None else cfg["token"]
@@ -92,11 +114,14 @@ def run(params: dict, base_url: str | None = None, token: str | None = None,
 
 def health(base_url: str | None = None, timeout: int = 10) -> dict:
     cfg = config()
-    base = (base_url or cfg["base_url"]).rstrip("/")
+    base = (base_url if base_url is not None else cfg["base_url"])
     try:
+        base = _validate_base(base)
         with urllib.request.urlopen(base + cfg["health_path"], timeout=timeout) as resp:
             return {"ok": True, "status": resp.status,
                     "body": resp.read().decode("utf-8", "replace")[:200]}
+    except LangGraphError as e:
+        return {"ok": False, "error": f"{e.code}: {e.message}"}
     except Exception as e:  # noqa: BLE001
         return {"ok": False, "error": f"{type(e).__name__}: {e}"}
 

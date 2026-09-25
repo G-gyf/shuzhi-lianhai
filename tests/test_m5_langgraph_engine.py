@@ -197,7 +197,48 @@ class TestLangGraphEngine(unittest.TestCase):
         self.assertTrue(any(o["kind"] == "evidence" and o["ref_id"] == ref
                             for o in a["orbs"]), "应生成原文球")
 
-    # ---- 6) 引擎状态与健康检查 ----
+    # ---- 7) 地址归一化与错误自解释（对应线上 InvalidURL 事故） ----
+    def test_base_url_with_whitespace_is_trimmed(self):
+        """环境变量面板复制粘贴常带空格/换行 —— 必须自动清理而不是报 InvalidURL。"""
+        os.environ["LANGGRAPH_BASE_URL"] = f"  {self.base}\n"
+        STATE["response"] = {"result": json.dumps(self._draft(), ensure_ascii=False)}
+        res = analysis_service.prepare_analysis(
+            "这家公司值得关注什么", self.user, {"scode": "002860", "year": 2023},
+            runtime.get_preferences(self.user["user_id"]), [], {}, "t_lg_6")
+        self.assertEqual(res["engine"], "langgraph")
+
+    def test_base_url_without_scheme_gives_clear_error(self):
+        os.environ["LANGGRAPH_BASE_URL"] = "code.coze.cn/run"
+        with self.assertRaises(langgraph_client.LangGraphError) as cm:
+            langgraph_client.run({"message": "x"})
+        self.assertEqual(cm.exception.code, "bad_base_url")
+        self.assertIn("http://", cm.exception.message)
+
+    def test_editor_page_url_detected(self):
+        """把扣子编程编辑器/预览页面地址当接口地址时，要说清哪里不对。"""
+        os.environ["LANGGRAPH_BASE_URL"] = \
+            "https://code.coze.cn/p/7689288574650433551/preview?link_share=true"
+        with self.assertRaises(langgraph_client.LangGraphError) as cm:
+            langgraph_client.run({"message": "x"})
+        self.assertEqual(cm.exception.code, "not_api_url")
+        self.assertIn("不是引擎的接口地址", cm.exception.message)
+
+    def test_health_reports_clear_error_for_bad_url(self):
+        os.environ["LANGGRAPH_BASE_URL"] = "not-a-url"
+        h = langgraph_client.health()
+        self.assertFalse(h["ok"])
+        self.assertIn("bad_base_url", h["error"])
+
+    def test_fallback_warning_names_the_problem(self):
+        """线上事故回归：地址不合法时，降级告警必须点明原因与修复方向。"""
+        os.environ["LANGGRAPH_BASE_URL"] = "not-a-url"
+        res = analysis_service.prepare_analysis(
+            "分析一下", self.user, {"scode": "002860", "year": 2023},
+            runtime.get_preferences(self.user["user_id"]), [], {}, "t_lg_7")
+        self.assertEqual(res["engine"], "rules-demo")
+        joined = " ".join(res["analysis"]["warnings"])
+        self.assertIn("LangGraph", joined)
+        self.assertIn("http://", joined, "告警里应给出可执行的修复提示")
     def test_engine_status_reports_langgraph(self):
         st = analysis_service.engine_status()
         self.assertEqual(st["effective_engine"], "langgraph")
