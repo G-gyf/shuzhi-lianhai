@@ -22,6 +22,7 @@ def env(name, default=None):
 def config() -> dict:
     return {
         "ai_enabled": env("AI_ENABLED", "") == "1",
+        "ai_engine": (env("AI_ENGINE", "") or "").strip().lower(),   # coze | langgraph | 空=自动
         "api_base": env("COZE_API_BASE", "https://api.coze.cn").rstrip("/"),
         "workflow_id": env("COZE_WORKFLOW_ID", ""),
         "bot_id": env("COZE_BOT_ID", ""),

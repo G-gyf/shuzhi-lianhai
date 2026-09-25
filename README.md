@@ -27,7 +27,30 @@ python -m uvicorn server.main:app --host 127.0.0.1 --port 8000
   `Authorization: Bearer <token>`（演示令牌：`demo-token-region-a` / `demo-token-region-b`）。
 
 默认运行在**本地规则分析引擎**（降级/演示路径，回答标注“规则演示”）；
-配置 Coze 工作流后自动切换（见 `coze/workflow_design.md` 第 4 节环境变量）。
+配置 AI 引擎后自动切换（见下节）。
+
+## AI 引擎（三选一，失败自动降级）
+
+对话里的「分析」由哪套引擎生成，由环境变量决定；按顺序尝试：
+
+| 引擎 | 触发条件 | 说明 |
+|---|---|---|
+| `langgraph` | `LANGGRAPH_BASE_URL` 有值（且 `AI_ENABLED=1`，或显式 `AI_ENGINE=langgraph`） | **扣子编程项目**（LangGraph 版 N01–N09）通过 HTTP `/run` 调用；入参 11 个变量与文档一致 |
+| `coze` | `AI_ENABLED=1` 且 `COZE_WORKFLOW_ID` 有值 | Coze 云端工作流（`/v1/workflow/stream_run`） |
+| `rules-demo` | 以上不可用或调用失败 | 本地规则引擎，**永远可用**，答案标注「规则演示」 |
+
+```
+AI_ENABLED=1
+AI_ENGINE=langgraph                       # 可选：coze | langgraph（留空=自动取有配置的那个）
+LANGGRAPH_BASE_URL=https://<引擎地址>      # 扣子项目部署地址，或 http://127.0.0.1:5000
+LANGGRAPH_TOKEN=<可选，Bearer 令牌>        # 引擎需要鉴权时填
+TOOL_CONTEXT_SECRET=<密钥>                 # 每轮签发 context_token（工具接口鉴权）
+TOOLS_BASE_URL=https://<工具服务地址>       # 引擎回调受控工具服务用
+```
+
+没有真实引擎时也可联调链路：`python -X utf8 scripts/stub_engine.py --port 5001`，
+再配 `LANGGRAPH_BASE_URL=http://127.0.0.1:5001`，即可看到完整 SSE + 光球效果。
+当前生效引擎见 `GET /api/health` → `engine.effective_engine`。
 
 ## API 调用示例
 

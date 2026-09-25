@@ -10,7 +10,7 @@ from __future__ import annotations
 import json
 import time
 
-from . import coze_client, local_engine, products, runtime, tools
+from . import coze_client, langgraph_client, local_engine, products, runtime, tools
 from .schemas import ORB_KINDS, SCHEMA_VERSION, parse_ref
 
 MAX_MAIN_ORBS = 5
@@ -307,6 +307,28 @@ def build_briefing(analysis_id: str, user: dict, title: str | None = None) -> di
 
 # ---------------- 编排 ----------------
 
+def engine_status() -> dict:
+    """当前 AI 引擎配置状态（供 /api/health 展示，不含任何密钥）。"""
+    cfg = coze_client.config()
+    lg = langgraph_client.config()
+    prefer = cfg.get("ai_engine") or ""
+    if lg["base_url"] and (cfg["ai_enabled"] or prefer == "langgraph"):
+        effective = "langgraph"
+    elif cfg["ai_enabled"] and cfg["workflow_id"]:
+        effective = "coze"
+    else:
+        effective = "rules-demo"
+    return {
+        "effective_engine": effective,
+        "ai_enabled": cfg["ai_enabled"],
+        "ai_engine_pref": prefer or "auto",
+        "langgraph_configured": bool(lg["base_url"]),
+        "coze_configured": bool(cfg["workflow_id"] and cfg["access_token"]),
+        "note": ("langgraph=扣子编程项目引擎；coze=Coze 云端工作流；"
+                 "rules-demo=本地规则引擎（降级兜底，始终可用）"),
+    }
+
+
 def build_workflow_parameters(message: str, user: dict, page: dict, prefs: dict,
                               history: list[dict], cfg: dict) -> tuple[dict, str | None]:
     """组装传给 Coze 工作流的开始节点入参（方案 6 章 N01）。
@@ -353,34 +375,64 @@ def build_workflow_parameters(message: str, user: dict, page: dict, prefs: dict,
 
 def prepare_analysis(message: str, user: dict, page: dict, prefs: dict,
                      history: list[dict], state: dict, request_id: str) -> dict:
-    """编排一次分析：Coze（若启用）或本地规则引擎 → 校验 → 持久化。
+    """编排一次分析：AI 引擎（LangGraph / Coze）或本地规则引擎 → 校验 → 持久化。
+
+    引擎选择与降级顺序（AI_ENGINE 可显式指定 coze / langgraph）：
+      1. LangGraph 引擎（配了 LANGGRAPH_BASE_URL 时；扣子编程项目直连工具）
+      2. Coze 云端工作流（AI_ENABLED=1 且配了 COZE_WORKFLOW_ID 时）
+      3. 本地规则引擎（rules-demo，兜底，永远可用）
 
     返回 {"clarify": ...} 或 {"analysis": {...}, "issues": [...]}。
     """
     ctx = tools.build_context(user)
     cfg = coze_client.config()
+    lg = langgraph_client.config()
+    prefer = cfg.get("ai_engine") or ""
     draft: dict | None = None
     engine, workflow_version, fallback_note = "rules-demo", "local-rules-v1", None
 
-    if cfg["ai_enabled"]:
-        try:
-            params, token_warning = build_workflow_parameters(
-                message, user, page, prefs, history, cfg)
-            if token_warning:
-                fallback_note = token_warning
-            events = coze_client.stream_run(params, request_id)
-            err = coze_client.extract_error(events)
-            if err:
-                raise coze_client.CozeError(err["code"], err["message"])
-            out = coze_client.extract_workflow_output(events)
-            if out:
-                draft = out
-                engine = "coze"
-                workflow_version = cfg["workflow_id"]
-        except coze_client.CozeError as e:
-            fallback_note = f"Coze 工作流不可用（{e.code}：{e.message}），已降级为本地规则引擎演示输出。"
-        except Exception as e:
-            fallback_note = f"Coze 调用异常（{type(e).__name__}），已降级为本地规则引擎演示输出。"
+    order = ["langgraph", "coze"] if prefer != "coze" else ["coze", "langgraph"]
+    for candidate in order:
+        if candidate == "langgraph":
+            if not (lg["base_url"] and (cfg["ai_enabled"] or prefer == "langgraph")):
+                continue
+            try:
+                params, token_warning = build_workflow_parameters(
+                    message, user, page, prefs, history, cfg)
+                if token_warning:
+                    fallback_note = token_warning
+                payload = langgraph_client.run(params)
+                draft = langgraph_client.normalize_draft(
+                    payload, page, runtime.get_snapshot(), products.product_version())
+                engine, workflow_version = "langgraph", lg["base_url"]
+                break
+            except langgraph_client.LangGraphError as e:
+                fallback_note = (f"LangGraph 引擎不可用（{e.code}：{e.message}），"
+                                 "已尝试其他引擎。")
+            except Exception as e:  # noqa: BLE001
+                fallback_note = (f"LangGraph 调用异常（{type(e).__name__}），已尝试其他引擎。")
+        elif candidate == "coze":
+            if not (cfg["ai_enabled"] and cfg["workflow_id"]):
+                continue
+            try:
+                params, token_warning = build_workflow_parameters(
+                    message, user, page, prefs, history, cfg)
+                if token_warning:
+                    fallback_note = token_warning
+                events = coze_client.stream_run(params, request_id)
+                err = coze_client.extract_error(events)
+                if err:
+                    raise coze_client.CozeError(err["code"], err["message"])
+                out = coze_client.extract_workflow_output(events)
+                if out:
+                    draft = out
+                    engine = "coze"
+                    workflow_version = cfg["workflow_id"]
+                    break
+            except coze_client.CozeError as e:
+                fallback_note = f"Coze 工作流不可用（{e.code}：{e.message}），已尝试其他引擎。"
+            except Exception as e:  # noqa: BLE001
+                fallback_note = f"Coze 调用异常（{type(e).__name__}），已尝试其他引擎。"
 
     if draft is None:
         draft = local_engine.run(message, ctx, page, prefs, history, state, request_id)

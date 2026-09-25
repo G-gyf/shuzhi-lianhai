@@ -132,8 +132,10 @@ def api_country(name: str):
 
 @app.get("/api/health")
 def api_health():
+    from . import analysis_service
     return {"status": "ok", "kb": "kb-2023",
-            "snapshot_id": runtime.get_snapshot()}
+            "snapshot_id": runtime.get_snapshot(),
+            "engine": analysis_service.engine_status()}
 
 
 # ---------------- /api/v1 对话工作台 ----------------
