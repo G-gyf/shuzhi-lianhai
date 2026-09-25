@@ -17,7 +17,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from server import analysis_service, langgraph_client, runtime, tools
 from server.schemas import SCHEMA_VERSION
 
-STATE = {"status": 200, "response": {}, "last_request": None, "requests": 0}
+STATE = {"status": 200, "response": {}, "last_request": None, "requests": 0,
+         "get_status": 200, "get_body": None}
 
 
 class _Handler(BaseHTTPRequestHandler):
@@ -37,8 +38,10 @@ class _Handler(BaseHTTPRequestHandler):
         self.wfile.write(data)
 
     def do_GET(self):  # noqa: N802
-        data = b'{"status":"ok"}'
-        self.send_response(200)
+        status = STATE.get("get_status", 200)
+        body = STATE.get("get_body") or '{"status":"ok"}'
+        data = body.encode("utf-8")
+        self.send_response(status)
         self.send_header("Content-Type", "application/json")
         self.send_header("Content-Length", str(len(data)))
         self.end_headers()
@@ -73,7 +76,10 @@ class TestLangGraphEngine(unittest.TestCase):
         os.environ["AI_ENABLED"] = "1"
         os.environ["TOOL_CONTEXT_SECRET"] = "unit-test-secret"
         os.environ.pop("COZE_WORKFLOW_ID", None)
-        STATE.update({"status": 200, "response": {}, "last_request": None, "requests": 0})
+        STATE.update({"status": 200, "response": {}, "last_request": None, "requests": 0,
+                      "get_status": 200, "get_body": None})
+        # 探活结果有 60 秒 TTL 缓存，逐例清空以免相互污染
+        analysis_service.reset_engine_probe_cache()
 
     def tearDown(self):
         for k, v in self._env.items():
@@ -250,6 +256,68 @@ class TestLangGraphEngine(unittest.TestCase):
         os.environ.pop("LANGGRAPH_BASE_URL", None)
         os.environ.pop("AI_ENABLED", None)
         self.assertEqual(analysis_service.engine_status()["effective_engine"], "rules-demo")
+
+    # ---- 6) 非正则措辞：必须交给 AI 引擎，而不是被本地规则引擎"接住" ----
+    def test_non_regex_phrasing_still_reaches_engine(self):
+        """回归：演示中的自然语言若不在本地正则覆盖内，也必须走引擎。
+
+        local_engine.detect_intent 只认「比较/对比/哪个更/优先拜访谁/区别」，
+        并不认识「相比」。若链路正确，这类问题仍应原样送进 AI 引擎并以其输出为准——
+        否则"像自然语言"只是正则命中的假象。
+        """
+        from server import local_engine
+        q = "上能电气和中信博相比，谁更适合先谈跨境资金池？为什么？"
+        self.assertNotEqual(
+            local_engine.detect_intent(q, {}, []), "compare",
+            "该措辞本就不在本地正则覆盖内，正是需要 AI 引擎的场景")
+
+        STATE["response"] = {"result": json.dumps(self._draft(), ensure_ascii=False)}
+        res = analysis_service.prepare_analysis(
+            q, self.user, {"year": 2023},
+            runtime.get_preferences(self.user["user_id"]), [], {}, "t_lg_phrase")
+        self.assertEqual(res["engine"], "langgraph")
+        self.assertEqual(STATE["last_request"]["message"], q,
+                         "原始问句必须原样传给引擎，不能被本地规则改写")
+
+    # ---- 7) planned_engine 与尝试顺序一致（供 request_started 使用） ----
+    def test_planned_engine_follows_configured_order(self):
+        self.assertEqual(analysis_service.planned_engine(), "langgraph")
+        os.environ.pop("LANGGRAPH_BASE_URL", None)
+        os.environ.pop("AI_ENABLED", None)
+        os.environ.pop("AI_ENGINE", None)
+        self.assertEqual(analysis_service.planned_engine(), "rules-demo")
+        self.assertEqual(analysis_service.engine_status()["planned_engine"], "rules-demo")
+
+    # ---- 8) 探活必须能识别"实例被回收"（线上事故回归） ----
+    def test_probe_detects_recycled_instance(self):
+        STATE.update({"get_status": 404,
+                      "get_body": '{"error_code":"instance_not_found",'
+                                  '"error_message":"user specified instance xxx-sandbox not found"}'})
+        p = langgraph_client.probe(timeout=5)
+        self.assertFalse(p["reachable"], "实例被回收必须判为不可用，不能报绿")
+        self.assertEqual(p["error_code"], "instance_gone")
+
+    # ---- 9) 鉴权失败 ≠ 服务不可用 ----
+    def test_probe_separates_auth_failure_from_down(self):
+        STATE.update({"get_status": 401,
+                      "get_body": '{"msg":"Missing authorization header."}'})
+        p = langgraph_client.probe(timeout=5)
+        self.assertTrue(p["reachable"], "鉴权失败说明服务活着，不应判为不可用")
+        self.assertFalse(p["auth_ok"])
+        self.assertEqual(p["error_code"], "unauthorized")
+
+    # ---- 10) engine_status(probe=True) 暴露可用性，而非只看配置 ----
+    def test_engine_status_probe_exposes_reachability(self):
+        STATE.update({"get_status": 200, "get_body": '{"status":"ok"}'})
+        st = analysis_service.engine_status(probe=True)
+        self.assertEqual(st["effective_engine"], "langgraph")
+        self.assertEqual(st["planned_engine"], "langgraph")
+        self.assertTrue(st["reachable"])
+        self.assertEqual(st["probed_engine"], "langgraph")
+        # 实例被回收后，同一接口必须转为不可用
+        STATE.update({"get_status": 404, "get_body": '{"error_code":"instance_not_found"}'})
+        analysis_service.reset_engine_probe_cache()
+        self.assertFalse(analysis_service.engine_status(probe=True)["reachable"])
 
 
 if __name__ == "__main__":

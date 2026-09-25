@@ -54,7 +54,7 @@
 | 6 | Neo4j | 系统设计 | 银行实名数据扩展预留，本项目不实现 |
 | 7 | 实控人边 / 全量供应链边 | P1/P2 扩展 | ⚠️ v1.4 已接入 CSMAR 前五大客户/供应商量化边 + 二跳链（36 家）；银行授权实名关联仅为设计预留，不属本项目实施范围 |
 | 8 | 供应链示例真实性核查 | 示例库 | ✅ v1.4：量化边来自 CSMAR 结构化数据（前五大+金额+占比）；具名客户多为"客户一~五"匿名，境外具名客户 3 家示例已识别（汇源通信-丹麦、通达股份-巴基斯坦/秘鲁、康平科技-越南） |
-| 9 | 线上端到端验证 | 部署 | 历史版本2026-09-19已验证；本轮2026-09-25更改尚未部署线上 |
+| 9 | 线上端到端验证 | 部署 | ✅ 2026-09-25 复验：线上快照与本地一致（kb-2023@c080c94c0e56），生成式引擎可用；详见「八、线上现状」 |
 | 10 | 演示故事线打磨 | 展示层 | ❌ 3-5 家明星企业案例包装 |
 
 ## 三、已知口径提醒（对外材料前必查）
@@ -100,7 +100,10 @@
 - **二跳链示例**（network 表，2019）：000922→(客户)002598→(客户)600388；002471→(客户)920167→(供应商)000630。
 - 验证：47/47 smoke 通过；`app.js` 语法通过；Dockerfile `COPY . .` 自动携带新库。
 
-## 七、v2.0 Coze 对话工作台（本地接入基础已实现；Coze云端待实施；历史测试38/38，2026-09-25）
+## 七、v2.0 Coze 对话工作台（本地接入基础已实现；Coze云托管待实施；历史测试38/38，2026-09-25）
+
+> 生成式引擎已于 2026-09-25 经 **扣子编程（LangGraph 路径）**上线，见第八节。
+> 本节所称「Coze 云端工作流」指 coze.cn 低代码工作流的另一条接入路径，仍未发布。
 
 依据 `docs/Coze智能体与光球交互_完整实施方案.md` 实施；详见 `docs/Coze对话工作台_实施说明.md`。
 
@@ -118,3 +121,28 @@
 - **默认**：`AI_ENABLED` 未配置 → 本地规则分析引擎（回答标注“规则演示”，事实引用确定性数据库）；Coze 配置后走工作流流式接口，失败自动降级（方案 12.3）。
 - **演示身份**：`demo-token-region-a` / `demo-token-region-b`（Bearer 令牌，服务端解析辖区）；正式多人使用前必须替换为行内身份系统。
 - Coze 工作流本身为**待实施配置**：`coze/` 提供全部节点配置、提示词与 OpenAPI 插件协议；发布需 Coze 工作空间与 API 授权（方案 16 章输入）。
+
+## 八、线上现状（2026-09-25 复验）
+
+| 项 | 状态 |
+|---|---|
+| 后端 | `https://shuzhi-lianhai-production.up.railway.app`（HTTP 200） |
+| 前端 | `https://g-gyf.github.io/shuzhi-lianhai`（HTTP 200，含 AI 工作台改版） |
+| 知识库快照 | `kb-2023@c080c94c0e56`，active 37,946 / excluded 3，**与本地一致** |
+| **生成式引擎** | ✅ **已上线**：落库 `engine=langgraph`、`workflow_version=https://kmj3bsz4kj.coze.site`；单轮响应 28—37 秒；`provenance` 完整（engine / workflow_version / generated_at） |
+| 降级路径 | langgraph 调用失败（如 `http_404 instance_not_found`）时自动回退 `rules-demo`，并在 `warnings` 首条明示原因 |
+| 探活 | `/api/health` 默认对「将优先尝试的引擎」**真实探活**（带 `LANGGRAPH_TOKEN`，60 秒缓存；`?probe=0` 跳过）。判据为 `engine.reachable` / 顶层 `engine_ready` |
+| 单元测试 | 92 项通过；`smoke_test.py` 46 通过 / 1 项断言待随口径同步 |
+
+### 本轮修复的两处线上缺陷（回归项）
+
+1. **`/api/health` 假绿灯**：原实现只判断 `LANGGRAPH_BASE_URL` 是否存在，不发探活请求，因此引擎实例被回收（404 `instance_not_found`）期间仍显示 `effective_engine=langgraph`。现改为真实探活，并把 `effective_engine`/`planned_engine`（按配置）与 `reachable`（按探活）分开表述。
+   技术要点：扣子编程**部署后**的服务网关对**所有路径**统一鉴权，不带 Bearer 一律 401，因此探活必须带 `LANGGRAPH_TOKEN`（原 `langgraph_client.health()` 不带令牌，线上必然失败）。
+2. **`request_started.engine` 误报**：原为 `"coze" if ai_enabled else "rules-demo"` 写死值，且在引擎决议前发出——降级到规则引擎时它报 `coze`，实际走 langgraph 时它也报 `coze`。现改为回报 `planned_engine()` 并附 `engine_resolved=false`；真实生效引擎见 `analysis_ready.engine` 与落库记录。
+
+### 已知待办
+
+- `smoke_test.py` 中 first 口径注记断言与现行 `rules/chains.json` 措辞不一致（测试侧待同步）；
+- 建议在 `tests/` 增补一条**非正则措辞**用例（如「A 和 B 相比，谁更适合先谈跨境资金池？」），用于证明引擎在做推理而非命中正则；
+- Railway 容器文件系统为临时：`runtime/app_runtime.sqlite`（会话/分析）在**重新部署后重置**，`#analysis=` 深链会失效——演示当天不要重新部署；
+- 扣子沙箱实例长时间（约 1 小时）无请求可能被回收，演示前建议先发一次预热请求。

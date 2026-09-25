@@ -126,6 +126,79 @@ def health(base_url: str | None = None, timeout: int = 10) -> dict:
         return {"ok": False, "error": f"{type(e).__name__}: {e}"}
 
 
+def probe(timeout: int | None = None) -> dict:
+    """对引擎做**真实探活**（带鉴权），供 /api/health 与运维判断使用。
+
+    与 health() 的区别（线上事故回归：请求一直 404 而 /api/health 仍报绿）：
+
+    - health() 不发 Authorization，只适合本地/桩引擎；
+    - 扣子编程**部署后**的服务网关对**所有路径**统一鉴权，不带 Bearer 一律 401，
+      因此线上探活必须带上 LANGGRAPH_TOKEN；
+    - 404 且响应含 instance_not_found 表示**实例已被回收**（沙箱长时间无请求或重新部署
+      都会导致），这正是「配置在、服务没了」的故障态，必须判为不可用；
+    - 401/403 只说明鉴权有问题，服务本身是活的，单列为 auth_ok=False。
+
+    本函数**不抛异常**：健康检查与降级告警都不能因为探活失败而中断。
+    返回 {"ok","reachable","auth_ok","status","error_code","detail","checked_at"}。
+    """
+    cfg = config()
+    out = {
+        "ok": False, "reachable": False, "auth_ok": False, "status": None,
+        "error_code": "", "detail": "",
+        "checked_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+    }
+    try:
+        base = _validate_base(cfg["base_url"])
+    except LangGraphError as e:
+        out["error_code"] = e.code
+        out["detail"] = e.message
+        return out
+
+    headers = {}
+    if cfg["token"]:
+        headers["Authorization"] = f"Bearer {cfg['token']}"
+    req = urllib.request.Request(base + cfg["health_path"], headers=headers)
+    try:
+        with urllib.request.urlopen(req, timeout=timeout or 5) as resp:
+            out.update({
+                "ok": True, "reachable": True, "auth_ok": True,
+                "status": resp.status,
+                "detail": resp.read().decode("utf-8", "replace")[:160],
+            })
+    except urllib.error.HTTPError as e:
+        try:
+            detail = e.read().decode("utf-8", "replace")[:200]
+        except Exception:  # noqa: BLE001
+            detail = ""
+        out["status"] = e.code
+        out["detail"] = f"HTTP {e.code}: {detail}"
+        if e.code == 404:
+            if "instance_not_found" in detail:
+                out["error_code"] = "instance_gone"
+                out["reachable"] = False
+            else:
+                # 路径不存在但服务在：探活路径需调整，不据此判定引擎不可用
+                out["error_code"] = "health_path_missing"
+                out["reachable"] = True
+        elif e.code in (401, 403):
+            out["error_code"] = "unauthorized"
+            out["reachable"] = True
+            out["auth_ok"] = False
+        else:
+            out["error_code"] = f"http_{e.code}"
+            out["reachable"] = True
+    except urllib.error.URLError as e:
+        out["error_code"] = "network_error"
+        out["detail"] = f"网络不可达：{e.reason}"
+    except TimeoutError:
+        out["error_code"] = "timeout"
+        out["detail"] = "探活超时。"
+    except Exception as e:  # noqa: BLE001
+        out["error_code"] = "probe_failed"
+        out["detail"] = f"{type(e).__name__}: {e}"
+    return out
+
+
 def _try_json(text: str) -> dict | None:
     """从引擎输出里提取 JSON 对象（可能是纯 JSON，也可能夹在文字里）。"""
     if not isinstance(text, str) or not text.strip():

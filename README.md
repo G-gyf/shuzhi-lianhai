@@ -26,8 +26,10 @@ python -m uvicorn server.main:app --host 127.0.0.1 --port 8000
 - 右上角可切换**演示身份**（A 区 / B 区，用于地区资料隔离验收）；`/api/v1/*` 需要
   `Authorization: Bearer <token>`（演示令牌：`demo-token-region-a` / `demo-token-region-b`）。
 
-默认运行在**本地规则分析引擎**（降级/演示路径，回答标注“规则演示”）；
-配置 AI 引擎后自动切换（见下节）。
+线上已接入**生成式引擎**（扣子编程项目 LangGraph 版，`https://kmj3bsz4kj.coze.site`），
+回答由模型生成、事实引用仍来自确定性数据库，不再标注「规则演示」。
+引擎不可用时**自动降级**为本地规则分析引擎（降级路径，回答标注「规则演示」）。
+本地未配置环境变量时即为该降级路径。
 
 ## AI 引擎（三选一，失败自动降级）
 
@@ -50,7 +52,13 @@ TOOLS_BASE_URL=https://<工具服务地址>       # 引擎回调受控工具服�
 
 没有真实引擎时也可联调链路：`python -X utf8 scripts/stub_engine.py --port 5001`，
 再配 `LANGGRAPH_BASE_URL=http://127.0.0.1:5001`，即可看到完整 SSE + 光球效果。
-当前生效引擎见 `GET /api/health` → `engine.effective_engine`。
+引擎状态见 `GET /api/health`：其中 `engine.effective_engine` / `engine.planned_engine`
+**只按配置推断，不代表可连通**——是否此刻真的能用请看 **`engine.reachable`**（以及顶层
+`engine_ready`）。该接口默认对「将优先尝试的引擎」做**真实探活**（带 `LANGGRAPH_TOKEN`，
+60 秒缓存；加 `?probe=0` 可跳过探活，仅回配置）。
+
+对话流中 `request_started.engine` 是「本轮将尝试的引擎」（附 `engine_resolved=false`），
+**真实生效引擎**见 `analysis_ready.engine` 与落库记录的 `engine` / `workflow_version` 字段。
 
 ## API 调用示例
 

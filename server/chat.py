@@ -159,7 +159,12 @@ def _chat_stream(user: dict, body: dict):
 
     yield _sse(EV_REQUEST_STARTED, {
         "session_id": session_id, "client_request_id": client_request_id,
-        "context": page, "engine": "coze" if analysis_service.coze_client.config()["ai_enabled"] else "rules-demo",
+        "context": page,
+        # 引擎在分析阶段才真正决议：这里只回报「将优先尝试的引擎」（仅按配置推断）。
+        # 此前该字段写死为 "coze"，导致降级到规则引擎、或实际走 langgraph 时都会误报。
+        # 真实生效引擎请看 analysis_ready.engine 与持久化记录的 engine 字段。
+        "engine": analysis_service.planned_engine(),
+        "engine_resolved": False,
     }, request_id)
 
     try:

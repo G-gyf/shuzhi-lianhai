@@ -71,7 +71,10 @@ def main() -> int:
     snapshot_src = "命令行指定"
     if not snapshot and live_url:
         try:
-            with urllib.request.urlopen(live_url.rstrip("/") + "/api/health", timeout=20) as r:
+            # probe=0：本脚本只需要 snapshot_id，跳过 /api/health 的引擎真实探活，
+            # 避免把脚本耗时与引擎可用性绑定。
+            with urllib.request.urlopen(
+                    live_url.rstrip("/") + "/api/health?probe=0", timeout=20) as r:
                 snapshot = json.loads(r.read()).get("snapshot_id")
             snapshot_src = f"取自 {live_url} 的 /api/health"
         except Exception as e:  # noqa: BLE001

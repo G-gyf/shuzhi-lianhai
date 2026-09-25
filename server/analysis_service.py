@@ -313,8 +313,80 @@ def build_briefing(analysis_id: str, user: dict, title: str | None = None) -> di
 
 # ---------------- 编排 ----------------
 
-def engine_status() -> dict:
-    """当前 AI 引擎配置状态（供 /api/health 展示，不含任何密钥）。"""
+_ENGINE_PROBE_CACHE: dict = {"at": 0.0, "engine": None, "result": None}
+ENGINE_PROBE_TTL_SECONDS = 60
+
+
+def planned_engine() -> str:
+    """本轮将**优先尝试**的引擎（仅按配置判断，不代表可连通）。
+
+    与 prepare_analysis 的尝试顺序严格一致：AI_ENGINE 显式指定时优先该引擎，
+    否则 langgraph → coze；都不满足则 rules-demo。
+    真实生效引擎见对话流 analysis_ready.engine 与持久化记录的 engine 字段。
+    """
+    cfg = coze_client.config()
+    lg = langgraph_client.config()
+    prefer = cfg.get("ai_engine") or ""
+    for candidate in (["langgraph", "coze"] if prefer != "coze" else ["coze", "langgraph"]):
+        if candidate == "langgraph":
+            if lg["base_url"] and (cfg["ai_enabled"] or prefer == "langgraph"):
+                return "langgraph"
+        elif cfg["ai_enabled"] and cfg["workflow_id"]:
+            return "coze"
+    return "rules-demo"
+
+
+def reset_engine_probe_cache() -> None:
+    """清空引擎探活缓存（测试与运维手动刷新用）。"""
+    _ENGINE_PROBE_CACHE.update({"at": 0.0, "engine": None, "result": None})
+
+
+def probe_engine(engine: str | None = None, ttl_seconds: int = ENGINE_PROBE_TTL_SECONDS,
+                 timeout: int = 5) -> dict:
+    """对将优先尝试的引擎做真实探活（TTL 缓存，失败不抛异常）。
+
+    修复「配置在、服务没了却报绿」：/api/health 曾只看 LANGGRAPH_BASE_URL 是否存在，
+    因此实例被回收（404 instance_not_found）时仍显示 langgraph 可用。
+    """
+    engine = engine or planned_engine()
+    now = time.time()
+    cache = _ENGINE_PROBE_CACHE
+    if (cache["result"] is not None and cache["engine"] == engine
+            and now - cache["at"] < ttl_seconds):
+        return dict(cache["result"])
+    if engine == "langgraph":
+        p = langgraph_client.probe(timeout=timeout)
+        result = {
+            "reachable": p["reachable"], "auth_ok": p["auth_ok"],
+            "probe_status": p["status"], "probe_error": p["error_code"],
+            "probe_detail": p["detail"], "probed_engine": "langgraph",
+            "checked_at": p["checked_at"],
+        }
+    elif engine == "coze":
+        result = {
+            "reachable": None, "auth_ok": None, "probe_status": None, "probe_error": "",
+            "probe_detail": ("Coze 云端工作流不单独探活；"
+                             "请以对话流 analysis_ready.engine 为准。"),
+            "probed_engine": "coze", "checked_at": _now(),
+        }
+    else:
+        result = {
+            "reachable": True, "auth_ok": True, "probe_status": None, "probe_error": "",
+            "probe_detail": "本地规则引擎始终可用（无需网络）。",
+            "probed_engine": "rules-demo", "checked_at": _now(),
+        }
+    cache.update({"at": now, "engine": engine, "result": result})
+    return dict(result)
+
+
+def engine_status(probe: bool = False) -> dict:
+    """当前 AI 引擎状态（供 /api/health 展示，不含任何密钥）。
+
+    - `effective_engine`：按配置推断的引擎（不含网络请求，保持向后兼容）；
+    - `planned_engine`：本轮实际会优先尝试的引擎；
+    - `probe=True` 时附带 `reachable`（真实探活）与 `probe_detail`，用于区分
+      「已配置」与「可连通」——只有 reachable=True 才代表引擎此刻真的能用。
+    """
     cfg = coze_client.config()
     lg = langgraph_client.config()
     prefer = cfg.get("ai_engine") or ""
@@ -324,15 +396,21 @@ def engine_status() -> dict:
         effective = "coze"
     else:
         effective = "rules-demo"
-    return {
+    status = {
         "effective_engine": effective,
+        "planned_engine": planned_engine(),
         "ai_enabled": cfg["ai_enabled"],
         "ai_engine_pref": prefer or "auto",
         "langgraph_configured": bool(lg["base_url"]),
         "coze_configured": bool(cfg["workflow_id"] and cfg["access_token"]),
         "note": ("langgraph=扣子编程项目引擎；coze=Coze 云端工作流；"
-                 "rules-demo=本地规则引擎（降级兜底，始终可用）"),
+                 "rules-demo=本地规则引擎（降级兜底，始终可用）；"
+                 "effective_engine/planned_engine 仅按配置判断，"
+                 "是否真的可用请看 reachable。"),
     }
+    if probe:
+        status.update(probe_engine())
+    return status
 
 
 def build_workflow_parameters(message: str, user: dict, page: dict, prefs: dict,

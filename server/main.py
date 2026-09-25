@@ -131,11 +131,22 @@ def api_country(name: str):
 
 
 @app.get("/api/health")
-def api_health():
+def api_health(probe: int = 1):
+    """健康检查。
+
+    - `probe=1`（默认）：对**将优先尝试的 AI 引擎**做真实探活（60 秒缓存），
+      用 `engine.reachable` / `engine_ready` 区分「已配置」与「此刻可连通」——
+      此前只判断配置是否存在，实例被回收时仍报绿（线上事故回归）。
+    - `probe=0`：只回报配置、不发网络请求，供脚本快速读取 snapshot_id。
+
+    `snapshot_id` 保持顶层字段：scripts/make_token.py 依赖它对齐快照。
+    """
     from . import analysis_service
+    engine = analysis_service.engine_status(probe=bool(probe))
     return {"status": "ok", "kb": "kb-2023",
             "snapshot_id": runtime.get_snapshot(),
-            "engine": analysis_service.engine_status()}
+            "engine_ready": engine.get("reachable"),
+            "engine": engine}
 
 
 # ---------------- /api/v1 对话工作台 ----------------
