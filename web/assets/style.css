@@ -42,8 +42,10 @@ table.radar tbody tr:hover { background: rgba(212,175,106,.07); }
 .tag.w-first { color: var(--gold-soft); border-color: rgba(212,175,106,.5); background: rgba(212,175,106,.10); }
 .tag.w-new { color: #8fc4dd; border-color: rgba(143,196,221,.4); }
 .tag.w-exp { color: var(--green); border-color: rgba(127,174,142,.4); }
-.tag.st-landing { color: var(--coral); border-color: rgba(201,138,122,.45); }
-.tag.st-prep { color: #a9b7c9; border-color: rgba(169,183,201,.35); }
+/* 出海全周期三阶段：T1 落地期（最近落地，优先跟进）/ T0 筹备期 / T2 存量期（不在窗口期） */
+.tag.st-T1 { color: var(--coral); border-color: rgba(201,138,122,.45); background: rgba(201,138,122,.10); }
+.tag.st-T0 { color: #a9b7c9; border-color: rgba(169,183,201,.35); }
+.tag.st-T2 { color: var(--green); border-color: rgba(127,174,142,.4); }
 .score { font-weight: 800; color: var(--gold); font-size: 15px; }
 .dirchip { display: inline-block; font-size: 10.5px; color: var(--txt-soft); border: 1px solid var(--line);
            border-radius: 12px; padding: 0 6px; margin: 1px 2px 1px 0; }

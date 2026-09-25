@@ -59,7 +59,7 @@ class TestScopeYear(unittest.TestCase):
     def test_segment_year_counts(self):
         result = api_segments(year=2018)
         self.assertEqual(sum(x['firms'] for x in result['items']), int(logic._panel().query('year == 2018').scode.nunique()))
-        self.assertEqual(sum(x['deploy'] + x['intent'] for x in result['items']), len(logic._claims().query('year == 2018').loc[lambda d:d.program_label.isin(logic.DEMAND_LABELS)]))
+        self.assertEqual(sum(x['t1_signals'] + x['t0_signals'] for x in result['items']), len(logic._claims().query('year == 2018').loc[lambda d:d.program_label.isin(logic.DEMAND_SIGNAL_LABELS)]))
 
     def test_all_segments_and_no_unresolved(self):
         self.assertEqual(logic.segment_of('300750'), '储能与电源')

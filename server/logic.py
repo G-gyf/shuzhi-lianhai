@@ -1,4 +1,4 @@
-# -*- coding: utf-8 -*-
+﻿# -*- coding: utf-8 -*-
 """核心计算层：窗口期 / 分层 / 强度 / 能力评分 / 推理链 / 简报 / 供应链示例。
 
 所有判定均为确定性规则（规则引擎），LLM 不参与计算。
@@ -28,7 +28,17 @@ RULES_DIR = ROOT / "rules"
 LANDING_DIRECTIONS = {"capacity_production", "investment_ma"}
 LANDING_ANCHORS = {"project_or_base", "capacity_or_facility",
                    "overseas_entity", "investment_or_contract"}
-DEMAND_LABELS = ("经营部署", "战略意图")
+
+# 内部抽取标签：仅用于从 claims 表筛出「出海需求信号」，**不进入任何对外口径**。
+# 对外一律按 rules/stages.json 的三阶段表述：
+#   T0 筹备期（无落点类信号）/ T1 落地期（含落点类信号）/ T2 存量期（已出海）。
+DEMAND_SIGNAL_LABELS = ("经营部署", "战略意图")
+
+STAGE_T0, STAGE_T1, STAGE_T2 = "T0", "T1", "T2"
+WINDOW_STAGES = (STAGE_T0, STAGE_T1)      # 出海前窗口期仅含 T0/T1
+
+# 兼容既有调用方
+DEMAND_LABELS = DEMAND_SIGNAL_LABELS
 
 # 面板展示字段与中文标签（数据完整度统计口径）
 PANEL_LABELS = [
@@ -56,6 +66,7 @@ def rules():
         "products": _load_json("products.json"),
         "scoring": _load_json("scoring.json"),
         "chains": _load_json("chains.json"),
+        "stages": _load_json("stages.json"),
         "countries": _load_json("countries.json"),
         "pv_list": _load_json("pv_list.json"),
         "chain_map": _load_json("chain_map.json"),
@@ -161,20 +172,25 @@ def _sub_countries():
 
 @lru_cache(maxsize=1)
 def agg():
-    """企业-年信号聚合：窗口类型 / 分层 / 强度分。
+    """企业-年信号聚合：三阶段 / 布局细分 / 强度分。
+
+    三阶段判别（rules/stages.json）：
+      T0 筹备期 — 当年有出海需求信号，且不含任何「落点类信号」；
+      T1 落地期 — 当年有出海需求信号，且至少 1 条为「落点类信号」；
+    落点类信号＝方向属于 LANDING_DIRECTIONS 或锚点类型属于 LANDING_ANCHORS。
+    T2 存量期按布局判定，见 stock_radar()（不属于窗口期，单独入口）。
 
     新国别判定（as-of）：以“截至该年度之前”的子公司国别集合为基准，
     避免后续年度布局倒灌影响早年分类。
     """
     cl = _claims()
-    dem = cl[cl["program_label"].isin(DEMAND_LABELS)].copy()
+    dem = cl[cl["program_label"].isin(DEMAND_SIGNAL_LABELS)].copy()
+    # 落点类信号：区分 T0/T1 的唯一判据
     dem["is_landing"] = dem["direction"].isin(LANDING_DIRECTIONS) | \
         dem["execution_anchor_type"].isin(LANDING_ANCHORS)
     dem["is_hard"] = dem["execution_anchor_type"] != "none"
     g = dem.groupby(["scode", "year"]).agg(
-        n_deploy=("program_label", lambda s: int((s == "经营部署").sum())),
-        n_intent=("program_label", lambda s: int((s == "战略意图").sum())),
-        n_landing=("is_landing", "sum"),
+        n_t1=("is_landing", "sum"),
         n_claims=("is_landing", "size"),
         n_hard=("is_hard", "sum"),
         directions=("direction", lambda s: sorted(set(s) - {"null", ""})),
@@ -184,7 +200,8 @@ def agg():
         top_chunk=("chunk_id", "first"),
         top_quote=("evidence_quote", "first"),
     ).reset_index()
-    g["n_landing"] = g["n_landing"].astype(int)
+    g["n_t1"] = g["n_t1"].astype(int)
+    g["n_t0"] = (g["n_claims"] - g["n_t1"]).astype(int)   # 筹备期信号数
     g["n_hard"] = g["n_hard"].astype(int)
 
     p = _panel()[["scode", "year", "overseas_demand", "overseas_sub_count",
@@ -213,21 +230,23 @@ def agg():
         return "expansion"
 
     g["window_type"] = g.apply(window_type, axis=1)
-    g["stage_layer"] = g.apply(
-        lambda r: "landing" if r["n_landing"] > 0 else "prep", axis=1)
-    g["score"] = (2 * g["n_deploy"] + g["n_intent"] + g["n_hard"]
+    # 三阶段：窗口期内按「是否含落点类信号」区分 T1 落地期 / T0 筹备期
+    g["stage"] = g["n_t1"].gt(0).map({True: STAGE_T1, False: STAGE_T0})
+    g["score"] = (2 * g["n_t1"] + g["n_t0"] + g["n_hard"]
                   + g["directions"].map(len).clip(upper=3) - 1)
     return g
 
 
 def radar(province=None, industry=None, year=None, limit=200, sort_mode="window",
           segment=None):
-    """辖区意图强度排行。
+    """辖区出海线索排行（**窗口期名单，仅含 T0 筹备期与 T1 落地期**）。
+
+    存量期（T2）已越过窗口期，不在本名单内，见 stock_radar()。
 
     sort_mode:
-      window — 窗口类型优先（first > new_country > expansion）→ 分层（落地 > 筹备）
+      window — 窗口布局细分优先（first > new_country > expansion）→ 阶段（落地期 > 筹备期）
                → 强度分 → 年份
-      score  — 纯强度分降序 → 窗口类型 → 分层
+      score  — 纯强度分降序 → 窗口布局细分 → 阶段
     segment — 电力产业链环节筛选（光伏主链/风电设备/…，见 chain_map.json）
     """
     g = agg()
@@ -240,9 +259,9 @@ def radar(province=None, industry=None, year=None, limit=200, sort_mode="window"
     if year:
         g = g[g["year"] == int(year)]
     w_order = {"first": 0, "new_country": 1, "expansion": 2, "layout_unknown": 3, "label_incomplete": 4}
-    s_order = {"landing": 0, "prep": 1}
+    s_order = {STAGE_T1: 0, STAGE_T0: 1}      # 落地期优先于筹备期
     g["_w"] = g["window_type"].map(w_order)
-    g["_s"] = g["stage_layer"].map(s_order)
+    g["_s"] = g["stage"].map(s_order)
     if sort_mode == "score":
         g = g.sort_values(["score", "_w", "_s", "year"],
                           ascending=[False, True, True, False])
@@ -251,9 +270,11 @@ def radar(province=None, industry=None, year=None, limit=200, sort_mode="window"
                           ascending=[True, True, False, False])
     names = _coname_map()
     chain_rules = rules()["chains"]
+    stage_defs = rules()["stages"]["stages"]
     pv = set(industry_tags()["pv"])
     out = []
     for _, r in g.head(limit).iterrows():
+        st = stage_defs[r["stage"]]
         out.append({
             "scode": r["scode"],
             "coname": names.get(r["scode"], ""),
@@ -262,12 +283,14 @@ def radar(province=None, industry=None, year=None, limit=200, sort_mode="window"
             "industry_tags": ["电气设备", segment_of(r["scode"])],
             "segment": segment_of(r["scode"]),
             "year": int(r["year"]),
+            "stage": r["stage"],
+            "stage_label": st["name"],
+            "stage_full": st["full_name"],
+            "stage_in_window": st["in_window"],
             "window_type": r["window_type"],
             "window_label": chain_rules["window_label"][r["window_type"]],
-            "stage_layer": r["stage_layer"],
-            "stage_label": chain_rules["stage_label"][r["stage_layer"]],
-            "n_deploy": int(r["n_deploy"]),
-            "n_intent": int(r["n_intent"]),
+            "n_t0_signal": int(r["n_t0"]),
+            "n_t1_signal": int(r["n_t1"]),
             "directions": r["directions"],
             "countries": r["countries"],
             "regions": r["regions"],
@@ -284,6 +307,74 @@ def provinces():
     return sorted(agg()["province"].dropna().unique().tolist())
 
 
+# ---------------- T2 存量期（存量挖转，不属于窗口期） ----------------
+
+def _window_firm_years():
+    """窗口期（T0/T1）企业-年集合，用于与存量期互斥。"""
+    g = agg()
+    return {(r["scode"], int(r["year"])) for _, r in g[g["window_type"].notna()].iterrows()}
+
+
+def stock_radar(province=None, industry=None, year=None, limit=200):
+    """存量挖转名单（T2 存量期）。
+
+    判别规则（rules/stages.json stock_rule）：存在海外布局——
+    海外子公司数 > 0 或海外收入占比 > 0，任一项成立即判为存量期。
+
+    与窗口期名单**互斥**：已进入 T0/T1 的企业-年不再重复出现在本名单
+    （这类企业当年仍有新增出海需求，属窗口期跟进对象，不是纯存量挖转）。
+    布局字段缺失且未证明已有布局的，不进本名单（如实标为布局未知）。
+    """
+    p = _panel().copy()
+    if year:
+        p = p[p["year"] == int(year)]
+    if province:
+        p = p[p["province"] == province]
+    p = filter_industry(p, industry)
+
+    subs = pd.to_numeric(p["overseas_sub_count"], errors="coerce")
+    rev = pd.to_numeric(p["overseas_rev_share"], errors="coerce")
+    laid = (subs.fillna(0) > 0) | (rev.fillna(0) > 0)
+    p = p[laid].copy()
+    p["_subs"] = subs[laid]
+    p["_rev"] = rev[laid]
+
+    in_window = _window_firm_years()
+    p = p[[(r["scode"], int(r["year"])) not in in_window for _, r in p.iterrows()]]
+    if p.empty:
+        return []
+
+    p = p.sort_values(["overseas_country_count", "overseas_rev_share"],
+                      ascending=[False, False])
+    names = _coname_map()
+    st = rules()["stages"]["stages"][STAGE_T2]
+    out = []
+    for _, r in p.head(limit).iterrows():
+        scode = r["scode"]
+        out.append({
+            "scode": scode,
+            "coname": names.get(scode, ""),
+            "province": r["province"] if pd.notna(r["province"]) else "待核实",
+            "industry": segment_of(scode),
+            "segment": segment_of(scode),
+            "year": int(r["year"]),
+            "stage": STAGE_T2,
+            "stage_label": st["name"],
+            "stage_full": st["full_name"],
+            "stage_in_window": False,
+            # 存量判据的证据字段（判据可核验）
+            "overseas_sub_count": (int(r["_subs"]) if pd.notna(r["_subs"]) else None),
+            "overseas_rev_share": (float(r["_rev"]) if pd.notna(r["_rev"]) else None),
+            "overseas_country_count": (int(r["overseas_country_count"])
+                                       if pd.notna(r.get("overseas_country_count")) else None),
+            "overseas_cust_share": scdata.overseas_customer_share(scode, int(r["year"])),
+            "customer_concentration": scdata.customer_concentration(scode, int(r["year"])),
+            "capability": capability_score(scode, int(r["year"])),
+            "rule_id": rules()["stages"]["rule_ids"][STAGE_T2],
+        })
+    return out
+
+
 def segments(year=None, province=None, industry=None):
     """产业链环节出海需求统计（电力全链，claims 口径）。"""
     chain = rules()["chain_map"]["segments"]
@@ -295,7 +386,10 @@ def segments(year=None, province=None, industry=None):
     if province:
         p = p[p["province"] == province]
     p = filter_industry(p, industry)
-    dem = cl[cl["program_label"].isin(DEMAND_LABELS)]
+    dem = cl[cl["program_label"].isin(DEMAND_SIGNAL_LABELS)]
+    dem = dem.assign(is_landing=(
+        dem["direction"].isin(LANDING_DIRECTIONS)
+        | dem["execution_anchor_type"].isin(LANDING_ANCHORS)))
     all_codes = set(p["scode"])
     dem = dem[dem["scode"].isin(all_codes)]
     out = []
@@ -311,8 +405,8 @@ def segments(year=None, province=None, industry=None):
             "firms": len(codes),
             "demand_firms": len(dem_codes),
             "ratio": round(len(dem_codes) / max(len(codes), 1), 3),
-            "deploy": int((sub["program_label"] == "经营部署").sum()),
-            "intent": int((sub["program_label"] == "战略意图").sum()),
+            "t1_signals": int(sub["is_landing"].sum()),
+            "t0_signals": int((~sub["is_landing"]).sum()),
         })
     out.sort(key=lambda x: (-x["ratio"], -x["demand_firms"]))
     return out
@@ -324,12 +418,21 @@ def years():
 
 # ---------------- 企业详情 ----------------
 
+def _claim_stage(direction, anchor_type) -> str:
+    """单条出海需求信号的阶段：含落点类信号 → T1 落地期，否则 T0 筹备期。"""
+    if direction in LANDING_DIRECTIONS or anchor_type in LANDING_ANCHORS:
+        return STAGE_T1
+    return STAGE_T0
+
+
 def _claim_out(c):
+    stage = _claim_stage(c["direction"], c["execution_anchor_type"])
     return {
         "signal_id": c["signal_id"],
         "chunk_id": c["chunk_id"],
         "year": int(c["year"]),
-        "program_label": c["program_label"],
+        "stage": stage,
+        "stage_label": rules()["stages"]["stages"][stage]["name"],
         "time_state": c["time_state"],
         "direction": c["direction"],
         "anchor_type": c["execution_anchor_type"],
@@ -373,7 +476,7 @@ def company_detail(scode, year=None, strict_year=True):
     row = row_sel.iloc[0] if has_panel else None
 
     cl = _claims()
-    dem = cl[(cl["scode"] == scode) & (cl["program_label"].isin(DEMAND_LABELS))]
+    dem = cl[(cl["scode"] == scode) & (cl["program_label"].isin(DEMAND_SIGNAL_LABELS))]
     cur = dem[dem["year"] == top_year] if top_year is not None else dem
     # 历史信号口径：仅所选年度以前（未来的披露不冒充"历史依据"）
     hist = dem[dem["year"] < top_year] if top_year is not None else dem.iloc[0:0]
@@ -391,14 +494,21 @@ def company_detail(scode, year=None, strict_year=True):
 
     window = None
     if top is not None and top["window_type"]:
+        st = rules()["stages"]["stages"][top["stage"]]
         window = {
             "year": int(top["year"]),
+            "stage": top["stage"],
+            "stage_label": st["name"],
+            "stage_full": st["full_name"],
+            "stage_definition": st["definition"],
+            "stage_rule": st["rule"],
+            "stage_in_window": st["in_window"],
             "window_type": top["window_type"],
             "window_label": rules()["chains"]["window_label"].get(top["window_type"]),
             "window_note": rules()["chains"].get("window_note", {}).get(top["window_type"], ""),
-            "stage_layer": top["stage_layer"],
-            "stage_label": rules()["chains"]["stage_label"][top["stage_layer"]],
             "score": int(top["score"]),
+            "n_t0_signal": int(top["n_t0"]),
+            "n_t1_signal": int(top["n_t1"]),
         }
 
     sub_count = gv("overseas_sub_count")
@@ -549,7 +659,7 @@ def chain(scode, year=None):
 
     cl = _claims()
     cur = cl[(cl["scode"] == scode) & (cl["year"] == y) &
-             (cl["program_label"].isin(DEMAND_LABELS))].copy()
+             (cl["program_label"].isin(DEMAND_SIGNAL_LABELS))].copy()
     cur = cur.sort_values(["evidence_start"], kind="stable")
     top_c = cur.iloc[0] if len(cur) else None
 
@@ -562,17 +672,22 @@ def chain(scode, year=None):
     steps = []
     wt = top["window_type"]
     wl = chains["window_label"].get(wt, wt)
-    sl = chains["stage_label"][top["stage_layer"]]
+    st = rules()["stages"]["stages"][top["stage"]]
     wn = chains.get("window_note", {}).get(wt, "")
 
-    # step 1 窗口期
+    # step 1 出海阶段判定（出海前窗口期：T0 筹备期 / T1 落地期）
     steps.append({
         "key": "window",
         "label": chains["step_order"][0]["label"],
-        "title": f"{wl} · {sl}",
-        "detail": (f"所选年度 {y} 披露 {int(top['n_deploy'])} 条经营部署、{int(top['n_intent'])} 条战略意图；"
-                   f"窗口类型「{wl}」，分层「{sl}」。" + (f" {wn}" if wn else "")),
-        "rule_id": RULE_IDS["window"].get(wt, "RULE_WINDOW_OTHER"),
+        "title": f"{st['full_name']} · {wl}",
+        "detail": (f"所选年度 {y} 共 {int(top['n_claims'])} 条出海需求信号："
+                   f"筹备期（T0）{int(top['n_t0'])} 条、落地期（T1）{int(top['n_t1'])} 条。"
+                   f"判别规则：{st['rule']}故判定为 {st['full_name']}。"
+                   f"窗口布局细分「{wl}」。" + (f" {wn}" if wn else "")),
+        "stage": top["stage"],
+        "stage_label": st["name"],
+        "rule_id": rules()["stages"]["rule_ids"][top["stage"]],
+        "substate_rule_id": RULE_IDS["window"].get(wt, "RULE_WINDOW_OTHER"),
         "evidence": step_ev(top_c),
     })
 
@@ -725,7 +840,8 @@ def briefing(scode, year=None):
          "rule_ids": ["RULE_CAPABILITY", "RULE_SC_CONC"],
          "signal_ids": [], "evidence_ids": []},
         {"heading": "二、出海需求判断",
-         "body": (f"{w['window_label']}（{w['stage_label']}），强度分 {w['score']}。"
+         "body": (f"{w['stage_full']}（窗口布局细分：{w['window_label']}），强度分 {w['score']}。"
+                  f"阶段判别依据：{w['stage_rule']}"
                   f"{ch['steps'][1]['title']}。{ev_txt} {osc_txt}"
                   + (f" {w['window_note']}" if w.get("window_note") else "")),
          "rule_ids": [win_step.get("rule_id"), "RULE_SC_OVERSEAS"] +
@@ -764,12 +880,16 @@ def evidence(chunk_id):
     if not row:
         return None
     cl = pd.read_sql("SELECT * FROM claims WHERE chunk_id=?", con, params=(chunk_id,))
+    stage_defs = rules()["stages"]["stages"]
     spans = []
     for _, c in cl.iterrows():
+        is_demand = c["program_label"] in DEMAND_SIGNAL_LABELS
+        stage = _claim_stage(c["direction"], c["execution_anchor_type"]) if is_demand else None
         spans.append({
             "claim_number": int(c["claim_number"]),
-            "program_label": c["program_label"],
-            "is_demand": c["program_label"] in DEMAND_LABELS,
+            "is_demand": is_demand,
+            "stage": stage,
+            "stage_label": stage_defs[stage]["name"] if stage else None,
             "direction": c["direction"],
             "start": int(c["evidence_start"]),
             "end": int(c["evidence_end"]),
@@ -781,7 +901,7 @@ def evidence(chunk_id):
         "coname": row[2],
         "year": int(row[3]),
         "section": row[4],
-        "program_label": row[5],
+        "has_demand_signal": any(s["is_demand"] for s in spans),
         "text": row[6],
         "spans": spans,
     }

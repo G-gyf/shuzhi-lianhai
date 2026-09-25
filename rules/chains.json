@@ -2,7 +2,7 @@
   "step_order": [
     {
       "key": "window",
-      "label": "窗口期判定"
+      "label": "出海阶段判定"
     },
     {
       "key": "direction",
@@ -32,8 +32,11 @@
     "label_incomplete": "存在已识别需求主张，但年度标注不完整；与光伏行业无关，不据此作完整年度判定。"
   },
   "stage_label": {
-    "landing": "落地层",
-    "prep": "筹备层"
+    "T0": "筹备期",
+    "T1": "落地期",
+    "T2": "存量期"
   },
+  "stage_label_note": "三阶段的唯一定义与判别规则见 rules/stages.json；此处仅保留标签映射以兼容既有调用方，取值必须与 stages.json 的 name 一致。",
+  "substate_note": "window_label 是「窗口期内的布局成熟度细分」，与三阶段正交：阶段回答「走到哪一步」，细分回答「既有布局到什么程度」。",
   "note": "推理链由规则引擎按 方向×锚点×窗口类型 生成结构化步骤；每条建议绑定 rule_id（规则ID）/ signal_id（信号ID）/ evidence_id（证据ID）；LLM 不参与判定，仅用于简报文字润色。"
 }

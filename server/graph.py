@@ -5,7 +5,7 @@ import os
 import pandas as pd
 
 from .geo import is_region, normalize_name
-from .logic import _claims, _coname_map, rules
+from .logic import DEMAND_SIGNAL_LABELS, _claim_stage, _claims, _coname_map, rules
 
 def get_company_graph(scode, year=None):
     """本项目仅运行 SQLite 证据子图；Neo4j 为银行实名数据预留设计。"""
@@ -17,17 +17,22 @@ def _sqlite_graph(scode, year=None):
     cl = _claims()
     names = _coname_map()
     dem = cl[(cl["scode"] == scode) &
-             (cl["program_label"].isin(("经营部署", "战略意图")))].copy()
+             (cl["program_label"].isin(DEMAND_SIGNAL_LABELS))].copy()
     if year is not None:
         dem = dem[dem["year"] == int(year)]
     dem = dem.sort_values("year", ascending=False).head(30)
     nodes = [{"id": "self", "label": names.get(scode, scode), "type": "企业"}]
     edges = []
     seen_dir, seen_ctry = set(), set()
+    stage_defs = rules()["stages"]["stages"]
     for _, c in dem.iterrows():
         sid = f"s{c['chunk_id']}_{c['claim_number']}"
-        nodes.append({"id": sid, "label": f"{c['direction']} · {c['program_label']}",
-                      "type": "信号", "year": int(c["year"])})
+        stage = _claim_stage(c["direction"], c["execution_anchor_type"])
+        nodes.append({"id": sid,
+                      "label": f"{c['direction']} · {stage_defs[stage]['full_name']}",
+                      "type": "信号", "stage": stage,
+                      "stage_label": stage_defs[stage]["name"],
+                      "year": int(c["year"])})
         edges.append({"source": "self", "target": sid, "rel": "DISCLOSED"})
         d = c["direction"]
         if d and d not in ("null", ""):

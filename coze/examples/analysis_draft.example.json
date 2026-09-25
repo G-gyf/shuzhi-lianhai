@@ -12,7 +12,7 @@
   "answer_blocks": [
     {
       "kind": "fact",
-      "text": "示例企业（002860）在 2023 年度处于「出海扩张期」窗口（筹备层）。",
+      "text": "示例企业（002860）在 2023 年度处于 T0 筹备期（出海前窗口期；窗口布局细分：有需求且当期未见布局）。",
       "refs": ["ev:<chunk_id>:<claim_number>:<text_version>"]
     },
     {
@@ -40,7 +40,7 @@
     {
       "id": "orb_example",
       "kind": "evidence",
-      "label": "部署依据",
+      "label": "落地期依据",
       "summary": "1条披露记录",
       "ref_id": "ev:<chunk_id>:<claim_number>:<text_version>",
       "state": "ready"

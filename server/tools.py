@@ -131,9 +131,9 @@ def search_companies(ctx, province=None, industry=None, year=None,
         explanation["direction"] = DIRECTION_CN.get(direction, direction)
 
     w_order = {"first": 0, "new_country": 1, "expansion": 2, "layout_unknown": 3, "label_incomplete": 4}
-    s_order = {"landing": 0, "prep": 1}
+    s_order = {logic.STAGE_T1: 0, logic.STAGE_T0: 1}     # 落地期优先于筹备期
     g["_w"] = g["window_type"].map(w_order)
-    g["_s"] = g["stage_layer"].map(s_order)
+    g["_s"] = g["stage"].map(s_order)
     if sort == "score":
         g = g.sort_values(["score", "_w", "_s", "year"],
                           ascending=[False, True, True, False])
@@ -147,25 +147,29 @@ def search_companies(ctx, province=None, industry=None, year=None,
     start = (page - 1) * page_size
     names = logic._coname_map()
     chains = logic.rules()["chains"]
+    stage_defs = logic.rules()["stages"]["stages"]
     pv = set(logic.industry_tags()["pv"])
     items = []
     for _, r in g.iloc[start:start + page_size].iterrows():
+        st = stage_defs[r["stage"]]
         items.append({
             "scode": r["scode"],
             "coname": names.get(r["scode"], ""),
             "province": r["province"] if pd.notna(r["province"]) else "待核实",
             "industry": logic.segment_of(r["scode"]),
             "year": int(r["year"]),
+            "stage": r["stage"],
+            "stage_label": st["name"],
+            "stage_full": st["full_name"],
+            "stage_in_window": st["in_window"],
             "window_type": r["window_type"],
             "window_label": chains["window_label"][r["window_type"]],
-            "stage_layer": r["stage_layer"],
-            "stage_label": chains["stage_label"][r["stage_layer"]],
             "directions": r["directions"],
             "countries": r["countries"],
             "regions": r["regions"],
             "score": int(r["score"]),
-            "n_deploy": int(r["n_deploy"]),
-            "n_intent": int(r["n_intent"]),
+            "n_t0_signal": int(r["n_t0"]),
+            "n_t1_signal": int(r["n_t1"]),
         })
     return ok({
         "total": total, "page": page, "page_size": page_size,
@@ -283,18 +287,25 @@ def get_evidence(ctx, evidence_ref):
 
     con = logic._conn()
     row = con.execute(
-        "SELECT chunk_id, scode, coname, year, section_canonical, program_label, text_clean "
+        "SELECT chunk_id, scode, coname, year, section_canonical, text_clean "
         "FROM chunks WHERE chunk_id=?", (chunk_id,)).fetchone()
     if not row:
         return fail(f"证据块不存在：{chunk_id}", "not_found")
-    text = row[6] or ""
+    text = row[5] or ""
     current_tv = runtime.text_version(text)
+    stage_defs = logic.rules()["stages"]["stages"]
     spans = []
     for c in con.execute(
             "SELECT claim_number, program_label, direction, evidence_start, evidence_end,"
-            " evidence_quote FROM claims WHERE chunk_id=? AND claim_number=?",
+            " evidence_quote, execution_anchor_type FROM claims "
+            "WHERE chunk_id=? AND claim_number=?",
             (chunk_id, claim_number)):
-        spans.append({"claim_number": int(c[0]), "program_label": c[1],
+        is_demand = c[1] in logic.DEMAND_SIGNAL_LABELS
+        stage = logic._claim_stage(c[2], c[6]) if is_demand else None
+        spans.append({"claim_number": int(c[0]),
+                      "is_demand": is_demand,
+                      "stage": stage,
+                      "stage_label": stage_defs[stage]["name"] if stage else None,
                       "direction": c[2], "start": int(c[3]), "end": int(c[4]),
                       "quote": c[5]})
     status = "ok"
@@ -306,7 +317,7 @@ def get_evidence(ctx, evidence_ref):
         "ref_id": evidence_ref,
         "chunk_id": chunk_id, "claim_number": claim_number,
         "scode": str(row[1]).zfill(6), "coname": row[2], "year": int(row[3]),
-        "section": row[4], "program_label": row[5],
+        "section": row[4],
         "text": text, "text_version": current_tv, "spans": spans,
         "source": {"snapshot_id": runtime.get_snapshot(), "kb_version": "kb-2023"},
         "status": status, "warning": warning,

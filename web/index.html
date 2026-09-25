@@ -35,7 +35,7 @@
         <option value="window">排序：窗口优先</option>
         <option value="score">排序：强度分优先</option>
       </select>
-      <button id="btn-radar">雷达名单</button><button id="btn-assistant">AI 工作台</button>
+      <button id="btn-radar">雷达名单</button><button id="btn-stock">存量挖转</button><button id="btn-assistant">AI 工作台</button>
       <span class="health" id="health">连接中…</span>
     </div>
   </div>
@@ -54,16 +54,28 @@
       <p class="muted" id="chain-active" style="margin-top:8px"></p>
     </div>
     <div class="card">
-      <h3><span class="section-index">02</span>辖区出海线索名单 <span class="hint">窗口优先 · 落地优先 · 强度降序，可在顶部切换排序</span></h3>
+      <h3><span class="section-index">02</span>辖区出海线索名单 <span class="hint">出海前窗口期（T0 筹备期 / T1 落地期）· 落地优先 · 强度降序</span></h3>
       <div class="radar-scroll" tabindex="0" role="region" aria-label="企业线索列表，可横向滚动查看更多列">
         <table class="radar">
           <thead><tr>
-            <th>#</th><th>企业</th><th>省份</th><th>年份</th><th>窗口类型</th><th>分层</th><th>出海方向</th><th>目标国/地区</th><th>部署/意图</th><th>强度分</th>
+            <th>#</th><th>企业</th><th>省份</th><th>年份</th><th>出海阶段</th><th>窗口布局细分</th><th>出海方向</th><th>目标国/地区</th><th>T1 / T0 信号</th><th>强度分</th>
           </tr></thead>
           <tbody id="radar-body"></tbody>
         </table>
       </div>
       <p class="muted" id="radar-note" style="margin-top:10px"></p>
+    </div>
+    <div class="card">
+      <h3><span class="section-index">03</span>存量挖转名单（T2 存量期）<span class="hint">已出海 · 结算融资不在工行的挖转机会 · 不属于窗口期</span></h3>
+      <div class="radar-scroll" tabindex="0" role="region" aria-label="存量挖转企业列表，可横向滚动查看更多列">
+        <table class="radar">
+          <thead><tr>
+            <th>#</th><th>企业</th><th>省份</th><th>年份</th><th>出海阶段</th><th>海外子公司数</th><th>海外收入占比</th><th>海外客户占比</th><th>客户集中度</th><th>能力分级</th>
+          </tr></thead>
+          <tbody id="stock-body"></tbody>
+        </table>
+      </div>
+      <p class="muted" id="stock-note" style="margin-top:10px"></p>
     </div>
   </div>
 

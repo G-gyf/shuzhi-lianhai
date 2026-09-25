@@ -164,7 +164,7 @@ def _self_test() -> int:
         "metric_refs": {"customer_concentration":
                         "metric:concentration:300827:2023:CustomerConcentration"},
         # 工具响应里的**键名**不得被当作引用
-        "filter_explanation": "2023年 · 光伏主链 · 落地层",
+        "filter_explanation": "2023年 · 光伏主链 · T1 落地期",
         "items": [{"scode": "300827", "coname": "上能电气"}],
     })
     fails = []

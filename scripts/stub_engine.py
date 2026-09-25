@@ -31,7 +31,7 @@ def _draft(params: dict) -> dict:
         "schema_version": "1.0",
         "answer_blocks": [
             {"kind": "fact",
-             "text": f"【桩引擎】企业 {scode} 在 {year} 年度处于出海扩张期（筹备层）。"
+             "text": f"【桩引擎】企业 {scode} 在 {year} 年度处于 T0 筹备期（出海前窗口期）。"
                      f"（这里回显你的问题：{message}）",
              "refs": []},
             {"kind": "hypothesis",

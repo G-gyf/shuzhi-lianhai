@@ -1,0 +1,87 @@
+{
+  "version": "2026-09-25",
+  "lifecycle_title": "企业出海全周期三阶段",
+  "lifecycle_note": "企业出海全周期分三阶段：T0 筹备期 → T1 落地期 → T2 存量期。其中 T0 与 T1 合称「出海前窗口期」；T2 不属于窗口期，作为存量挖转的延伸功能单列。",
+
+  "window": {
+    "name": "出海前窗口期",
+    "stages": ["T0", "T1"],
+    "definition": "企业首次在公开披露中表达出海部署或意图（事前），到实际完成落地动作——设立海外主体、形成海外收入（事后）——之间的时段。窗口期仅含 T0 筹备期与 T1 落地期。",
+    "firm_definition": "窗口期企业＝尚未出海或布局未成熟的企业。",
+    "stock_definition": "存量企业＝已出海但结算融资不在工行的挖转对象。",
+    "boundary_note": "T2 存量期已越过窗口期，不参与窗口期名单，单列为存量挖转入口；窗口期名单默认只出 T0/T1。"
+  },
+
+  "stages": {
+    "T0": {
+      "key": "T0",
+      "name": "筹备期",
+      "full_name": "T0 筹备期",
+      "in_window": true,
+      "horizon": "提前 1—2 年",
+      "definition": "尚未出海或布局未成熟，已出现出海部署准备类信号，但尚未形成可识别的落点。",
+      "rule": "所选年度存在出海需求信号，且其中不含任何落点类信号。",
+      "marketing": "先于同业建立关系，锁定结算与保函",
+      "products": "账户方案、结算架构、保函预授信、司库方案、避险规划",
+      "signal_terms": ["市场调研", "认证准入", "本地团队", "渠道铺设", "研发本地化", "未来时态"]
+    },
+    "T1": {
+      "key": "T1",
+      "name": "落地期",
+      "full_name": "T1 落地期",
+      "in_window": true,
+      "horizon": "临近落地",
+      "definition": "尚未出海或布局未成熟，已出现明确的落点类部署信号（在建、拟设主体、项目、产能、并购）。",
+      "rule": "所选年度存在出海需求信号，且其中至少 1 条为落点类信号。",
+      "marketing": "融资与保函切入，额度投放精准对象",
+      "products": "内保外贷、境外项目贷款、离岸人民币融资、履约/预付款保函",
+      "signal_terms": ["产能建设", "项目基地", "投资并购", "拟设境外主体", "工程承包", "在建"]
+    },
+    "T2": {
+      "key": "T2",
+      "name": "存量期",
+      "full_name": "T2 存量期",
+      "in_window": false,
+      "horizon": "已出海",
+      "definition": "已形成海外布局（海外主体或海外收入），结算与融资关系尚未绑定工行，属存量挖转机会。",
+      "rule": "存在海外布局：海外子公司数 > 0，或海外收入占比 > 0（任一项即可）。",
+      "marketing": "从存量中寻找结算融资不在工行的挖转机会",
+      "products": "全球司库、跨境人民币结算清算、避险再平衡",
+      "signal_terms": ["海外子公司名录", "海外收入占比", "历史行为"]
+    }
+  },
+
+  "landing_rule": {
+    "note": "「落点类信号」是区分 T0 与 T1 的唯一判据，由需求方向与执行锚点共同判定，命中任一即成立。",
+    "directions": ["capacity_production", "investment_ma"],
+    "anchor_types": ["project_or_base", "capacity_or_facility", "overseas_entity", "investment_or_contract"],
+    "direction_zh": {
+      "capacity_production": "产能建设",
+      "investment_ma": "投资并购"
+    },
+    "anchor_zh": {
+      "project_or_base": "项目/基地",
+      "capacity_or_facility": "产能/设施",
+      "overseas_entity": "境外主体",
+      "investment_or_contract": "投资/合同"
+    }
+  },
+
+  "stock_rule": {
+    "note": "T2 存量期判据：已有海外布局。布局字段缺失且未证明已有布局时，不判为存量期，如实标为布局未知。",
+    "fields": ["overseas_sub_count", "overseas_rev_share"]
+  },
+
+  "excluded_note": "泛化表述与非出海表述不构成出海需求信号，不进入任何阶段，仅作内部过滤，不出现在对外口径中。",
+
+  "rule_ids": {
+    "T0": "RULE_STAGE_T0",
+    "T1": "RULE_STAGE_T1",
+    "T2": "RULE_STAGE_T2"
+  },
+
+  "score_formula": {
+    "expression": "2 × 落地期信号数 + 1 × 筹备期信号数 + 硬锚点数 + min(出海方向数, 3) − 1",
+    "note": "强度分描述所选年度披露强度，不是出海概率、模型置信度或融资额度。长年报与拆分数量会影响分值，故保留可解释规则，不包装成经过预测校准的概率。"
+  }
+}

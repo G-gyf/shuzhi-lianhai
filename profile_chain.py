@@ -51,24 +51,29 @@ def pv_stage_of(scode):
 
 con = sqlite3.connect(DB)
 sample = {c for (c,) in con.execute("SELECT DISTINCT scode FROM chunks").fetchall()}
+# 出海需求信号；阶段按「落点类信号」判：含落点 → T1 落地期，否则 T0 筹备期（rules/stages.json）
+LANDING_DIRS = {"capacity_production", "investment_ma"}
+LANDING_ANCHORS = {"project_or_base", "capacity_or_facility",
+                   "overseas_entity", "investment_or_contract"}
 dem = {}
-for scode, year, label, direction in con.execute(
-        "SELECT scode, year, program_label, direction FROM claims "
+for scode, year, direction, anchor in con.execute(
+        "SELECT scode, year, direction, execution_anchor_type FROM claims "
         "WHERE program_label IN ('经营部署','战略意图')"):
-    dem.setdefault(scode, []).append((year, label, direction))
+    stage = "T1" if (direction in LANDING_DIRS or anchor in LANDING_ANCHORS) else "T0"
+    dem.setdefault(scode, []).append((year, stage, direction))
 
-print(f"{'环节':<10} {'企业数':>5} {'有需求企业':>7} {'需求占比':>7} {'部署条':>5} {'意图条':>5} {'主要方向'}")
+print(f"{'环节':<10} {'企业数':>5} {'有需求企业':>7} {'需求占比':>7} {'T1条':>5} {'T0条':>5} {'主要方向'}")
 print("-" * 80)
 seg_stats = defaultdict(lambda: {"firms": set(), "dem_firms": set(),
-                                 "deploy": 0, "intent": 0, "dirs": Counter(),
+                                 "t1": 0, "t0": 0, "dirs": Counter(),
                                  "countries": Counter()})
 for c in sorted(sample):
     seg = segment_of(c)
     seg_stats[seg]["firms"].add(c)
     if c in dem:
         seg_stats[seg]["dem_firms"].add(c)
-        for _, label, direction in dem[c]:
-            seg_stats[seg]["deploy" if label == "经营部署" else "intent"] += 1
+        for _, stage, direction in dem[c]:
+            seg_stats[seg]["t1" if stage == "T1" else "t0"] += 1
             if direction and direction != "null":
                 seg_stats[seg]["dirs"][direction] += 1
 
@@ -77,7 +82,7 @@ for seg, st in sorted(seg_stats.items(),
     n = len(st["firms"])
     nd = len(st["dem_firms"])
     top_dir = st["dirs"].most_common(1)[0][0] if st["dirs"] else "—"
-    print(f"{seg:<10} {n:>5} {nd:>7} {nd/max(n,1):>7.0%} {st['deploy']:>5} {st['intent']:>5} {top_dir}")
+    print(f"{seg:<10} {n:>5} {nd:>7} {nd/max(n,1):>7.0%} {st['t1']:>5} {st['t0']:>5} {top_dir}")
 
 print()
 print("=== 光伏 37 家的环节内分布 ===")

@@ -372,21 +372,23 @@ def run(message: str, ctx: dict, page: dict, prefs: dict, history: list[dict],
                 answer_blocks.append({"kind": "checklist",
                                       "text": f"{row['coname']} 缺失：{'、'.join(miss['missing'])}（待核实，不补 0、不取其他年度）。",
                                       "refs": []})
-        # 拜访优先级（确定性依据：窗口期+分层+强度分；不声称转化概率更高）
+        # 拜访优先级（确定性依据：出海阶段+布局细分+强度分；不声称转化概率更高）
+        # 阶段排序按 T1 落地期优先于 T0 筹备期（与 rules/stages.json 一致）
+        _stage_rank = {"T1": 0, "T0": 1}
         order = sorted(rows, key=lambda x: (
             (x.get("window") or {}).get("window_type", "z"),
-            (x.get("window") or {}).get("stage_layer", "z"),
+            _stage_rank.get((x.get("window") or {}).get("stage"), 9),
             -((x.get("window") or {}).get("score") or 0)))
         first = order[0]
         answer_blocks.append({"kind": "hypothesis",
-                              "text": (f"若以窗口期与强度分为优先依据，建议先拜访 {first['coname']}："
-                                       f"其窗口类型排序更靠前、强度分更高。这是规则排序理由，"
+                              "text": (f"若以出海阶段与强度分为优先依据，建议先拜访 {first['coname']}："
+                                       f"其出海阶段排序更靠前、强度分更高。这是规则排序理由，"
                                        "不声称转化概率更高；建议结合客户关系与产能情况人工确认。"),
                               "refs": []})
         recommendations.append({
             "id": "rec_visit_priority", "product_ref": None,
             "priority": "discussion_first",
-            "reason": "对比排序理由：窗口类型→分层→强度分（确定性规则），不声称转化概率更高。",
+            "reason": "对比排序理由：出海阶段（T1 落地期 > T0 筹备期）→布局细分→强度分（确定性规则），不声称转化概率更高。",
             "evidence_refs": [], "product_source_refs": [],
             "eligibility": "unknown",
             "missing_conditions": ["客户当前需求与业务背景（资料不足，列出缺项）"],

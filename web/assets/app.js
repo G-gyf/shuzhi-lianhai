@@ -69,6 +69,7 @@ async function init() {
     applyEngineBadge();   // 预热结果若已先返回（引擎唤醒中/本地引擎），在此补上提示
     await loadSegments();
     await loadRadar();
+    await loadStock();
   } catch (e) {
     $("health").textContent = "● 服务连接失败";
     console.error(e);
@@ -100,6 +101,7 @@ function pickSegment(seg) {
   CUR_SEGMENT = seg || null;
   loadSegments();
   loadRadar();
+  loadStock();
 }
 
 /* ---------------- 名单 ---------------- */
@@ -128,19 +130,51 @@ async function loadRadar() {
           <div class="company-meta"><span class="muted">${esc(it.scode)}</span><span class="tag">${esc(it.segment)}</span></div></td>
       <td>${esc(it.province)}</td>
       <td class="muted">${it.year}</td>
+      <td><span class="tag st-${it.stage}">${esc(it.stage_full)}</span></td>
       <td><span class="tag w-${it.window_type}">${esc(it.window_label)}</span></td>
-      <td><span class="tag st-${it.stage_layer}">${esc(it.stage_label)}</span></td>
       <td>${it.directions.map((x) => `<span class="dirchip">${DIR_CN[x] || x}</span>`).join("")}</td>
       <td>${it.countries.slice(0, 4).map((c) => `<span class="dirchip">${esc(c)}</span>`).join("")}
           ${it.regions.slice(0, 2).map((r) => `<span class="dirchip rc">区域·${esc(r)}</span>`).join("")}
           ${(!it.countries.length && !it.regions.length) ? '<span class="muted">—</span>' : ""}</td>
-      <td class="muted">${it.n_deploy} / ${it.n_intent}</td>
+      <td class="muted">${it.n_t1_signal} / ${it.n_t0_signal}</td>
       <td class="score">${it.score}</td>`;
     tr.onclick = () => openCompany(it.scode, it.year);
     body.appendChild(tr);
   });
   $("radar-note").textContent =
-    `筛选共 ${d.total} 个需求线索企业-年，当前展示 ${d.items.length} 个。年份：${$("f-year").value || "2018—2023全期"}；热度为披露强度，不是出海概率。点击按该行年度打开详情。`;
+    `出海前窗口期名单（仅含 T0 筹备期与 T1 落地期）：筛选共 ${d.total} 个企业-年，当前展示 ${d.items.length} 个。年份：${$("f-year").value || "2018—2023全期"}；热度为披露强度，不是出海概率。点击按该行年度打开详情。`;
+}
+
+/* ---------------- 存量挖转名单（T2 存量期，不属于窗口期） ---------------- */
+async function loadStock() {
+  const q = new URLSearchParams();
+  if ($("f-province").value) q.set("province", $("f-province").value);
+  if ($("f-year").value) q.set("year", $("f-year").value);
+  if ($("f-industry").value && $("f-industry").value !== "全部") q.set("industry", $("f-industry").value);
+  const d = await jget("/api/stock?" + q.toString() + "&limit=200");
+  const body = $("stock-body");
+  body.innerHTML = "";
+  const pct = (v) => (v === null || v === undefined) ? "待核实" : (v * 100).toFixed(1) + "%";
+  d.items.forEach((it, i) => {
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td class="muted">${i + 1}</td>
+      <td><b class="company-name">${esc(it.coname)}</b>
+          <div class="company-meta"><span class="muted">${esc(it.scode)}</span><span class="tag">${esc(it.segment)}</span></div></td>
+      <td>${esc(it.province)}</td>
+      <td class="muted">${it.year}</td>
+      <td><span class="tag st-${it.stage}">${esc(it.stage_full)}</span></td>
+      <td class="muted">${it.overseas_sub_count ?? "待核实"}</td>
+      <td class="muted">${pct(it.overseas_rev_share)}</td>
+      <td class="muted">${it.overseas_cust_share === null || it.overseas_cust_share === undefined ? "—" : it.overseas_cust_share.toFixed(1) + "%"}</td>
+      <td class="muted">${it.customer_concentration === null || it.customer_concentration === undefined ? "待核实" : it.customer_concentration.toFixed(0) + "%"}</td>
+      <td class="muted">${esc((it.capability || {}).grade || "待核实")}</td>`;
+    tr.onclick = () => openCompany(it.scode, it.year);
+    body.appendChild(tr);
+  });
+  $("stock-note").textContent =
+    `${d.note} 判别规则：${d.stage_rule} 共 ${d.total} 个企业-年，当前展示 ${d.items.length} 个。`
+    + `本名单与上方窗口期名单互斥：当年仍有新增出海需求的企业归入 T0/T1，不在此重复出现。`;
 }
 
 /* ---------------- 企业详情 ---------------- */
@@ -162,8 +196,8 @@ async function openCompany(scode, year = null) {
   $("co-name").textContent = d.coname;
   $("co-sub").textContent = `${d.province} · ${d.industry} · 数据年度 ${d.year ?? "—"}`;
   $("co-tags").innerHTML =
-    (d.window ? `<span class="tag w-${d.window.window_type}">${esc(d.window.window_label)}</span>` +
-                `<span class="tag st-${d.window.stage_layer}">${esc(d.window.stage_label)}</span>` +
+    (d.window ? `<span class="tag w-${d.window.window_type}">${esc(d.window.stage_full)}</span>` +
+                `<span class="tag st-${d.window.stage}">窗口布局细分：${esc(d.window.window_label)}</span>` +
                 `<span class="tag">强度分 ${d.window.score}</span>` : "") +
     `<span class="tag">能力「${esc(d.capability.grade)}」</span>`;
   renderCapability(d);
@@ -442,13 +476,16 @@ function switchView(id) {
 }
 
 $("btn-radar").onclick = () => { loadRadar(); switchView("view-radar"); };
+$("btn-stock").onclick = () => { loadStock(); switchView("view-radar"); };
 $("back-radar").onclick = () => switchView("view-radar");
 $("back-company").onclick = () => switchView("view-company");
 $("btn-briefing").onclick = showBriefing;
-$("f-province").onchange = loadRadar;
-$("f-year").onchange = loadRadar;
-$("f-sort").onchange = loadRadar;
-$("f-industry").onchange = loadRadar;
+// 筛选变化：窗口期名单与存量名单同步刷新（两张表用同一组筛选条件）
+function reloadLists() { loadRadar(); loadStock(); }
+$("f-province").onchange = reloadLists;
+$("f-year").onchange = reloadLists;
+$("f-sort").onchange = loadRadar;      // 排序只影响窗口期名单
+$("f-industry").onchange = reloadLists;
 $("modal-close").onclick = () => $("modal-bg").classList.remove("on");
 $("modal-bg").onclick = (e) => { if (e.target === $("modal-bg")) $("modal-bg").classList.remove("on"); };
 // 证据跳转：事件委托（data-ev → showEvidence），推理链与信号列表统一走此通道

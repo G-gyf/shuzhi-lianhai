@@ -2,8 +2,10 @@
 """数智链海 · 服务层（FastAPI 单服务）
 
 既有接口（/api/*）：
-  GET  /api/meta                    知识库版本与可选项
-  GET  /api/radar                   辖区意图强度排行（province/industry/year）
+  GET  /api/meta                    知识库版本、可选项与三阶段口径
+  GET  /api/radar                   辖区出海线索排行（窗口期名单，仅 T0/T1）
+  GET  /api/stock                   T2 存量期挖转名单（不属于窗口期，单独入口）
+  GET  /api/segments                七个细分行业统计
   GET  /api/company/{scode}         企业详情（?year= 选定年度，缺省取企业最新可用数据年度）
   GET  /api/company/{scode}/graph   企业-信号-方向-国别子图（?year=）
   GET  /api/company/{scode}/supply-chain  供应链示例（?year=，国别边 as-of）
@@ -105,20 +107,32 @@ async def _startup():
 
 @app.get("/api/meta")
 def api_meta():
+    st = logic.rules()["stages"]
     return {
         "kb_version": "kb-2023",
         "snapshot_id": runtime.get_snapshot(),
         "industries": ["全部"] + list(logic.rules()["chain_map"]["segments"]),
         "capability_dimensions": len(logic.rules()["scoring"]["dimensions"]),
         "country_dictionary_count": len(logic.rules()["countries"]["countries"]),
-        "claim_counts": {"all": len(logic._claims()), "demand": int(logic._claims()["program_label"].isin(logic.DEMAND_LABELS).sum())},
+        "claim_counts": {"all": len(logic._claims()),
+                         "demand": int(logic._claims()["program_label"]
+                                       .isin(logic.DEMAND_SIGNAL_LABELS).sum())},
         "text_counts": {"active": logic._conn().execute("SELECT COUNT(*) FROM chunks").fetchone()[0],
                         "excluded": logic._conn().execute("SELECT COUNT(*) FROM excluded_chunks").fetchone()[0]},
         "pv_overlap": len(logic.industry_tags()["pv"]),
         "pv_full": len(logic.industry_tags()["pv_full"]),
         "provinces": logic.provinces(),
         "years": logic.years(),
-        "note": "现有电气设备样本按细分行业标注；光伏37为样本与外部74家名单交集，非建设完成率；本期不扩样。",
+        # 出海全周期三阶段（单一事实来源 rules/stages.json）
+        "lifecycle": {
+            "title": st["lifecycle_title"],
+            "note": st["lifecycle_note"],
+            "stages": [dict(st["stages"][k], **{"in_window": st["stages"][k]["in_window"]})
+                       for k in ("T0", "T1", "T2")],
+            "window": st["window"],
+            "score_formula": st["score_formula"]["expression"],
+        },
+        "note": "现有电气设备样本按细分行业标注；光伏37为样本与外部74家名单交集，非建设完成率；本期不扩样。出海前窗口期仅含 T0 筹备期与 T1 落地期，T2 存量期为单独入口。",
     }
 
 
@@ -128,13 +142,34 @@ def api_radar(province: str | None = None, industry: str | None = None,
               sort: str = Query("window", pattern="^(window|score)$"),
               segment: str | None = None):
     items = logic.radar(province, industry, year, len(logic.agg()), sort, segment)
-    return {"items": items[:max(0, min(limit, 2000))], "total": len(items), "unit": "企业-年"}
+    return {"items": items[:max(0, min(limit, 2000))], "total": len(items),
+            "unit": "企业-年", "scope": "window",
+            "stages": list(logic.WINDOW_STAGES),
+            "note": "出海前窗口期名单，仅含 T0 筹备期与 T1 落地期；T2 存量期见 /api/stock。"}
 
 
 @app.get("/api/segments")
 def api_segments(year: int | None = None, province: str | None = None, industry: str | None = None):
     return {"items": logic.segments(year, province, industry), "year": year,
             "scope": "所选年度" if year is not None else "2018—2023全期去重企业"}
+
+
+@app.get("/api/stock")
+def api_stock(province: str | None = None, industry: str | None = None,
+              year: int | None = None, limit: int = 200):
+    """T2 存量期挖转名单（单独入口）。
+
+    T2 存量期**不属于出海前窗口期**（窗口期仅含 T0 筹备期与 T1 落地期）：
+    本名单是「已出海但结算融资不在工行」的存量挖转机会，
+    与 /api/radar 的窗口期名单互斥，不重复计数。
+    """
+    st = logic.rules()["stages"]
+    items = logic.stock_radar(province, industry, year, 5000)
+    return {"items": items[:max(0, min(limit, 2000))], "total": len(items),
+            "unit": "企业-年", "stage": "T2",
+            "stage_label": st["stages"]["T2"]["name"],
+            "stage_rule": st["stages"]["T2"]["rule"],
+            "note": st["window"]["stock_definition"]}
 
 
 @app.get("/api/company/{scode}")
