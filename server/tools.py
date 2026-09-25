@@ -217,21 +217,25 @@ def get_company_context(ctx, scode, year=None, snapshot_id=None):
 
     refs = _signal_refs(d)
     panel_missing = (d.get("data_completeness") or {}).get("missing", [])
+    firm_age = d.get("firm_age")
+    sub_count = d.get("overseas_sub_count")
     return ok({
         "scode": scode, "coname": d["coname"], "year": d["year"],
         "requested_year": int(year) if year is not None else None,
         "snapshot_id": runtime.get_snapshot(),
         "industry": d["industry"],
         "has_year_data": bool(d["signals"]) or d.get("panel_status") == "full",
-        "window": d.get("window"),
+        "window": d.get("window") or {},
         "panel": {
             "status": d.get("panel_status"),
             "province": d.get("province"),
             "assets": d.get("assets"), "roa": d.get("roa"),
             "leverage": d.get("leverage"), "rd_intensity": d.get("rd_intensity"),
-            "overseas_sub_count": d.get("overseas_sub_count"),
+            # 规格声明为 integer，必须输出整数（旧实现返回 20.0 会被 Coze 校验拒绝）
+            "overseas_sub_count": int(sub_count) if sub_count is not None else None,
             "overseas_rev_share": d.get("overseas_rev_share"),
-            "soe": d.get("soe"), "firm_age": d.get("firm_age"),
+            "soe": d.get("soe"),
+            "firm_age": int(firm_age) if firm_age is not None else None,
             "missing": panel_missing,
         },
         "sc": {
@@ -346,7 +350,7 @@ def compare_companies(ctx, scodes, year, fields=None):
             "scode": scode, "coname": d.get("coname"),
             "province": d.get("province"), "industry": d.get("industry"),
             "year": int(year),
-            "window": d.get("window"),
+            "window": d.get("window") or {},
             "directions": sorted({s["direction"] for s in d.get("signals", [])}),
             "countries": countries,
             "regions": regions,
@@ -473,8 +477,22 @@ def build_context(user: dict, allowed_tools: list[str] | None = None) -> dict:
     }
 
 
+def prune_nulls(obj):
+    """递归移除值为 None 的键与列表元素（保留结构）。
+
+    响应契约：OpenAPI 规格里声明了具体类型的字段，缺失时**不出现**（而不是出现 null）；
+    缺失信息由随附的 `missing` / `coverage` 字段表达（方案 12.1：不把缺失解释为 0）。
+    Coze 插件会按规格逐字段校验类型，null 会被判为类型不符，故统一在此裁剪。
+    """
+    if isinstance(obj, dict):
+        return {k: prune_nulls(v) for k, v in obj.items() if v is not None}
+    if isinstance(obj, list):
+        return [prune_nulls(v) for v in obj if v is not None]
+    return obj
+
+
 def call_tool(name: str, ctx: dict, params: dict) -> dict:
-    """受控调用：白名单 + 权限检查 + 统一异常封装。"""
+    """受控调用：白名单 + 权限检查 + 统一异常封装 + 响应空值裁剪。"""
     entry = TOOL_REGISTRY.get(name)
     if not entry:
         return fail(f"未知工具：{name}", "unknown_tool")
@@ -483,9 +501,9 @@ def call_tool(name: str, ctx: dict, params: dict) -> dict:
         return fail(f"工具 {name} 不在本轮允许清单内", "forbidden")
     try:
         out = entry["handler"](ctx, **params)
-        if isinstance(out, dict):
-            return out
-        return ok({"result": out})
+        if not isinstance(out, dict):
+            out = ok({"result": out})
+        return prune_nulls(out)
     except TypeError as e:
         return fail(f"工具参数错误：{e}", "bad_input")
     except Exception as e:  # 兜底，避免工具内部异常泄漏给模型

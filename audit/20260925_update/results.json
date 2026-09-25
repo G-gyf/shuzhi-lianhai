@@ -40,12 +40,12 @@
     },
     {
       "segment": "储能与电源",
-      "desc": "锂电池+其他电源设备+风电零部件",
-      "firms": 43,
-      "demand_firms": 40,
-      "ratio": 0.93,
-      "deploy": 346,
-      "intent": 368
+      "desc": "电池、其他电源设备与电机（项目合并分组）",
+      "firms": 66,
+      "demand_firms": 60,
+      "ratio": 0.909,
+      "deploy": 467,
+      "intent": 525
     },
     {
       "segment": "其他",
@@ -68,11 +68,11 @@
     {
       "segment": "风电设备",
       "desc": "整机+塔筒+零部件",
-      "firms": 31,
-      "demand_firms": 27,
-      "ratio": 0.871,
-      "deploy": 187,
-      "intent": 228
+      "firms": 8,
+      "demand_firms": 7,
+      "ratio": 0.875,
+      "deploy": 66,
+      "intent": 71
     },
     {
       "segment": "家电消费",
