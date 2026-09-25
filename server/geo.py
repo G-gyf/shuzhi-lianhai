@@ -6,8 +6,11 @@
 - 排除误匹配：印度洋、内蒙古 等
 - 别名归一：印尼→印度尼西亚、澳洲→澳大利亚、沙特阿拉伯→沙特 等
 - 与旧规则（kb_build 的字符串包含）输出可对比，供 audit_geo.py 人工抽检
+- 名称场景（交易对手、机构名）另用 `geo_extract_name`：只认高置信位置，避免
+  「上海顺斯德国际贸易有限公司」这类中文字串误命中「德国」
 """
 import json
+import re
 from functools import lru_cache
 from pathlib import Path
 
@@ -58,6 +61,49 @@ def geo_extract(text):
         elif kind == "region":
             regions.append(canon)
     return {"countries": sorted(set(countries)), "regions": sorted(set(regions))}
+
+
+# 名称类文本的分隔符：括号、连字符、点号、空格、顿号等
+_NAME_SPLIT = re.compile(r"[（）()\[\]【】{}<>《》,，、;；:：/\\|\-–—_·・\s.]+")
+
+
+def geo_extract_name(name):
+    """企业/机构/交易对手**名称**中的国别线索识别（高置信位置优先）。
+
+    名称与正文的判定标准不同：正文里「…斯德国际…」包含「德国」字串属于误命中，
+    若沿用整串子串匹配，会把境内公司误判为境外主体（如
+    「上海顺斯德国际贸易有限公司」→ 德国）。因此名称场景只接受两种位置：
+
+      1) 名称开头，如「越南荣宝雨」「丹麦XX有限公司」；
+      2) 由分隔符切出的独立片段（括号、连字符、空格等），如
+         「荣宝雨(越南)有限公司」「巴基斯坦-National Transmission…」。
+
+    即国别词必须是所在片段的**前缀**（含整段相等）；出现在中文字串中间一律不计。
+    这会牺牲「XX美国分公司」这类中置写法（改由人工核实），换取名称判定的精确性。
+    """
+    if not isinstance(name, str) or not name.strip():
+        return {"countries": [], "regions": []}
+    _cr, terms = _geo_rules()
+    exclusions = [t for t, kind, _c in terms if kind == "exclude"]
+    countries, regions = set(), set()
+    for tok in _NAME_SPLIT.split(name):
+        if not tok:
+            continue
+        if any(ex in tok for ex in exclusions):
+            continue
+        best_c = best_r = None
+        for term, kind, canon in terms:
+            if kind == "exclude" or not tok.startswith(term):
+                continue
+            if kind == "country" and (best_c is None or len(term) > len(best_c[0])):
+                best_c = (term, canon)
+            elif kind == "region" and (best_r is None or len(term) > len(best_r[0])):
+                best_r = (term, canon)
+        if best_c:
+            countries.add(best_c[1])
+        if best_r:
+            regions.add(best_r[1])
+    return {"countries": sorted(countries), "regions": sorted(regions)}
 
 
 @lru_cache(maxsize=4096)

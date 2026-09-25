@@ -81,7 +81,8 @@ class TestM1Tools(unittest.TestCase):
     def test_product_cards_complete(self):
         self.assertGreaterEqual(len(products.all_cards()), 8)
         self.assertEqual(products.check_conflicts(), [])
-        verified = [c for c in products.all_cards() if c["status"] == "verified"]
+        # status 为可选标注：仅 verified 卡片带标注，其余不带
+        verified = [c for c in products.all_cards() if c.get("status") == "verified"]
         self.assertGreaterEqual(len(verified), 5)
         for c in products.all_cards():
             self.assertTrue(c["source"] and c["source_date"])

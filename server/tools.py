@@ -212,7 +212,7 @@ def get_company_context(ctx, scode, year=None, snapshot_id=None):
                 "reason": p["reason"], "rule_id": p["rule_id"],
                 "signal_id": p.get("signal_id"), "evidence_id": p.get("evidence_id"),
                 "product_ref": product_ref(p["key"]),
-                "card_status": card["status"] if card else "unknown",
+                "card_status": card.get("status") if card else "unknown",
             })
 
     refs = _signal_refs(d)
@@ -244,7 +244,6 @@ def get_company_context(ctx, scode, year=None, snapshot_id=None):
             "overseas_customer_share": d.get("overseas_customer_share"),
             "structured_customers": len(sc.get("detail", {}).get("customers", [])),
             "structured_suppliers": len(sc.get("detail", {}).get("suppliers", [])),
-            "two_hop_count": len(sc.get("detail", {}).get("two_hop", [])),
         },
         "capability": d.get("capability"),
         "signals": d.get("signals", [])[:12],
@@ -430,7 +429,7 @@ def get_rule_candidates(ctx, scode, year=None, directions=None):
             "signal_id": p.get("signal_id"), "evidence_id": p.get("evidence_id"),
             "quote": p.get("quote", ""),
             "product_ref": product_ref(p["key"]),
-            "card_status": card["status"] if card else "unknown",
+            "card_status": card.get("status") if card else "unknown",
         })
     return ok({
         "scode": scode, "year": ch["year"], "directions_filter": directions,

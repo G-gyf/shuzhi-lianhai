@@ -224,8 +224,6 @@ def _recs_for(d, prefs, ctx, top_ev_ref) -> tuple[list[dict], list[dict], list[s
             "_category": c["category"],
             "_status": c["card_status"],
         })
-        if c["card_status"] == "placeholder":
-            warnings.append(f"{c['name']} 产品卡未经资料核实（placeholder），仅列讨论方向，不构成正式适配建议。")
 
     # 拜访问题（每个候选一条 + 企业通用待核实）
     for r in recs[:5]:

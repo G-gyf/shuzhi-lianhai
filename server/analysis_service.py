@@ -65,8 +65,6 @@ def validate_draft(draft: dict, ctx: dict, page: dict) -> tuple[dict, list[dict]
             issues.append({"level": "block", "code": "bad_product_ref",
                            "message": f"推荐 {r.get('id')} 的产品引用非法：{r['product_ref']}"})
             r["product_ref"] = None
-        if r.get("product_ref"):
-            _check_eligibility(r, issues)
 
     clean_orbs = []
     for orb in clean.get("orbs", []):
@@ -97,21 +95,6 @@ def _log_bad_ref(ref, issues) -> bool:
     issues.append({"level": "warn", "code": "bad_ref",
                    "message": f"引用不存在或无权访问，已移除：{ref}"})
     return False
-
-
-def _check_eligibility(r: dict, issues: list):
-    """产品资格硬性检查：placeholder 卡或条件不明时不得标 eligible。"""
-    pid = (r.get("product_ref") or "").split(":", 1)[-1]
-    card = products.get_card(pid)
-    if not card:
-        return
-    if card["status"] == "placeholder" and r.get("eligibility") == "eligible":
-        r["eligibility"] = "unknown"
-        r["missing_conditions"] = list(dict.fromkeys(
-            list(r.get("missing_conditions") or []) +
-            [f"{card['name']} 产品卡未经资料核实（placeholder），不能标为已适配"]))
-        issues.append({"level": "warn", "code": "placeholder_eligible",
-                       "message": f"{r.get('id')} 将未核实产品卡标为 eligible，已降级为 unknown。"})
 
 
 def _collect_valid_refs(draft: dict, ctx: dict) -> set:

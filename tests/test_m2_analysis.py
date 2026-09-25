@@ -59,8 +59,8 @@ class TestM2Analysis(unittest.TestCase):
         self.assertEqual(clean["orbs"], [])
         self.assertTrue(any(i["code"] == "bad_ref" for i in issues))
 
-    def test_placeholder_card_not_eligible(self):
-        """placeholder 产品卡不能标 eligible（用例 7：无资料不造正式产品）。"""
+    def test_unmarked_card_not_downgraded(self):
+        """产品卡只在 status=verified 时标注；未标注卡片不做标记，资格不因标注状态被降级。"""
         u = user_a()
         draft = {
             "schema_version": "1.0",
@@ -77,8 +77,8 @@ class TestM2Analysis(unittest.TestCase):
             "provenance": {"engine": "test"},
         }
         clean, issues = analysis_service.validate_draft(draft, tools.build_context(u), {})
-        self.assertEqual(clean["recommendations"][0]["eligibility"], "unknown")
-        self.assertTrue(any(i["code"] == "placeholder_eligible" for i in issues))
+        self.assertEqual(clean["recommendations"][0]["eligibility"], "eligible")
+        self.assertFalse(any(i["code"] == "placeholder_eligible" for i in issues))
 
     def test_persist_and_read_back(self):
         u = user_a()

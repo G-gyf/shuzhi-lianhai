@@ -3,8 +3,8 @@
 
 - 条件、名称、ID 用结构化表保存；程序可检查已知冲突（见 `check_conflicts`）。
 - 首版产品少，精确读取相关卡片，不建设复杂向量库。
-- 结构化卡片中 status=placeholder 的项目仅保留目录，未经资料核实，
-  检索结果必须带出 status，不能作为正式适配依据。
+- 卡片可选带 `status`：`verified` 表示已核实演示卡；未标注 `status` 的卡片不做标注，
+  检索结果照常带出该字段（可能为 null）。
 """
 from __future__ import annotations
 
@@ -62,7 +62,7 @@ def card_ref(card: dict) -> dict:
         "product_id": card["product_id"],
         "name": card["name"],
         "category": card["category"],
-        "status": card["status"],
+        "status": card.get("status"),
         "product_version": product_version(),
         "source": card["source"],
         "source_date": card["source_date"],
@@ -110,8 +110,8 @@ def search_product_knowledge(actions: list[str] | None = None,
             "as_of": as_of,
             "actions": actions or [],
             "service_focus": service_focus or [],
-            "note": ("演示产品卡口径：verified 卡片经公开来源整理；placeholder 卡片仅目录，"
-                     "未经资料核实，不构成正式适配建议。具体产品名称、条件与收费以行内最新产品手册为准。"),
+            "note": ("演示产品卡口径：status=verified 的卡片经公开来源整理；未标注 status 的卡片不做标注。"
+                     "具体产品名称、条件与收费以行内最新产品手册为准。"),
         },
     }
     return out
@@ -122,7 +122,7 @@ def check_conflicts() -> list[str]:
     issues = []
     cards = all_cards()
     seen = set()
-    required = ["product_id", "name", "category", "status", "summary",
+    required = ["product_id", "name", "category", "summary",
                 "scenarios", "conditions", "source", "source_date", "version"]
     for c in cards:
         if c["product_id"] in seen:

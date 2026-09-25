@@ -247,7 +247,7 @@ function renderSig(c) {
 
 function renderSupplyChain(sc, scode) {
   if (sc.nodes.length <= 1) {
-    $("sc-svg").innerHTML = `<p class="muted">该企业未披露供应链明细。<br>
+    $("sc-svg").innerHTML = `<p class="muted">当前数据未收录该企业供应链明细。<br>
       供应链演示样例请查看示例企业：<a class="ev" onclick="openCompany('002860')">002860</a></p>`;
     $("sc-detail").innerHTML = "";
     $("sc-note").textContent = sc.note;
@@ -268,11 +268,6 @@ function renderSupplyChain(sc, scode) {
     html += `<div class="sc-sec"><b>集中度（${dt.concentration.year}）</b>
       <div class="sc-row"><span class="sc-nm">客户集中度</span><span class="sc-val muted">${dt.concentration.customer}%</span></div>
       <div class="sc-row"><span class="sc-nm">供应商集中度</span><span class="sc-val muted">${dt.concentration.purchase}%</span></div></div>`;
-  }
-  if (dt.two_hop && dt.two_hop.length) {
-    html += `<div class="sc-sec"><b>二跳传导链</b>` + dt.two_hop.map((t) => `
-      <div class="sc-row"><span class="sc-nm">${esc(t.b)} → ${esc(t.c)}</span>
-      <span class="sc-val muted">我方${t.rel1} · 其${t.rel2} · ${t.year}</span></div>`).join("") + "</div>";
   }
   $("sc-detail").innerHTML = html;
   $("sc-note").textContent = sc.note;

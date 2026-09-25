@@ -97,7 +97,7 @@ window.DSHDrawer = (() => {
   function renderProduct(body, d) {
     const badge = d.status === "verified"
       ? '<span class="state-badge verified">已核实演示卡</span>'
-      : '<span class="state-badge placeholder">目录占位（未经资料核实）</span>';
+      : "";
     body.innerHTML = `
       <div class="d-meta">产品ID ${esc(d.product_id)} · 版本 ${esc(d.product_version)} · 类别 ${esc(d.category)} ${badge}</div>
       <h4 style="color:var(--head)">${esc(d.name)}</h4>

@@ -8,7 +8,7 @@ sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8")
 sys.path.insert(0, ".")
 
 from server import graph, logic  # noqa: E402
-from server.geo import geo_extract, normalize_name  # noqa: E402
+from server.geo import geo_extract, geo_extract_name, normalize_name  # noqa: E402
 
 OK, FAIL = 0, 0
 
@@ -121,7 +121,7 @@ print("== 8. 首次出海口径措辞 ==")
 wl = logic.rules()["chains"]["window_label"]["first"]
 check("first 措辞不再断言“首次出海”", "首次出海" not in wl, f"label={wl}")
 wn = logic.rules()["chains"]["window_note"]["first"]
-check("first 口径注记存在", "无已知布局线索" in wn)
+check("first 口径注记存在", "不能认定企业历史首次出海" in wn, wn)
 
 print("== 9. 国别卡片 / 区域区分 ==")
 cc = graph.country_card("印尼")
@@ -130,6 +130,15 @@ rc = graph.country_card("东南亚")
 check("区域级表述单独提示", rc["type"] == "region", rc["clearing"])
 uc = graph.country_card("阿兹特克")
 check("未识别国别待核实", uc["type"] == "unknown")
+
+print("== 9b. 名称场景国别判定（误命中修复）==")
+check("名称场景识别括号内国别", geo_extract_name("荣宝雨(越南)有限公司")["countries"] == ["越南"])
+check("名称场景识别开头国别", geo_extract_name("越南荣宝雨")["countries"] == ["越南"])
+check("名称场景拒绝中文字串误命中",
+      geo_extract_name("上海顺斯德国际贸易有限公司")["countries"] == [],
+      str(geo_extract("上海顺斯德国际贸易有限公司")["countries"]))
+check("正文场景仍按子串匹配（不丢召回）",
+      geo_extract("在印度尼西亚和越南设立生产基地")["countries"] == ["印度尼西亚", "越南"])
 
 print("== 10. 供应链 as-of ==")
 sc18 = logic.supply_chain("002860", 2018)
@@ -169,6 +178,37 @@ check("简报含供应链验证句", "结构化供应链" in bf["sections"][1]["
 d2 = logic.company_detail("002860", 2023)
 check("详情含集中度与海外客户占比字段",
       "customer_concentration" in d2 and "overseas_customer_share" in d2)
+ovs_rows = int(sale["overseas"].sum())
+check("销售侧具名境外客户召回不变", ovs_rows == 10, f"rows={ovs_rows}")
+pur_rows = int(scdata.top5_purchase()["overseas"].sum())
+check("采购侧名称不再误标境外", pur_rows == 0, f"rows={pur_rows}")
+check("名称场景无误命中境内公司",
+      "上海顺斯德国际贸易有限公司" not in scdata.top5_purchase()
+      .loc[scdata.top5_purchase()["overseas"], "name"].unique().tolist())
+
+print("== 13. 多跳不再作为本期能力输出（Neo4j 扩展设计）==")
+check("多跳字段已从供应链输出移除",
+      "two_hop" not in logic.supply_chain("000922")["detail"])
+check("多跳字段已从数据访问层移除", "two_hop" not in scdata.sc_of("000922"))
+_net_fail = []
+for _c in ("000586", "002296", "002498", "003023", "300048", "300080", "300105",
+           "300274", "300447", "300907", "600268", "600312", "600577", "601179",
+           "603031", "688330"):
+    try:
+        logic.supply_chain(_c)
+    except Exception as _e:      # noqa: BLE001
+        _net_fail.append(f"{_c}:{type(_e).__name__}")
+check("原 500 的 16 家供应链单跳不再抛异常", not _net_fail, str(_net_fail))
+
+print("== 14. 产品卡标注口径 ==")
+from server import products as prodcards  # noqa: E402
+
+_cards = prodcards.all_cards()
+_verified = [c for c in _cards if c.get("status") == "verified"]
+check("verified 卡片保留标注", len(_verified) == 8, f"n={len(_verified)}")
+check("其余卡片不带 status 标记",
+      all("status" not in c for c in _cards if c.get("status") != "verified"))
+check("产品卡字段校验无冲突", prodcards.check_conflicts() == [])
 
 print(f"\n结果：{OK} 通过 / {FAIL} 失败")
 sys.exit(1 if FAIL else 0)

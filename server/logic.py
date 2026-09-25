@@ -788,8 +788,12 @@ def evidence(chunk_id):
 
 
 def supply_chain(scode, year=None):
-    """供应链示例：结构化边（CSMAR 前五大客户/供应商，量化）+ 文本具名锚点
-    + 子公司国家边（as-of）+ 二跳链；供应商边自 v1.4 起为真实数据。"""
+    """供应链画像（单跳）：结构化边（CSMAR 前五大客户/供应商，量化）
+    + 文本具名锚点 + 子公司国家边（as-of）；供应商边自 v1.4 起为真实数据。
+
+    多跳关联查询（企业→交易对手→下一跳）不作为本期能力输出：
+    相关关系检索属 Neo4j 扩展设计，本项目不实现。
+    """
     year = resolve_year(scode, year)
     cl = _claims()
     subs = _sub_countries()
@@ -852,7 +856,8 @@ def supply_chain(scode, year=None):
         "year": year,
         "sample": bool(scinfo["customers"]),
         "note": f"演示样例（{as_of}）：客户/供应商边来自 CSMAR 前五大明细（结构化量化），"
-                "匿名名称只表示本企业披露排名，不跨企业合并；文本为当年提及线索，国家为截至当年记录。银行实名关系及 Neo4j 仅预留设计，本项目不实现。",
+                "匿名名称只表示本企业披露排名，不跨企业合并；文本为当年提及线索，国家为截至当年记录。"
+                "本页只呈现单跳画像，不含多跳关联；多跳关系检索属银行授权实名数据后的 Neo4j 扩展设计，本项目不实现。",
         "nodes": nodes,
         "edges": edges,
         "detail": scinfo,

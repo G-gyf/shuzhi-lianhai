@@ -4,8 +4,11 @@
 口径：
 - 全部为 317 家样本、2018-2023、合并报表（构建时已过滤）
 - 比例与集中度字段均为百分比数值
-- 海外客户/供应商识别：名称经 geo 层提取 canonical 国别
-  （排除 内蒙古/印度洋 等误匹配；纯境内名称如"中芯国际(天津)"不会命中）
+- 海外客户/供应商识别：名称经 geo 层的**名称专用**判定
+  （`geo_extract_name`，只认名称开头或分隔符片段内的国别词）识别 canonical 国别，
+  避免「上海顺斯德国际贸易有限公司 → 德国」这类中文字串误命中
+- 多跳关联查询（企业→交易对手→下一跳）属于 Neo4j 扩展设计，不在本期实现，
+  本模块只提供单跳的前五大客户/供应商与集中度画像
 """
 import sqlite3
 from functools import lru_cache
@@ -13,7 +16,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from .geo import geo_extract
+from .geo import geo_extract_name
 
 ROOT = Path(__file__).resolve().parent.parent
 DB = ROOT / "kb" / "kb-sc-2023.sqlite"
@@ -25,21 +28,11 @@ def _conn():
     return con
 
 
-def _code(x):
-    """Stata 数值型股票代码 → 6 位字符串。"""
-    if x is None or (isinstance(x, float) and pd.isna(x)):
-        return None
-    s = str(x).strip()
-    if s.endswith(".0"):
-        s = s[:-2]
-    return s
-
-
 @lru_cache(maxsize=1)
 def top5_sale():
     df = pd.read_sql("SELECT * FROM top5_sale", _conn())
     df["scode"] = df["scode"].astype(str).str.zfill(6)
-    geo = df["name"].map(geo_extract)
+    geo = df["name"].map(geo_extract_name)
     df["overseas"] = geo.map(lambda g: len(g["countries"]) > 0)
     df["geo_countries"] = geo.map(lambda g: g["countries"])
     return df
@@ -49,7 +42,7 @@ def top5_sale():
 def top5_purchase():
     df = pd.read_sql("SELECT * FROM top5_purchase", _conn())
     df["scode"] = df["scode"].astype(str).str.zfill(6)
-    geo = df["name"].map(geo_extract)
+    geo = df["name"].map(geo_extract_name)
     df["overseas"] = geo.map(lambda g: len(g["countries"]) > 0)
     df["geo_countries"] = geo.map(lambda g: g["countries"])
     return df
@@ -58,13 +51,6 @@ def top5_purchase():
 @lru_cache(maxsize=1)
 def concentration():
     df = pd.read_sql("SELECT * FROM concentration", _conn())
-    df["scode"] = df["scode"].astype(str).str.zfill(6)
-    return df
-
-
-@lru_cache(maxsize=1)
-def network():
-    df = pd.read_sql("SELECT * FROM network", _conn())
     df["scode"] = df["scode"].astype(str).str.zfill(6)
     return df
 
@@ -106,8 +92,11 @@ def overseas_customer_share(scode, year):
 
 
 def sc_of(scode, year=None):
-    """企业-年供应链画像：客户/供应商（结构化 top5）/集中度/二跳链。"""
-    out = {"customers": [], "suppliers": [], "concentration": None, "two_hop": []}
+    """企业-年供应链画像：前五大客户/供应商（结构化）+ 集中度。
+
+    多跳关联查询不在本期：本函数只输出单跳画像，不推导「传导」结论。
+    """
+    out = {"customers": [], "suppliers": [], "concentration": None}
 
     s = _year_slice(top5_sale(), scode, year)
     for _, r in s[s["rank"] <= 5].sort_values("rank").iterrows():
@@ -141,14 +130,4 @@ def sc_of(scode, year=None):
             "customer_hhi": float(r["CustomerConcentrationHHI"]) if pd.notna(r["CustomerConcentrationHHI"]) else None,
             "purchase_hhi": float(r["PurchaseConcentrationHHI"]) if pd.notna(r["PurchaseConcentrationHHI"]) else None,
         }
-
-    n = _year_slice(network(), scode, year)
-    for _, r in n.iterrows():
-        out["two_hop"].append({
-            "year": int(r["year"]),
-            "rel1": "客户" if int(r["psc_relation"]) == 1 else "供应商",
-            "b": _code(r["psc_symbol"]),
-            "rel2": "客户" if int(r["ssc_relation"]) == 1 else "供应商",
-            "c": _code(r["ssc_symbol"]),
-        })
     return out
