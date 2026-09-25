@@ -1,0 +1,80 @@
+schema_version: 1.0.0
+name: shuzhi_lianhai
+id: 7585079438426600001
+description: "客户经理提问后，自动判断意图、查询企业事实与产品资料，输出带依据的分析与推荐。企业名称、数字与原文均来自受控数据库，不编造。"
+mode: workflow
+icon: plugin_icon/workflow.png
+nodes:
+    - id: "100001"
+      type: start
+      title: 开始
+      icon: https://lf3-static.bytednsdoc.com/obj/eden-cn/dvsmryvd_avi_dvsm/ljhwZthlaukjlkulzlp/icon/icon-Start-v2.jpg
+      description: "工作流起始节点：接收调用方传入的用户问题与上下文"
+      position:
+        x: -1810
+        y: 0
+      parameters:
+        node_outputs:
+            message:
+                type: string
+                required: true
+                value: null
+            context_token:
+                type: string
+                required: true
+                value: null
+            page_context:
+                type: object
+                required: false
+                value: null
+            history_summary:
+                type: string
+                required: false
+                value: null
+            preferences:
+                type: object
+                required: false
+                value: null
+            data_snapshot:
+                type: string
+                required: false
+                value: null
+            product_version:
+                type: string
+                required: false
+                value: null
+            tools_base_url:
+                type: string
+                required: false
+                value: null
+            allowed_tools:
+                type: list
+                required: false
+                value: null
+            max_tool_calls:
+                type: integer
+                required: false
+                value: null
+            max_compare_companies:
+                type: integer
+                required: false
+                value: null
+    - id: "900001"
+      type: end
+      title: 结束
+      icon: https://lf3-static.bytednsdoc.com/obj/eden-cn/dvsmryvd_avi_dvsm/ljhwZthlaukjlkulzlp/icon/icon-End-v2.jpg
+      description: "工作流结束节点：返回结构化 JSON 结果，交给后端校验与发布"
+      position:
+        x: 200
+        y: 0
+      parameters:
+        node_inputs:
+            - name: output
+              input:
+                value:
+                    path: output
+                    ref_node: "100001"
+        terminatePlan: returnVariables
+edges:
+    - source_node: "100001"
+      target_node: "900001"

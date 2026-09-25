@@ -1,0 +1,183 @@
+schema_version: 1.0.0
+name: shuzhi_lianhai
+id: 7585079438426600001
+description: "客户经理提问后，自动判断意图、查询企业事实与产品资料，输出带依据的分析与推荐。企业名称、数字与原文均来自受控数据库，不编造。"
+mode: workflow
+icon: plugin_icon/workflow.png
+nodes:
+    - id: "100001"
+      type: start
+      title: 开始
+      icon: https://lf3-static.bytednsdoc.com/obj/eden-cn/dvsmryvd_avi_dvsm/ljhwZthlaukjlkulzlp/icon/icon-Start-v2.jpg
+      description: "工作流起始节点：接收调用方传入的用户问题与上下文"
+      position:
+        x: -1810
+        y: 0
+      parameters:
+        node_outputs:
+            message:
+                type: string
+                required: true
+                value: null
+            context_token:
+                type: string
+                required: true
+                value: null
+            page_context:
+                type: object
+                required: false
+                value: null
+            history_summary:
+                type: string
+                required: false
+                value: null
+            preferences:
+                type: object
+                required: false
+                value: null
+            data_snapshot:
+                type: string
+                required: false
+                value: null
+            product_version:
+                type: string
+                required: false
+                value: null
+            tools_base_url:
+                type: string
+                required: false
+                value: null
+            allowed_tools:
+                type: list
+                required: false
+                value: null
+            max_tool_calls:
+                type: integer
+                required: false
+                value: null
+            max_compare_companies:
+                type: integer
+                required: false
+                value: null
+    - id: "200001"
+      type: llm
+      title: 冒烟-大模型
+      icon: https://lf3-static.bytednsdoc.com/obj/eden-cn/dvsmryvd_avi_dvsm/ljhwZthlaukjlkulzlp/icon/icon-LLM-v2.jpg
+      description: "调用大语言模型,使用变量和提示词生成回复"
+      version: "3"
+      position:
+        x: -600
+        y: 0
+      parameters:
+        fcParamVar:
+            knowledgeFCParam: {}
+        llmParam:
+            - name: apiMode
+              input:
+                type: integer
+                value: "0"
+            - name: maxTokens
+              input:
+                type: integer
+                value: "4096"
+            - name: spCurrentTime
+              input:
+                type: boolean
+                value: false
+            - name: spAntiLeak
+              input:
+                type: boolean
+                value: false
+            - name: responseFormat
+              input:
+                type: integer
+                value: "2"
+            - name: modelName
+              input:
+                type: string
+                value: "__请选择模型__"
+            - name: modelType
+              input:
+                type: integer
+                value: "0"
+            - name: generationDiversity
+              input:
+                type: string
+                value: balance
+            - name: parameters
+              input:
+                type: object
+                value: null
+            - name: prompt
+              input:
+                type: string
+                value: "{{message}}"
+            - name: enableChatHistory
+              input:
+                type: boolean
+                value: false
+            - name: chatHistoryRound
+              input:
+                type: integer
+                value: "3"
+            - name: systemPrompt
+              input:
+                type: string
+                value: "你是连通性测试助手：原样返回用户输入。"
+            - name: stableSystemPrompt
+              input:
+                type: string
+                value: ""
+            - name: canContinue
+              input:
+                type: boolean
+                value: false
+            - name: loopPromptVersion
+              input:
+                type: string
+                value: ""
+            - name: loopPromptName
+              input:
+                type: string
+                value: ""
+            - name: loopPromptId
+              input:
+                type: string
+                value: ""
+        node_inputs:
+            - name: message
+              input:
+                type: string
+                value:
+                    path: message
+                    ref_node: "100001"
+        node_outputs:
+            output:
+                type: string
+                value: null
+        settingOnError:
+            processType: 1
+            retryTimes: 0
+            switch: false
+            timeoutMs: 180000
+    - id: "900001"
+      type: end
+      title: 结束
+      icon: https://lf3-static.bytednsdoc.com/obj/eden-cn/dvsmryvd_avi_dvsm/ljhwZthlaukjlkulzlp/icon/icon-End-v2.jpg
+      description: "工作流结束节点：返回结构化 JSON 结果，交给后端校验与发布"
+      position:
+        x: 200
+        y: 0
+      parameters:
+        node_inputs:
+            - name: output
+              input:
+                value:
+                    path: output
+                    ref_node: "200001"
+        terminatePlan: returnVariables
+edges:
+    - source_node: "100001"
+      target_node: "200001"
+    - source_node: "200001"
+      target_node: "900001"
