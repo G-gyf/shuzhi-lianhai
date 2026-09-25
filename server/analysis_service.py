@@ -307,6 +307,50 @@ def build_briefing(analysis_id: str, user: dict, title: str | None = None) -> di
 
 # ---------------- 编排 ----------------
 
+def build_workflow_parameters(message: str, user: dict, page: dict, prefs: dict,
+                              history: list[dict], cfg: dict) -> tuple[dict, str | None]:
+    """组装传给 Coze 工作流的开始节点入参（方案 6 章 N01）。
+
+    关键：每轮签发短期 context_token（绑定用户、地区、数据版本、允许工具），
+    由工作流变量原样透传给插件请求，**不拼入模型提示词**（方案 5.2）。
+    返回 (params, warning)。
+    """
+    from .context_token import sign_context_token
+
+    warning = None
+    snapshot = runtime.get_snapshot()
+    allowed_tools = list(tools.TOOL_REGISTRY.keys())
+    token = ""
+    secret = cfg.get("tool_context_secret") or ""
+    if secret:
+        token = sign_context_token({
+            "user_id": user["user_id"],
+            "display_name": user.get("display_name", ""),
+            "regions": list(user["regions"]),
+            "snapshot_id": snapshot,
+            "allowed_tools": allowed_tools,
+            "request_id": "",
+        }, secret, ttl_seconds=600)
+    else:
+        warning = ("未配置 TOOL_CONTEXT_SECRET，本轮 context_token 为空，"
+                   "工作流插件调用将返回 503/403。")
+    params = {
+        "message": message,
+        "page_context": {k: v for k, v in page.items() if v is not None},
+        "history_summary": local_engine._history_summary(history),
+        "preferences": prefs,
+        "data_snapshot": snapshot,
+        "product_version": products.product_version(),
+        "max_tool_calls": cfg["max_tool_calls"],
+        "max_compare_companies": cfg["max_compare_companies"],
+        # 工作流开始节点需声明同名输入变量，插件 Header 引用它
+        "context_token": token,
+        "tools_base_url": cfg.get("tools_base_url") or "",
+        "allowed_tools": allowed_tools,
+    }
+    return params, warning
+
+
 def prepare_analysis(message: str, user: dict, page: dict, prefs: dict,
                      history: list[dict], state: dict, request_id: str) -> dict:
     """编排一次分析：Coze（若启用）或本地规则引擎 → 校验 → 持久化。
@@ -320,16 +364,10 @@ def prepare_analysis(message: str, user: dict, page: dict, prefs: dict,
 
     if cfg["ai_enabled"]:
         try:
-            params = {
-                "message": message,
-                "page_context": {k: v for k, v in page.items() if v is not None},
-                "history_summary": local_engine._history_summary(history),
-                "preferences": prefs,
-                "data_snapshot": runtime.get_snapshot(),
-                "product_version": products.product_version(),
-                "max_tool_calls": cfg["max_tool_calls"],
-                "max_compare_companies": cfg["max_compare_companies"],
-            }
+            params, token_warning = build_workflow_parameters(
+                message, user, page, prefs, history, cfg)
+            if token_warning:
+                fallback_note = token_warning
             events = coze_client.stream_run(params, request_id)
             err = coze_client.extract_error(events)
             if err:

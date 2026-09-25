@@ -117,6 +117,44 @@ class TestM2Analysis(unittest.TestCase):
         a = res["analysis"]
         self.assertTrue(any("历史企业资料" in w for w in a["warnings"]))
 
+    def test_workflow_parameters_include_verifiable_context_token(self):
+        """发给 Coze 工作流的入参必须带每轮签发的 context_token（方案 5.2）。
+
+        工作流开始节点声明同名变量 `context_token`，插件 Header 引用它。
+        """
+        from server import context_token
+        u = user_a()
+        cfg = {"tool_context_secret": "unit-test-secret", "max_tool_calls": 6,
+               "max_compare_companies": 3,
+               "tools_base_url": "https://example.up.railway.app"}
+        params, warning = analysis_service.build_workflow_parameters(
+            "这家公司值得关注什么", u, {"scode": "002860", "year": 2023},
+            runtime.get_preferences(u["user_id"]), [], cfg)
+        self.assertIsNone(warning)
+        self.assertTrue(params["context_token"])
+        payload = context_token.verify_context_token(params["context_token"],
+                                                    "unit-test-secret")
+        self.assertIsNotNone(payload, "context_token 应能用同一密钥验签")
+        self.assertEqual(payload["user_id"], u["user_id"])
+        self.assertEqual(payload["regions"], u["regions"])
+        self.assertEqual(payload["snapshot_id"], runtime.get_snapshot())
+        self.assertIn("get_company_context", payload["allowed_tools"])
+        self.assertEqual(params["tools_base_url"], cfg["tools_base_url"])
+        self.assertEqual(params["data_snapshot"], runtime.get_snapshot())
+        # 错误密钥验签失败（防伪造）
+        self.assertIsNone(context_token.verify_context_token(
+            params["context_token"], "wrong-secret"))
+
+    def test_workflow_parameters_without_secret_warns(self):
+        """未配置 TOOL_CONTEXT_SECRET 时如实告警（不静默发出空 token）。"""
+        u = user_a()
+        cfg = {"tool_context_secret": "", "max_tool_calls": 6,
+               "max_compare_companies": 3, "tools_base_url": ""}
+        params, warning = analysis_service.build_workflow_parameters(
+            "分析一下", u, {}, {}, [], cfg)
+        self.assertEqual(params["context_token"], "")
+        self.assertIn("TOOL_CONTEXT_SECRET", warning)
+
 
 if __name__ == "__main__":
     unittest.main()

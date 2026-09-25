@@ -32,8 +32,22 @@
 
 ### N01 开始节点
 变量：`message`(string, 必填)、`page_context`(object)、`history_summary`(string)、
-`preferences`(object)、`context_token`(string)、`data_snapshot`(string)、
-`product_version`(string)。开始节点不做业务校验，仅透传。
+`preferences`(object)、**`context_token`(string, 必填)**、`data_snapshot`(string)、
+`product_version`(string)、`tools_base_url`(string)、`allowed_tools`(array)、
+`max_tool_calls`(integer)、`max_compare_companies`(integer)。
+开始节点不做业务校验，仅透传。
+
+> 后端每轮以 `parameters` 传入以上变量（`server/analysis_service.py::build_workflow_parameters`），
+> 其中 `context_token` 为 10 分钟有效的短期令牌，绑定 user_id / regions / snapshot_id / allowed_tools。
+
+### N01b 插件鉴权与 token 传参（易错点）
+
+- 插件**鉴权方式选「不需要鉴权」**：`X-Context-Token` 已在 `tool_openapi.yaml` 中声明为**普通 header 参数**，
+  不是 `securitySchemes`，因此可在节点参数面板逐轮赋值。插件的鉴权面板只接受固定值，无法逐轮变化。
+- **「引用工作流变量」的位置**：工作流 → **插件节点 → 输入参数面板** →
+  `X-Context-Token` 输入框 → 点输入框右侧的变量引用按钮 → 选择 **开始节点 → `context_token`**。
+- 不要把 token 固定写在插件鉴权里（10 分钟后全量失效、且人人可用），
+  也不要让大模型改写它（方案 5.2：token 由工作流变量直接传给工具请求，不进模型上下文）。
 
 ### N02 意图与参数（大模型节点）
 - 输入：message、page_context、history_summary。

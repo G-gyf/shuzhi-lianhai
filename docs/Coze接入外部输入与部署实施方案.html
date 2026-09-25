@@ -630,16 +630,42 @@ print(json.loads(urllib.request.urlopen(req).read())[<span class="str">"coname"<
     </div>
   </div>
   <div class="step">
-    <div class="step-head"><span class="dot dot-blue"></span><b>插件鉴权设置</b><span class="tag">AUTH</span></div>
+    <div class="step-head"><span class="dot dot-blue"></span><b>鉴权选「不需要鉴权」+ 节点参数里引用变量</b><span class="tag">AUTH</span></div>
     <div class="step-body">
-      <ol>
-        <li>插件详情 → <b>鉴权方式</b> → 选择 <b>API Key</b>。</li>
-        <li>API Key 位置：<b>Header</b>；Key 名称：<code>X-Context-Token</code>。</li>
-        <li>Key 值：选择<b>引用工作流变量</b>（如 <code>{{context_token}}</code>）——由对话网关每轮签发、10 分钟有效、绑定用户/地区/数据版本/允许工具。</li>
-      </ol>
+      <div class="callout success">
+        <div class="icon">✅</div>
+        <div class="body"><strong>结论先说：</strong>「引用工作流变量」的入口<b>不在插件的鉴权面板里</b>，而在
+        <b>工作流 → 插件节点 → 参数面板</b>。插件鉴权面板只支持填写<b>固定值</b>，无法逐轮变化；
+        因此正确做法是：<b>插件鉴权选「不需要鉴权」</b>，把 token 当作普通 Header 参数由工作流节点传值。</div>
+      </div>
+      <p><strong>为什么可以这样做：</strong>我们的 <code>tool_openapi.yaml</code> 已经把
+      <code>X-Context-Token</code> 声明为每个 operation 的<b>普通 header 参数</b>（不是 OpenAPI 的
+      <code>securitySchemes</code>），所以导入插件后它会直接出现在节点参数列表里，可以逐轮赋不同值。</p>
+      <table>
+        <tr><th>步骤</th><th>界面位置</th><th>操作</th></tr>
+        <tr><td>① 插件创建/编辑</td><td>插件详情 → 鉴权方式</td><td>选择 <b>不需要鉴权</b>（若你的版本必填密钥，则填任意占位值，反正会被节点参数覆盖）</td></tr>
+        <tr><td>② 工作流开始节点</td><td>工作流 → 开始节点</td><td>新增输入变量：<code>context_token</code>（类型 String，必填，描述“短期上下文令牌”）</td></tr>
+        <tr><td>③ 插件节点</td><td>工作流 → 插件节点 → 输入参数</td><td>找到 <code>X-Context-Token</code> 输入框 → 点输入框右侧的 <b>引用 / 变量选择器</b> → 选 <b>开始节点 → context_token</b></td></tr>
+        <tr><td>④ 其余参数</td><td>同一参数面板</td><td><code>scode</code> / <code>year</code> 等引用 N03/N04 的变量；模型不该改写的参数可设为“模型不可见”</td></tr>
+      </table>
+      <div class="code-wrap">
+        <div class="code-header"><span class="lang">TEXT</span><span class="fname">要引用的变量：context_token</span></div>
+        <pre>变量名：context_token        <span class="cmt"># 必须在开始节点以同名声明</span>
+类型：String                  <span class="cmt"># 形如 eyJ...ab12.9f3c...（base64.HMAC，10 分钟有效）</span>
+来源：项目后端每轮签发        <span class="cmt"># server/analysis_service.py::build_workflow_parameters</span>
+用途：插件请求 Header X-Context-Token → 后端验签后取 user_id / regions / snapshot / allowed_tools</pre>
+      </div>
+      <div class="callout info">
+        <div class="icon">ℹ️</div>
+        <div class="body"><strong>后端已自动传入（无需你手工拼）：</strong>对话网关每轮调用工作流时，<code>parameters</code> 里带
+        <code>context_token</code>、<code>tools_base_url</code>、<code>data_snapshot</code>、<code>product_version</code>、
+        <code>allowed_tools</code>、<code>message</code>、<code>page_context</code>、<code>history_summary</code>、<code>preferences</code>。
+        你只需在开始节点<b>声明同名变量</b>，工作流就能取到值。（已由 <code>tests/test_m2_analysis.py</code> 验证 token 可验签、密钥错误则验签失败。）</div>
+      </div>
       <div class="callout warn">
         <div class="icon">⚠️</div>
-        <div class="body">若所在 Coze 空间不支持把 API Key 值绑定为工作流变量（版本差异），<b>临时降级</b>：在插件里静态填入一个调试密钥，后端临时用该固定值启动（<code>TOOL_CONTEXT_SECRET</code> 设为同一值并说明限制）；但正式验收必须回到每轮 token 模式（方案 5.2：工具接口验证 token，不信任模型传来的地区ID）。</div>
+        <div class="body"><strong>不要这样做：</strong>① 把 token 固定写在插件鉴权里 —— 那样 10 分钟后全量失效，且所有人都能用；
+        ② 把 token 交给大模型当提示词变量 —— 方案 5.2 明确要求 token 由工作流变量直接传给工具请求，不进模型上下文。</div>
       </div>
     </div>
   </div>
@@ -709,7 +735,7 @@ print(json.loads(urllib.request.urlopen(req).read())[<span class="str">"coname"<
       <p>名称：<b>数智链海出海助手</b>；按顺序放置节点：</p>
       <table>
         <tr><th>节点</th><th>类型</th><th>输入</th><th>处理 / 输出</th></tr>
-        <tr><td>N01 开始</td><td>开始</td><td>message、page_context、history_summary、preferences、context_token、data_snapshot、product_version</td><td>透传，验证必要参数</td></tr>
+        <tr><td>N01 开始</td><td>开始</td><td>message、page_context、history_summary、preferences、<b>context_token</b>、data_snapshot、product_version、tools_base_url、allowed_tools、max_tool_calls、max_compare_companies</td><td>透传，验证必要参数（变量名须与后端入参一致）</td></tr>
         <tr><td>N02 意图与参数</td><td>大模型</td><td>message、page_context、history_summary</td><td>intent / 企业指代 / 年份 / 筛选 / 方案偏好（结构化任务，不作业务结论）</td></tr>
         <tr><td>N03 上下文决议</td><td>大模型</td><td>N02 + 后端会话状态</td><td>明确企业、年份；歧义走澄清分支</td></tr>
         <tr><td>N04 工具路由</td><td>条件分支</td><td>intent</td><td>search / explain / compare / plan / clarify</td></tr>
@@ -770,7 +796,9 @@ print(json.loads(urllib.request.urlopen(req).read())[<span class="str">"coname"<
       <ol>
         <li><b>N05 事实检索</b>：按 intent 分别调用 <code>get_company_context</code>（explain/plan）、<code>search_companies</code>（search）、<code>compare_companies</code>（compare）、<code>get_evidence</code>（按需）；输入参数取自 N02/N03 的变量。</li>
         <li><b>N06 资料检索</b>：<code>get_rule_candidates</code> + <code>search_product_knowledge</code> + <code>search_regional_knowledge</code>（地区资料由 token 权限决定，不传地区ID）。</li>
-        <li>两个节点都把 <code>context_token</code> 绑定到工作流变量：<b>开始节点透传 → 插件 Header</b>。token 每轮由项目后端签发（10 分钟），工作流自身不生成 token。</li>
+        <li><b>Header 传 token（关键一步）</b>：在插件节点的参数面板里，把 <code>X-Context-Token</code> 的值设为
+          <b>引用 → 开始节点 → <code>context_token</code></b>（见 STEP 9 的四步表格）。开始节点必须已声明该同名变量。</li>
+        <li>token 每轮由项目后端签发（10 分钟有效、绑定用户/地区/快照/允许工具），工作流自身不生成 token、也不改写它。</li>
       </ol>
       <div class="callout warn">
         <div class="icon">⚠️</div>
