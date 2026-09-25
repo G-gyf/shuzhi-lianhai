@@ -124,6 +124,22 @@ class TestM3Chat(unittest.TestCase):
         self.assertEqual(s["session_id"], sid)
         self.assertTrue(any(m["role"] == "user" for m in s["messages"]))
 
+    def test_saved_report_restore_and_ownership(self):
+        question = "分析002860企业2022年的出海需求"
+        events = self._ask(question, {"scode": None, "year": None})
+        sid = next(d for n, d in events if n == "request_started")["session_id"]
+        aid = next(d for n, d in events if n == "analysis_ready")["analysis_id"]
+        saved = self.client.get(f"/api/v1/analyses/{aid}", headers=AUTH).json()
+        self.assertEqual(saved["question"], question)
+        self.assertEqual(saved["year"], 2022)
+        session = self.client.get(f"/api/v1/chat/sessions/{sid}", headers=AUTH).json()
+        reply = next(m for m in session["messages"] if m["role"] == "assistant")
+        self.assertEqual(reply["analysis_id"], aid)
+        self.assertEqual(reply["question"], question)
+        other = {"Authorization": "Bearer demo-token-region-b"}
+        self.assertEqual(self.client.get(f"/api/v1/analyses/{aid}", headers=other).status_code, 404)
+        self.assertEqual(self.client.get(f"/api/v1/chat/sessions/{sid}", headers=other).status_code, 404)
+
     def test_session_isolation_between_users(self):
         events = self._ask("你好", {"scode": None, "year": None})
         sid = next(d for n, d in events if n == "request_started")["session_id"]

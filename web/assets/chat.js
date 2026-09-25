@@ -1,386 +1,202 @@
-/* 对话工作台（chat.js）
-   职责：面板开关、会话状态、SSE 消费、请求取消、上下文跟随、历史恢复。
-   事件（项目自定义协议）：request_started / status / clarification /
-   answer_delta / orbs_ready / analysis_ready / error / done
-   切换企业后旧请求不得覆盖新企业面板（request_id + 上下文代际双重防护）。 */
-
-window.DSH_AUTH = {
-  token: () => localStorage.getItem("dsh_token") || "demo-token-region-a",
-};
-
-window.DSH_CHAT = (() => {
-  const PHASE_CN = { querying: "查询中", analyzing: "分析中", validating: "校验中",
-                     answered: "已呈现", failed: "失败", cancelled: "已取消" };
-  let sessionId = null;
-  let activeRequestId = null;
-  let activeBubble = null;
-  let activeStatus = null;
-  let controller = null;
-  let contextGen = 0;
-  let lastAnalysis = null;
-  let open = false;
-
-  const $ = (id) => document.getElementById(id);
-  const esc = (s) => String(s ?? "").replace(/[&<>"]/g,
-    (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-
-  function authHeaders(extra) {
-    return Object.assign({ "Authorization": "Bearer " + window.DSH_AUTH.token() }, extra || {});
+/* AI 工作台：短会话 + 持久化分析页。每轮请求独立状态，旧请求不能覆盖新会话。 */
+window.DSH_AUTH = {token:()=>localStorage.getItem('dsh_token')||'demo-token-region-a'};
+window.DSH_CHAT = (()=>{
+  const $=id=>document.getElementById(id);
+  const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  const headers=()=>({'Authorization':'Bearer '+window.DSH_AUTH.token(),'Content-Type':'application/json'});
+  const sessionKey=()=> 'dsh_session_'+window.DSH_AUTH.token();
+  let sessionId=null,active=null,generation=0,lastAnalysis=null,lastQuestion='',lastContext={},origin='view-radar',restoring=false;
+  const content=()=>$('analysis-content');
+  const context=()=>{const c=window.DSH_CHAT_CONTEXT||{};return {scode:c.scode||null,year:c.year||null,view:c.view||'radar'};};
+  function notice(text){$('report-state').textContent=text;}
+  function show(){
+    const current=document.querySelector('.view.on');
+    if(current && current.id!=='view-assistant') origin=current.id;
+    switchView('view-assistant');
   }
-  function sessionKey() { return "dsh_session_" + window.DSH_AUTH.token(); }
-
-  function pageContext() {
-    const c = window.DSH_CHAT_CONTEXT || {};
-    const ctx = {};
-    if (c.scode) ctx.scode = c.scode;
-    if (c.year) ctx.year = c.year;
-    if (c.view) ctx.view = c.view;
-    return ctx;
+  function onWorkspace(){return $('view-assistant').classList.contains('on');}
+  function clearRoute(){if(location.hash.startsWith('#analysis=')) history.replaceState(null,'',location.pathname+location.search);}
+  function route(id){history.replaceState(null,'',location.pathname+location.search+'#analysis='+encodeURIComponent(id));}
+  function addMessage(role,text){
+    const m=document.createElement('div');m.className='chat-msg '+role;
+    const who=document.createElement('div');who.className='who';who.textContent=role==='user'?'你':'数智链海';
+    const b=document.createElement('div');b.className='bubble';b.textContent=text;
+    m.append(who,b);$('chat-body').appendChild(m);$('chat-body').scrollTop=$('chat-body').scrollHeight;return b;
   }
-
-  /* ---------- UI 骨架 ---------- */
-  function addMsg(role, contentHtml, extraClass) {
-    const body = $("chat-body");
-    const m = document.createElement("div");
-    m.className = "chat-msg " + role + (extraClass ? " " + extraClass : "");
-    m.innerHTML = `<div class="who">${role === "user" ? "经理" : "数智链海助手"}</div>
-      <div class="bubble">${contentHtml}</div>`;
-    body.appendChild(m);
-    body.scrollTop = body.scrollHeight;
-    return m;
+  function messageLink(b,id,question){const a=document.createElement('button');a.type='button';a.className='message-open';a.textContent='展开分析页面 ↗';a.onclick=()=>openSaved(id,question);b.appendChild(a);}
+  function intro(){
+    content().innerHTML='<div class="report-empty"><div class="core-orb" aria-hidden="true"></div><span class="eyebrow">ASK · EXPLORE · ACT</span><h2>让线索，变成可核查的判断。</h2><p>提出一个问题，助手会把企业事实、服务建议与依据整理在这里。每一个光球，都通向可以展开的详情。</p><div class="empty-steps"><span>01 提出问题</span><span>02 查看判断</span><span>03 点开依据</span></div></div>';
+    notice('准备就绪');$('report-copy').disabled=true;
   }
-
-  function newAssistantBubble() {
-    activeBubble = addMsg("assistant", "");
-    activeStatus = document.createElement("div");
-    activeStatus.className = "chat-status";
-    activeStatus.innerHTML = '<span class="s-dot"></span><span class="s-text">查询中…</span>';
-    activeBubble.querySelector(".bubble").appendChild(activeStatus);
-    return activeBubble;
+  function syncMeta(c){$('chat-meta').textContent=c.scode?`当前对象 ${c.scode}${c.year?' · '+c.year+' 年':''}`:'未限定企业 · 可按地区或行业探索';}
+  function busy(value){
+    $('chat-send').disabled=value||restoring;$('chat-cancel').hidden=!value;
+    $('chat-retry').disabled=value||restoring||!lastQuestion;
+    const dot=document.querySelector('#chat-toggle .dot');if(dot)dot.classList.toggle('busy',value);
+    $('analysis-workspace').setAttribute('aria-busy',String(value));
   }
-
-  function setStatus(text, phase) {
-    if (!activeStatus) return;
-    activeStatus.querySelector(".s-text").textContent = text;
-    activeStatus.className = "chat-status" +
-      (phase === "done" ? " done" : phase === "err" ? " err" : "");
+  function stop(reason='已停止生成，可重新生成或提出新问题。'){
+    const run=active;if(!run)return;
+    active=null;generation++;
+    if(run.requestId)fetch(API+'/api/v1/chat/requests/'+encodeURIComponent(run.requestId)+'/cancel',{method:'POST',headers:run.headers}).catch(()=>{});
+    run.controller.abort();run.message.textContent=reason;notice(reason);busy(false);
+    content().querySelector('.report-empty')?.classList.remove('is-thinking');
   }
-
-  function appendBlock(kind, text, refs) {
-    if (!activeBubble) return;
-    const bubble = activeBubble.querySelector(".bubble");
-    if (activeStatus) { activeStatus.remove(); activeStatus = null; }
-    const blk = document.createElement("div");
-    blk.className = "blk " + kind;
-    blk.dataset.refs = (refs || []).join("|");
-    let html = esc(text);
-    (refs || []).forEach((r, i) => {
-      html += `<sup class="refmark" data-ref="${esc(r)}" title="查看依据">[${i + 1}]</sup>`;
-    });
-    blk.innerHTML = html;
-    bubble.appendChild(blk);
-    bubble.querySelectorAll(".refmark").forEach((m) =>
-      m.onclick = () => window.DSHDrawer.open(m.dataset.ref, "依据详情"));
-    $("chat-body").scrollTop = $("chat-body").scrollHeight;
+  function newConversation(){
+    stop();generation++;restoring=false;sessionId=null;lastAnalysis=null;lastQuestion='';lastContext={};
+    localStorage.removeItem(sessionKey());clearRoute();window.DSHDrawer.close();
+    $('chat-body').replaceChildren();$('chat-input').value='';intro();syncMeta(context());busy(false);show();$('chat-input').focus();
   }
-
-  function renderOrbs(orbs) {
-    if (!activeBubble) return;
-    const bubble = activeBubble.querySelector(".bubble");
-    const box = window.DSHOrbs.render(bubble, orbs, activeBubble);
-    $("chat-body").scrollTop = $("chat-body").scrollHeight;
-    return box;
+  function textHTML(text){
+    // 仅排版文字，不执行模型给出的HTML、链接或脚本。
+    const lines=String(text||'').split('\n');let html='',list='';
+    const inline=t=>esc(t).replace(/\*\*([^*]+)\*\*/g,'<strong>$1</strong>');
+    const close=()=>{if(list){html+='</'+list+'>';list='';}};
+    for(const line of lines){
+      if(!line.trim()){close();continue;}
+      const item=/^\s*(?:[-*•]|\d+[.、)])\s+(.+)$/.exec(line);
+      if(item){if(!list){list='ul';html+='<ul>';}html+='<li>'+inline(item[1])+'</li>';continue;}
+      close();const heading=/^#{1,6}\s+(.+)$/.exec(line);
+      html+=heading?'<h3>'+inline(heading[1])+'</h3>':'<p>'+inline(line)+'</p>';
+    }close();return html;
   }
-
-  function renderAnalysis(payload) {
-    if (!activeBubble) return;
-    lastAnalysis = payload;
-    const bubble = activeBubble.querySelector(".bubble");
-    const card = document.createElement("div");
-    card.className = "analysis-card";
-    let html = "";
-    const recs = payload.recommendations || [];
-    if (recs.length) {
-      html += "<h5>候选服务（讨论顺序）</h5>" + recs.map((r, i) => {
-        const state = { eligible: "条件已满足", not_eligible: "不适用",
-                        unknown: "待确认" }[r.eligibility] || "待确认";
-        const pid = (r.product_ref || "").split(":").pop();
-        return `<div class="rec"><b>${i + 1}. ${esc(pid || r.id)}</b>
-          <span class="state ${esc(r.eligibility || "unknown")}">${esc(state)}</span>
-          <br><span class="muted">${esc(r.reason || "")}</span>
-          ${(r.missing_conditions || []).length ? `<br><span class="warn">待核实：${esc(r.missing_conditions.join("、"))}</span>` : ""}
-          ${r.product_ref ? ` <a class="refmark" data-ref="${esc(r.product_ref)}" style="cursor:pointer">产品卡</a>` : ""}</div>`;
-      }).join("");
+  function refButtons(refs){return (refs||[]).map((r,i)=>`<button type="button" class="refmark" data-ref="${esc(r)}">依据 ${i+1} ↗</button>`).join('');}
+  function blockHTML(b){return `<div class="blk ${esc(['fact','hypothesis','product','checklist','note'].includes(b.kind)?b.kind:'note')}" data-refs="${esc((b.refs||[]).join('|'))}">${textHTML(b.text)}${refButtons(b.refs)}</div>`;}
+  function bindRefs(){content().querySelectorAll('.refmark[data-ref]').forEach(b=>b.onclick=()=>window.DSHDrawer.open(b.dataset.ref,'依据详情'));}
+  function renderReport(payload,question,focus=true){
+    lastAnalysis=payload;const c=payload.context||{},blocks=payload.answer_blocks||[],recs=payload.recommendations||[],qs=payload.questions||[];
+    lastContext=c;syncMeta(c);window.DSH_CHAT_CONTEXT={...c,view:context().view};
+    const engine=payload.engine==='rules-demo'?'本地规则演示':payload.engine==='coze'?'Coze 分析':payload.engine==='langgraph'?'AI 分析':'已保存分析';
+    content().innerHTML=`<div class="report-eyebrow"><span>${esc(engine)}</span>${c.year?`<span>${esc(c.year)} 数据年度</span>`:''}${c.coname||c.scode?`<span>${esc(c.coname||c.scode)}</span>`:''}</div><h1 class="report-title" id="report-title" tabindex="-1">${esc(question||'已保存的分析结果')}</h1><p class="report-intro">先阅读判断，再点开光球核查依据。结果已按本次分析保存。</p>`;
+    const groups=[['fact','事实与核心发现'],['hypothesis','分析与判断'],['product','服务思路'],['checklist','需要进一步确认']];let number=0;
+    const section=(title,html)=>`<section class="report-section"><h2><span class="section-index">${String(++number).padStart(2,'0')}</span>${title}</h2>${html}</section>`;
+    const first=blocks.filter(b=>b.kind==='fact');
+    if(first.length)content().insertAdjacentHTML('beforeend',section('事实与核心发现',first.map(blockHTML).join('')));
+    const constellation=document.createElement('div');constellation.className='evidence-constellation';
+    constellation.innerHTML='<p>探索本次分析的依据 · 点击光球展开</p>';
+    if((payload.orbs||[]).length)window.DSHOrbs.render(constellation,payload.orbs,content());
+    else constellation.innerHTML='<p>本次没有可展开的依据；可补充企业、年份或更具体的问题。</p>';
+    content().appendChild(constellation);
+    for(const [kind,label] of groups.slice(1)){const bs=blocks.filter(b=>b.kind===kind);if(bs.length)content().insertAdjacentHTML('beforeend',section(label,bs.map(blockHTML).join('')));}
+    if(recs.length){
+      const cards=recs.map((r,i)=>{
+        const orb=(payload.orbs||[]).find(o=>o.ref_id===r.product_ref);
+        const key=(r.product_ref||'').split(':').pop();
+        const name=window.DSHOrbs.PRODUCT_CN[key] || (orb && !/^[a-z_]+$/.test(orb.label||'')?orb.label:null) || '候选服务 '+(i+1);
+        const state={eligible:'条件已满足',not_eligible:'当前不适用',unknown:'条件待确认'}[r.eligibility]||'条件待确认';
+        return `<div class="service-card"><span class="service-state">建议 ${String(i+1).padStart(2,'0')} · ${state}</span><h3>${esc(name)}</h3><p>${esc(r.reason)}</p>${(r.missing_conditions||[]).length?`<p class="muted">需确认：${esc(r.missing_conditions.join('、'))}</p>`:''}${refButtons([r.product_ref,...(r.evidence_refs||[])].filter(Boolean))}</div>`;
+      }).join('');content().insertAdjacentHTML('beforeend',section('服务建议',`<div class="service-grid">${cards}</div>`));
     }
-    const qs = payload.questions || [];
-    if (qs.length) {
-      html += "<h5>拜访问题清单</h5><ul>" + qs.map((q, i) =>
-        `<li>${i + 1}. ${esc(q.text)}</li>`).join("") + "</ul>";
+    if(qs.length)content().insertAdjacentHTML('beforeend',section('下一步，带着这些问题沟通',`<ol class="question-list">${qs.map(q=>`<li>${esc(q.text)}</li>`).join('')}</ol>`));
+    const notes=[...blocks.filter(b=>!['fact','hypothesis','product','checklist'].includes(b.kind)).map(b=>b.text),...(payload.warnings||[])];
+    if(notes.length)content().insertAdjacentHTML('beforeend',`<details class="report-notes" ${!first.length&&!recs.length?'open':''}><summary>补充说明与使用边界（${notes.length}）</summary>${notes.map(t=>`<p>${esc(t)}</p>`).join('')}</details>`);
+    content().insertAdjacentHTML('beforeend',`<div class="report-actions"><button class="work-btn primary" id="report-follow">继续追问 ↗</button><button class="work-btn" id="report-brief">生成访前简报</button>${c.scode?'<button class="work-btn" id="report-company">企业详情</button>':''}<button class="work-btn" id="report-print">打印 / PDF</button></div>`);
+    bindRefs();$('report-follow').onclick=()=>{$('chat-input').focus();$('chat-panel').scrollIntoView({block:'start',behavior:'smooth'});};
+    $('report-brief').onclick=()=>briefing(payload);
+    if($('report-company'))$('report-company').onclick=()=>window.DSHOpenCompany(c.scode,c.year);
+    $('report-print').onclick=()=>window.print();$('report-copy').disabled=false;
+    notice(payload.status==='partial'?'已整理 · 部分内容需核实':'已整理 · 点击光球查看依据');
+    if(onWorkspace())route(payload.analysis_id);
+    if(focus && onWorkspace()){$('report-title').focus({preventScroll:true});$('analysis-workspace').scrollIntoView({block:'start',behavior:matchMedia('(prefers-reduced-motion: reduce)').matches?'auto':'smooth'});}
+  }
+  async function briefing(payload){
+    const gen=generation;const b=$('report-brief');b.disabled=true;b.textContent='正在整理简报…';
+    try{const r=await fetch(API+'/api/v1/briefings',{method:'POST',headers:headers(),body:JSON.stringify({analysis_id:payload.analysis_id})});if(!r.ok)throw Error();const result=await r.json();if(gen===generation)window.DSHShowBriefing(result);}
+    catch(e){b.textContent='生成失败，点击重试';}finally{b.disabled=false;}
+  }
+  async function openSaved(id,question){
+    stop();const gen=++generation;restoring=true;busy(false);show();notice('正在恢复分析…');
+    content().innerHTML='<div class="report-message">正在读取已保存的分析页面…</div>';
+    try{
+      const r=await fetch(API+'/api/v1/analyses/'+encodeURIComponent(id),{headers:headers()});if(!r.ok)throw Error(r.status===404?'该结果不存在或当前身份无权查看。':'暂时无法读取结果，请重试。');
+      const a=await r.json();if(gen!==generation)return;
+      const payload={...a.draft,analysis_id:a.analysis_id,engine:a.engine,status:a.status};
+      lastQuestion=question||a.question||'';lastContext=payload.context||{};renderReport(payload,lastQuestion);
+      syncMeta(lastContext);window.DSH_CHAT_CONTEXT={...lastContext,view:'assistant'};busy(false);
+    }catch(e){if(gen!==generation)return;errorPage(e.message,()=>openSaved(id,question));}
+    finally{if(gen===generation){restoring=false;busy(false);}}
+  }
+  function errorPage(message,retry){
+    content().innerHTML=`<div class="report-message"><h2>这次没有完成</h2><p>${esc(message)}</p><button class="work-btn" id="report-error-retry">重新尝试</button></div>`;
+    $('report-error-retry').onclick=retry;notice('未完成 · 可以重试');$('report-copy').disabled=true;
+  }
+  function live(run){return active===run && generation===run.gen;}
+  function updatePhase(run,text){if(!live(run))return;notice(text);const p=content().querySelector('.thinking-note');if(p)p.textContent=text;}
+  function handle(ev,run){
+    if(!live(run))return;
+    const d=ev.data;
+    if(ev.event==='request_started'){
+      run.requestId=d.request_id;sessionId=d.session_id;localStorage.setItem(sessionKey(),sessionId);syncMeta(d.context||{});return;
     }
-    const warns = payload.warnings || [];
-    if (warns.length) {
-      html += `<h5>口径与演示说明</h5>` + warns.map((w) =>
-        `<div class="warn">· ${esc(w)}</div>`).join("");
+    if(d.request_id && d.request_id!==run.requestId)return;
+    if(ev.event==='status')updatePhase(run,{querying:'正在查找相关事实与依据',analyzing:'正在结合资料分析你的问题',validating:'正在核对年份与引用，整理分析页面'}[d.phase]||'正在整理结果…');
+    if(ev.event==='answer_delta')run.blocks.push({kind:d.kind||'fact',text:d.text||'',refs:d.refs||[]});
+    if(ev.event==='orbs_ready')run.orbs=d.orbs||[];
+    if(ev.event==='analysis_ready')run.result={...d,answer_blocks:run.blocks,orbs:run.orbs};
+    if(ev.event==='clarification'){
+      run.clarified=true;run.message.textContent=d.message||'请补充信息';
+      content().innerHTML=`<div class="report-message"><h2>再明确一点，分析会更准确。</h2><p>${esc(d.message||'请补充企业、年份或你想了解的问题。')}</p><div class="clarify-options" id="clarify-options"></div></div>`;
+      for(const o of d.options||[]){const b=document.createElement('button');b.type='button';b.textContent=o.label||o.scode;b.onclick=()=>{if(o.scode)window.DSH_CHAT_CONTEXT={scode:o.scode,year:o.year||null,view:'assistant'};send('分析企业 '+(o.scode||o.label));};$('clarify-options').appendChild(b);}
     }
-    html += `<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
-      <button class="brief-btn" id="chat-brief">生成一页访前简报</button>
-      ${payload.context && payload.context.scode
-        ? `<button class="brief-btn" id="chat-open-co">打开企业详情</button>` : ""}
-    </div>`;
-    card.innerHTML = html;
-    bubble.appendChild(card);
-    card.querySelectorAll(".refmark").forEach((m) =>
-      m.onclick = () => window.DSHDrawer.open(m.dataset.ref, "产品依据"));
-    const bb = card.querySelector("#chat-brief");
-    if (bb) bb.onclick = async () => {
-      bb.disabled = true; bb.textContent = "生成中…";
-      try {
-        const r = await fetch(API + "/api/v1/briefings", {
-          method: "POST", headers: authHeaders({ "Content-Type": "application/json" }),
-          body: JSON.stringify({ analysis_id: payload.analysis_id }),
-        });
-        if (!r.ok) throw new Error("briefing " + r.status);
-        const b = await r.json();
-        if (window.DSHShowBriefing) window.DSHShowBriefing(b);
-      } catch (e) {
-        bb.textContent = "简报生成失败，点击重试";
-      } finally { bb.disabled = false; }
-    };
-    const oc = card.querySelector("#chat-open-co");
-    if (oc) oc.onclick = () => {
-      const c = payload.context;
-      if (window.DSHOpenCompany) window.DSHOpenCompany(c.scode, c.year);
-    };
-    $("chat-body").scrollTop = $("chat-body").scrollHeight;
+    if(ev.event==='error')throw Error(d.message||'服务暂时不可用');
+    if(ev.event==='done')run.done=true;
   }
-
-  function renderClarify(payload) {
-    if (!activeBubble) return;
-    const bubble = activeBubble.querySelector(".bubble");
-    if (activeStatus) { activeStatus.remove(); activeStatus = null; }
-    const div = document.createElement("div");
-    div.className = "blk note";
-    div.textContent = payload.message || "请补充信息。";
-    bubble.appendChild(div);
-    if (payload.options && payload.options.length) {
-      const box = document.createElement("div");
-      box.className = "clarify-options";
-      payload.options.forEach((o) => {
-        const b = document.createElement("button");
-        b.textContent = o.label || o.scode;
-        b.onclick = () => {
-          if (o.scode && window.DSHOpenCompany) window.DSHOpenCompany(o.scode, o.year);
-          send("分析这家企业（" + (o.scode || o.label) + "）为何入选？", true);
-        };
-        box.appendChild(b);
-      });
-      bubble.appendChild(box);
-    }
-    $("chat-body").scrollTop = $("chat-body").scrollHeight;
+  async function send(message,unused,forcedContext){
+    if(active||restoring)return;
+    const msg=(typeof message==='string'?message:$('chat-input').value).trim();if(!msg)return;
+    const page=forcedContext||context();show();clearRoute();window.DSHDrawer.close();
+    $('chat-input').value='';lastQuestion=msg;lastContext=page;lastAnalysis=null;$('report-copy').disabled=true;
+    addMessage('user',msg);
+    const run={gen:++generation,controller:new AbortController(),headers:headers(),requestId:null,blocks:[],orbs:[],done:false,message:addMessage('assistant','正在分析，结果将在右侧整理呈现…')};
+    active=run;busy(true);
+    content().innerHTML=`<div class="report-empty is-thinking"><div class="core-orb" aria-hidden="true"></div><span class="eyebrow">CONNECTING THE EVIDENCE</span><h2>正在梳理你的问题</h2><p>${esc(msg)}</p><div class="loading-track" aria-hidden="true"></div><p class="thinking-note" role="status">正在查找相关事实与依据</p><p>依据核对完成后，可点击的光球会逐个浮现。</p></div>`;
+    notice('开始分析');
+    try{
+      const response=await fetch(API+'/api/v1/chat/stream',{method:'POST',headers:run.headers,signal:run.controller.signal,body:JSON.stringify({session_id:sessionId,client_request_id:'crid_'+crypto.randomUUID(),message:msg,page_context:page})});
+      if(!response.ok||!response.body)throw Error(response.status===401?'登录状态失效，请切换有效身份后重试。':'服务暂时不可用（'+response.status+'），请重试。');
+      await window.DSHStream.consume(response.body,event=>handle(event,run));
+      if(!live(run))return;
+      if(!run.done)throw Error('连接提前中断，未完成的结果没有作为最终分析展示。');
+      if(run.result){renderReport(run.result,msg);run.message.textContent=(run.blocks.find(b=>b.kind==='fact')?.text||'本次分析已整理为独立页面。').slice(0,150);messageLink(run.message,run.result.analysis_id,msg);}
+      else if(run.clarified)notice('等待补充信息');
+      else throw Error('没有收到完整分析，请重试。');
+    }catch(e){
+      if(!live(run))return;run.controller.abort();run.message.textContent=e.message||'生成失败';errorPage(run.message.textContent,retryLast);
+    }finally{if(active===run){active=null;busy(false);}}
   }
-
-  function renderError(code, message, retryable) {
-    setStatus("出错：" + (message || code), "err");
-    if (retryable && activeBubble) {
-      const bubble = activeBubble.querySelector(".bubble");
-      const b = document.createElement("button");
-      b.className = "brief-btn"; b.textContent = "↻ 重试";
-      b.onclick = () => retryLast();
-      bubble.appendChild(b);
-    }
+  function retryLast(){if(lastQuestion)send(lastQuestion,false,lastContext);}
+  function contextChanged(){stop('企业或年度已切换，本轮已停止。');syncMeta(context());}
+  async function restore(){
+    const sid=localStorage.getItem(sessionKey());if(!sid)return;
+    const gen=++generation;restoring=true;busy(false);
+    try{
+      const r=await fetch(API+'/api/v1/chat/sessions/'+encodeURIComponent(sid),{headers:headers()});
+      if(!r.ok){if(gen===generation&&(r.status===404||r.status===401))localStorage.removeItem(sessionKey());return;}
+      const s=await r.json();if(gen!==generation)return;
+      sessionId=s.session_id;$('chat-body').replaceChildren();
+      for(const m of s.messages||[]){const b=addMessage(m.role==='user'?'user':'assistant',m.content);if(m.role==='assistant'&&m.analysis_id)messageLink(b,m.analysis_id,m.question);if(m.role==='user')lastQuestion=m.content;}
+      lastContext=s.context||{};syncMeta(lastContext);
+      if(!context().scode)window.DSH_CHAT_CONTEXT={...lastContext,view:context().view};
+    }catch(e){if(gen===generation)notice('历史对话暂时无法恢复；仍可开始新对话。');}
+    finally{if(gen===generation){restoring=false;busy(false);}}
   }
-
-  let lastMessage = "";
-  function retryLast() {
-    if (lastMessage) send(lastMessage, false);
+  async function copyReport(){
+    if(!lastAnalysis)return;
+    const a=lastAnalysis;const text=[lastQuestion,...(a.answer_blocks||[]).map(b=>b.text),'服务建议',...(a.recommendations||[]).map(r=>r.reason),'待沟通问题',...(a.questions||[]).map(q=>q.text),...(a.warnings||[])].join('\n\n');
+    try{await navigator.clipboard.writeText(text);notice('结果已复制');}catch(e){notice('浏览器不允许自动复制，可选中结果文字复制。');}
   }
-
-  /* ---------- 发送与 SSE ---------- */
-  async function send(message, fromOption) {
-    if (controller) return; // 已有请求进行中（可先点“停止”）
-    const msg = (message || $("chat-input").value || "").trim();
-    if (!msg) return;
-    if (!fromOption) { $("chat-input").value = ""; }
-    lastMessage = msg;
-    addMsg("user", esc(msg));
-    newAssistantBubble();
-    contextGen++;
-    const myGen = contextGen;
-    const clientRequestId = "crid_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
-    const body = {
-      session_id: sessionId,
-      client_request_id: clientRequestId,
-      message: msg,
-      page_context: pageContext(),
-    };
-    controller = new AbortController();
-    $("chat-cancel").style.display = "inline-block";
-    try {
-      const resp = await fetch(API + "/api/v1/chat/stream", {
-        method: "POST",
-        headers: authHeaders({ "Content-Type": "application/json" }),
-        body: JSON.stringify(body),
-        signal: controller.signal,
-      });
-      if (!resp.ok || !resp.body) {
-        const txt = await resp.text().catch(() => "");
-        throw new Error("HTTP " + resp.status + " " + txt.slice(0, 160));
-      }
-      await consumeStream(resp.body, myGen);
-    } catch (e) {
-      if (e.name === "AbortError") {
-        setStatus("已停止（上游可能仍计费）", "err");
-      } else if (contextGen === myGen) {
-        renderError("stream", String(e), true);
-      }
-    } finally {
-      controller = null;
-      $("chat-cancel").style.display = "none";
-      setBusy(false);
-    }
+  async function init(){
+    intro();syncMeta(context());
+    $('chat-toggle').onclick=show;$('btn-assistant').onclick=show;$('chat-close').onclick=()=>switchView(origin);
+    $('chat-new').onclick=newConversation;$('chat-retry').onclick=retryLast;$('report-copy').onclick=copyReport;
+    $('chat-form').onsubmit=e=>{e.preventDefault();send();};$('chat-cancel').onclick=()=>stop();
+    $('chat-input').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();send();}});
+    document.querySelectorAll('[data-prompt]').forEach(b=>b.onclick=()=>{$('chat-input').value=b.dataset.prompt;$('chat-input').focus();});
+    $('chat-identity').value=window.DSH_AUTH.token();
+    $('chat-identity').onchange=async e=>{stop();generation++;restoring=false;localStorage.setItem('dsh_token',e.target.value);sessionId=null;lastAnalysis=null;lastQuestion='';$('chat-body').replaceChildren();intro();clearRoute();window.DSHDrawer.close();await restore();};
+    const id=location.hash.startsWith('#analysis=')?decodeURIComponent(location.hash.slice(10)):null;
+    const restoringPromise=restore();const gen=generation;await restoringPromise;if(gen!==generation)return;if(id)await openSaved(id);busy(false);
   }
-
-  async function consumeStream(stream, myGen) {
-    const reader = stream.getReader();
-    const decoder = new TextDecoder("utf-8");
-    let buf = "";
-    for (;;) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      buf += decoder.decode(value, { stream: true });
-      let idx;
-      while ((idx = buf.indexOf("\n\n")) >= 0) {
-        const chunk = buf.slice(0, idx);
-        buf = buf.slice(idx + 2);
-        handleEvent(parseSSE(chunk), myGen);
-      }
-    }
-  }
-
-  function parseSSE(chunk) {
-    let event = "message", data = "";
-    for (const line of chunk.split("\n")) {
-      if (line.startsWith("event:")) event = line.slice(6).trim();
-      else if (line.startsWith("data:")) data += line.slice(5).trim();
-    }
-    try { return { event, data: data ? JSON.parse(data) : {} }; }
-    catch (e) { return { event, data: {} }; }
-  }
-
-  function handleEvent(ev, myGen) {
-    if (ev.data.request_id && ev.data.request_id !== activeRequestId && ev.event !== "request_started") {
-      // 旧请求事件：不覆盖当前面板（切换企业/新请求后丢弃）
-      return;
-    }
-    if (contextGen !== myGen) return; // 页面上下文已切换：旧响应丢弃
-    switch (ev.event) {
-      case "request_started":
-        activeRequestId = ev.data.request_id;
-        if (ev.data.session_id) {
-          sessionId = ev.data.session_id;
-          localStorage.setItem(sessionKey(), sessionId);
-        }
-        const c = ev.data.context || {};
-        $("chat-meta").textContent = c.scode
-          ? `上下文：${esc(c.scode)}${c.year ? " · " + c.year : ""}`
-          : "上下文：未绑定企业";
-        setStatus("查询中：受控工具检索事实与证据");
-        break;
-      case "status":
-        setStatus(ev.data.text || PHASE_CN[ev.data.phase] || "处理中");
-        break;
-      case "clarification":
-        renderClarify(ev.data);
-        setStatus("需要澄清", "done");
-        break;
-      case "answer_delta":
-        appendBlock(ev.data.kind || "fact", ev.data.text || "", ev.data.refs || []);
-        break;
-      case "orbs_ready":
-        renderOrbs(ev.data.orbs || []);
-        break;
-      case "analysis_ready":
-        renderAnalysis(ev.data);
-        setStatus("校验完成 · 依据可核查", "done");
-        break;
-      case "error":
-        renderError(ev.data.code, ev.data.message, ev.data.retryable);
-        break;
-      case "done":
-        setStatus("完成", "done");
-        break;
-    }
-  }
-
-  function setBusy(busy) {
-    const dot = document.querySelector("#chat-toggle .dot");
-    if (dot) dot.className = "dot" + (busy ? " busy" : "");
-  }
-
-  function cancel() {
-    if (!controller) return;
-    if (activeRequestId) {
-      fetch(API + "/api/v1/chat/requests/" + activeRequestId + "/cancel",
-            { method: "POST", headers: authHeaders() }).catch(() => {});
-    }
-    controller.abort();
-  }
-
-  function contextChanged() {
-    // 企业切换：旧响应不覆盖新面板
-    contextGen++;
-    if (activeBubble && controller) {
-      activeBubble.classList.add("stale");
-    }
-  }
-
-  /* ---------- 会话恢复 ---------- */
-  async function restore() {
-    const sid = localStorage.getItem(sessionKey());
-    if (!sid) return;
-    try {
-      const r = await fetch(API + "/api/v1/chat/sessions/" + sid, { headers: authHeaders() });
-      if (!r.ok) return;
-      const s = await r.json();
-      sessionId = s.session_id;
-      const bodyEl = $("chat-body");
-      bodyEl.innerHTML = "";
-      for (const m of s.messages || []) {
-        addMsg(m.role === "user" ? "user" : "assistant", esc(m.content));
-      }
-      const c = s.context || {};
-      $("chat-meta").textContent = c.scode
-        ? `会话上下文：${esc(c.scode)}${c.year ? " · " + c.year : ""}`
-        : "已恢复会话";
-    } catch (e) { /* 恢复失败不阻塞 */ }
-  }
-
-  /* ---------- 初始化 ---------- */
-  function init() {
-    const toggle = $("chat-toggle"), panel = $("chat-panel");
-    toggle.onclick = () => {
-      open = !open;
-      panel.classList.toggle("on", open);
-      if (open) $("chat-input").focus();
-    };
-    $("chat-close").onclick = () => { open = false; panel.classList.remove("on"); };
-    $("chat-send").onclick = () => send();
-    $("chat-cancel").onclick = cancel;
-    $("chat-input").addEventListener("keydown", (e) => {
-      if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
-    });
-    $("chat-identity").value = window.DSH_AUTH.token();
-    $("chat-identity").onchange = (e) => {
-      localStorage.setItem("dsh_token", e.target.value);
-      sessionId = null;
-      $("chat-body").innerHTML = "";
-      $("chat-meta").textContent = "";
-      restore();
-    };
-    restore();
-  }
-
-  document.addEventListener("DOMContentLoaded", init);
-  return { send, contextChanged, restore,
-           get lastAnalysis() { return lastAnalysis; } };
+  document.addEventListener('DOMContentLoaded',init);
+  return {send,contextChanged,restore,newConversation,show,get lastAnalysis(){return lastAnalysis;}};
 })();

@@ -220,9 +220,15 @@ def get_analysis(analysis_id: str, user: dict) -> dict | None:
     if not row:
         return None
     draft = json.loads(row[0])
+    question = con.execute(
+        "SELECT m.content FROM messages m JOIN sessions s ON s.session_id=m.session_id "
+        "JOIN analyses a ON a.request_id=m.request_id AND a.user_id=s.user_id "
+        "WHERE a.analysis_id=? AND s.user_id=? AND m.role='user' ORDER BY m.seq LIMIT 1",
+        (analysis_id, user['user_id'])).fetchone()
     return {"analysis_id": analysis_id, "status": row[1], "scode": row[2],
             "year": row[3], "snapshot_id": row[4], "engine": row[5],
-            "workflow_version": row[6], "draft": draft}
+            "workflow_version": row[6], "draft": draft,
+            "question": question[0] if question else ''}
 
 
 def get_recommendation(analysis_id: str, recommendation_id: str,

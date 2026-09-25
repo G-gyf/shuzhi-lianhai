@@ -4,6 +4,7 @@
 window.DSHDrawer = (() => {
   let savedScrollY = 0;
   let lastRef = null;
+  let revision = 0;
 
   function authHeaders() {
     const token = (window.DSH_AUTH && window.DSH_AUTH.token()) || "";
@@ -22,6 +23,7 @@ window.DSHDrawer = (() => {
   }
 
   function openList(orb, title) {
+    revision++;
     savedScrollY = window.scrollY;
     lastRef = null;
     const d = document.getElementById("drawer");
@@ -42,18 +44,19 @@ window.DSHDrawer = (() => {
   }
 
   async function load(refId, body) {
+    const current = ++revision;
     try {
       const r = await fetch(API + "/api/v1/references/" + encodeURIComponent(refId),
                             { headers: authHeaders() });
       if (!r.ok) {
         const txt = await r.text();
-        renderError(body, refId, r.status, txt);
+        if (current === revision) renderError(body, refId, r.status, txt);
         return;
       }
       const data = await r.json();
-      render(body, data);
+      if (current === revision) render(body, data);
     } catch (e) {
-      renderError(body, refId, 0, String(e));
+      if (current === revision) renderError(body, refId, 0, String(e));
     }
   }
 
@@ -185,6 +188,7 @@ window.DSHDrawer = (() => {
   }
 
   function close() {
+    revision++;
     const d = document.getElementById("drawer");
     d.classList.remove("on");
     if (savedScrollY) window.scrollTo(0, savedScrollY);

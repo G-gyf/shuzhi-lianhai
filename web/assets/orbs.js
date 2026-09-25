@@ -1,114 +1,40 @@
-/* 光球渲染与引用定位（orbs.js）
-   每个球同时有图形、中文标签和数量；颜色只辅助区分。
-   首次最多展示 3—5 个主球，其余收入“更多依据”展开。
-   点击球 → 打开对应依据抽屉；点击球也能高亮其支持的回答段落。 */
+/* 每个真实引用保留独立光球；不再把同名依据折叠成不可访问的首条。 */
 window.DSHOrbs = (() => {
-  const KIND_CN = {
-    evidence: "原文依据", product: "产品依据", analysis: "AI方案",
-    compare: "对比详情", company: "企业", profile: "画像依据",
-    checklist: "待核实事项", regional: "地区资料",
-  };
-
-  function esc(s) {
-    return String(s ?? "").replace(/[&<>"]/g,
-      (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
-  }
-
-  const tip = {
-    el: null,
-    show(text, anchor) {
-      this.hide();
-      this.el = document.createElement("div");
-      this.el.className = "orb-tip";
-      this.el.textContent = text;
-      document.body.appendChild(this.el);
-      const r = anchor.getBoundingClientRect();
-      this.el.style.left = Math.max(8, r.left) + "px";
-      this.el.style.top = (r.top - 34) + "px";
-    },
-    hide() { if (this.el) { this.el.remove(); this.el = null; } },
-  };
-
-  function orbBtn(o, count, bubbleEl) {
-    const b = document.createElement("button");
-    b.type = "button";
-    b.className = `orb kind-${o.kind} lit`;
-    b.dataset.ref = o.ref_id || "";
-    b.setAttribute("aria-label", `${o.label}：${o.summary || ""}`);
-    b.innerHTML = `<i></i><span>${esc(o.label || KIND_CN[o.kind] || o.kind)}</span>` +
-      (count > 1 ? `<span class="orb-count">${count}</span>` : "");
-    if (o.summary) {
-      b.addEventListener("mouseenter", () => tip.show(o.summary, b));
-      b.addEventListener("mouseleave", tip.hide);
-      b.addEventListener("focus", () => tip.show(o.summary, b));
-      b.addEventListener("blur", tip.hide);
+  const KIND_CN = {evidence:'原文依据',product:'产品依据',analysis:'服务方案',compare:'企业对比',company:'企业详情',profile:'企业画像',checklist:'待核实事项',regional:'地区资料'};
+  const PRODUCT_CN = {account_setup:'账户方案',settlement:'跨境结算',rmb_settlement:'跨境人民币结算',hedging:'汇率避险',bid_bond:'投标保函',advance_bond:'保函预授信',performance_bond:'履约保函',advance_payment_bond:'预付款保函',offshore:'境外账户',treasury:'跨境司库',trade_finance:'贸易融资',project_finance:'项目融资',export_credit:'出口信贷',ma_finance:'并购融资',lc:'信用证'};
+  const label = (o) => PRODUCT_CN[o.label] || o.label || KIND_CN[o.kind] || '查看依据';
+  function button(o, index, report) {
+    const b = document.createElement('button'); b.type='button';
+    const kind = Object.hasOwn(KIND_CN,o.kind) ? o.kind : 'evidence';
+    b.className='orb kind-'+kind+' lit'; b.style.setProperty('--arrival',Math.min(index,8)*110+'ms');
+    b.dataset.ref=o.ref_id || '';
+    b.setAttribute('aria-label',label(o)+'：'+(o.summary||KIND_CN[kind]));
+    b.title=o.summary || label(o);
+    for (const [cls,text] of [['orb-sphere',''],['orb-label',label(o)],['orb-kind',KIND_CN[kind]]]) {
+      const el=document.createElement('span');el.className=cls;el.textContent=text;
+      if (cls==='orb-sphere') el.setAttribute('aria-hidden','true');b.appendChild(el);
     }
-    b.addEventListener("click", () => {
-      b.classList.add("viewed");
-      if (o.ref_id) window.DSHDrawer.open(o.ref_id, `${o.label} · ${o.summary || ""}`);
-      else window.DSHDrawer.openList(o, `${o.label}`);
-      highlightBlocks(bubbleEl, o.ref_id);
-    });
+    b.disabled = ['pending','blocked'].includes(o.state) || (!o.ref_id && kind!=='checklist');
+    b.onclick=()=>{
+      b.classList.add('viewed');
+      if(o.ref_id) window.DSHDrawer.open(o.ref_id,label(o));
+      else window.DSHDrawer.openList(o,label(o));
+      if(report) report.querySelectorAll('.blk').forEach(el=>el.classList.toggle('hl-ref',(el.dataset.refs||'').split('|').includes(o.ref_id)));
+    };
     return b;
   }
-
-  function highlightBlocks(bubbleEl, refId) {
-    if (!bubbleEl || !refId) return;
-    bubbleEl.querySelectorAll(".blk").forEach((blk) => {
-      if ((blk.dataset.refs || "").split("|").includes(refId)) {
-        blk.classList.add("hl-ref");
-        setTimeout(() => blk.classList.remove("hl-ref"), 1600);
-      }
-    });
-  }
-
-  function render(container, orbs, bubbleEl) {
-    const box = document.createElement("div");
-    box.className = "orb-bar";
-    const list = orbs || [];
-    const main = list.filter((o) => o.main !== false);
-    const more = list.filter((o) => o.main === false);
-    // 同标签合并计数（图形+中文标签+数量）
-    const groups = new Map();
-    for (const o of main) {
-      const key = o.kind + "|" + (o.label || "");
-      if (!groups.has(key)) groups.set(key, []);
-      groups.get(key).push(o);
+  function render(container,orbs,report) {
+    const box=document.createElement('div');box.className='orb-bar';
+    const list=orbs||[];list.slice(0,5).forEach((o,i)=>box.appendChild(button(o,i,report)));
+    if(list.length>5) {
+      const extra=document.createElement('div');extra.className='orb-bar';extra.hidden=true;
+      list.slice(5).forEach((o,i)=>extra.appendChild(button(o,i,report)));
+      const toggle=document.createElement('button');toggle.className='work-btn orb-more';toggle.type='button';
+      toggle.textContent='展开其余 '+(list.length-5)+' 个依据';toggle.setAttribute('aria-expanded','false');
+      toggle.onclick=()=>{extra.hidden=!extra.hidden;toggle.setAttribute('aria-expanded',String(!extra.hidden));toggle.textContent=extra.hidden?'展开其余 '+(list.length-5)+' 个依据':'收起更多依据';};
+      box.append(toggle,extra);
     }
-    // 依次点亮（固定位置，轻微呼吸，不持续漂移）
-    const entries = [...groups.values()];
-    let i = 0;
-    const timer = setInterval(() => {
-      const grp = entries[i];
-      if (!grp) { clearInterval(timer); maybeAddMore(); return; }
-      box.appendChild(orbBtn(grp[0], grp.length, bubbleEl));
-      i++;
-    }, 140);
-
-    function maybeAddMore() {
-      if (!more.length) return;
-      const b = document.createElement("button");
-      b.type = "button";
-      b.className = "orb";
-      b.innerHTML = `<i></i><span>更多依据（${more.length}）</span>`;
-      const extra = document.createElement("div");
-      extra.className = "orb-bar";
-      extra.style.display = "none";
-      more.forEach((o, idx) => {
-        setTimeout(() => extra.appendChild(orbBtn(o, 1, bubbleEl)), idx * 100);
-      });
-      b.onclick = () => {
-        extra.style.display = extra.style.display === "none" ? "flex" : "none";
-        b.textContent = extra.style.display === "none"
-          ? `更多依据（${more.length}）` : "收起更多依据";
-      };
-      box.appendChild(b);
-      box.appendChild(extra);
-    }
-
-    container.appendChild(box);
-    return box;
+    container.appendChild(box);return box;
   }
-
-  return { render, KIND_CN };
+  return {render,KIND_CN,label,PRODUCT_CN};
 })();

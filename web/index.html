@@ -5,7 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>数智链海 · 出海金融需求雷达</title>
 <link rel="stylesheet" href="assets/style.css?v=13">
-<link rel="stylesheet" href="assets/chat.css?v=20">
+<link rel="stylesheet" href="assets/chat.css?v=21">
+<link rel="stylesheet" href="assets/workspace.css?v=21">
 </head>
 <body>
 
@@ -20,7 +21,7 @@
         <option value="window">排序：窗口优先</option>
         <option value="score">排序：强度分优先</option>
       </select>
-      <button id="btn-radar">雷达名单</button>
+      <button id="btn-radar">雷达名单</button><button id="btn-assistant">AI 工作台</button>
       <span class="health" id="health">连接中…</span>
     </div>
   </div>
@@ -102,6 +103,32 @@
       </div>
     </div>
   </div>
+
+  <section class="view" id="view-assistant" aria-label="AI分析工作台">
+    <div class="workspace-top">
+      <div><span class="eyebrow">INTELLIGENCE WORKSPACE</span><h1>从一个问题，到一份行动方案。</h1></div>
+      <button class="work-btn" id="chat-close">返回业务页面 ↗</button>
+    </div>
+    <div class="workspace-grid">
+      <aside class="conversation" id="chat-panel" aria-label="提问与对话记录">
+        <div class="conversation-head"><b>与你一起分析</b><button class="work-btn" id="chat-new" title="开启新的会话，不删除已保存的分析">＋ 新对话</button></div>
+        <div class="conversation-context"><span id="chat-meta">可从企业详情带入分析对象</span>
+          <select id="chat-identity" aria-label="演示身份"><option value="demo-token-region-a">演示经理·A区</option><option value="demo-token-region-b">演示经理·B区</option></select></div>
+        <div class="chat-body" id="chat-body" role="log" aria-label="对话记录"></div>
+        <div class="starter-prompts" id="chat-prompts"><button data-prompt="这家公司值得关注什么？">解释这家企业</button><button data-prompt="找江苏省2023年有产能部署的光伏企业">发现客户机会</button><button data-prompt="重点谈结算，不考虑融资，制定拜访方案">定制服务方案</button></div>
+        <form class="chat-input" id="chat-form">
+          <label class="sr-only" for="chat-input">输入问题</label>
+          <textarea id="chat-input" rows="3" maxlength="4000" placeholder="描述你想了解的企业、地区或服务需求…"></textarea>
+          <div class="composer-actions"><span>Enter 发送 · Shift+Enter 换行</span><button type="button" id="chat-cancel" hidden>停止</button><button type="submit" id="chat-send">开始分析 ↑</button></div>
+        </form>
+      </aside>
+      <article class="analysis-workspace" id="analysis-workspace" aria-label="分析结果">
+        <div class="report-toolbar"><span id="report-state" role="status">准备就绪</span><div><button class="work-btn" id="chat-retry" disabled>↻ 重新生成</button><button class="work-btn" id="report-copy" disabled>复制结果</button></div></div>
+        <div id="analysis-content"></div>
+      </article>
+    </div>
+  </section>
+
 </main>
 
 <!-- 证据弹窗 -->
@@ -116,30 +143,7 @@
   </div>
 </div>
 
-<!-- 对话工作台（dock） -->
-<div class="chat-dock" id="chat-dock">
-  <div class="chat-panel" id="chat-panel" role="dialog" aria-label="对话工作台">
-    <div class="chat-head">
-      <b>数智链海对话工作台</b>
-      <span class="chat-meta" id="chat-meta"></span>
-      <select id="chat-identity" title="演示身份切换（正式环境由服务端身份替代）">
-        <option value="demo-token-region-a">演示经理·A区</option>
-        <option value="demo-token-region-b">演示经理·B区</option>
-      </select>
-      <button class="chat-close" id="chat-close" aria-label="收起对话区">—</button>
-    </div>
-    <div class="chat-body" id="chat-body"></div>
-    <div class="chat-input">
-      <textarea id="chat-input" rows="1"
-        placeholder="问：这家公司值得关注什么？ / 找江苏有产能部署的光伏企业 / 比较前两家"></textarea>
-      <button id="chat-send">发送</button>
-      <button id="chat-cancel" style="display:none">停止</button>
-    </div>
-  </div>
-  <button class="chat-toggle" id="chat-toggle">
-    <span class="dot"></span>AI 助手
-  </button>
-</div>
+<button class="chat-toggle assistant-launch" id="chat-toggle"><span class="dot"></span>AI 分析工作台 ↗</button>
 
 <!-- 详情抽屉 -->
 <div class="drawer" id="drawer" role="dialog" aria-label="依据详情">
@@ -151,9 +155,10 @@
 </div>
 
 <script src="config.js"></script>
-<script src="assets/app.js?v=13"></script>
-<script src="assets/orbs.js?v=20"></script>
-<script src="assets/drawer.js?v=20"></script>
-<script src="assets/chat.js?v=20"></script>
+<script src="assets/app.js?v=21"></script>
+<script src="assets/orbs.js?v=21"></script>
+<script src="assets/drawer.js?v=21"></script>
+<script src="assets/chat-protocol.js?v=21"></script>
+<script src="assets/chat.js?v=21"></script>
 </body>
 </html>

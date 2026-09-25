@@ -189,6 +189,7 @@ def _chat_stream(user: dict, body: dict):
 
         analysis = result["analysis"]
         analysis_id = analysis["analysis_id"]
+        _update_context(session, analysis.get("context"))
         yield _sse(EV_STATUS, {"phase": "validating",
                                "text": "校验中：引用、年度与产品资格检查"}, request_id)
         if result.get("issues"):
@@ -266,6 +267,20 @@ def get_session(session_id: str, request: Request):
     s = _session_row(session_id, user)
     if not s:
         raise HTTPException(404, "会话不存在或不属于当前用户")
+    messages = _load_history(s, limit=50)
+    con = runtime.get_conn()
+    for message in messages:
+        if message['role'] != 'assistant':
+            continue
+        row = con.execute(
+            "SELECT analysis_id FROM analyses WHERE request_id=? AND user_id=? ORDER BY created_at DESC LIMIT 1",
+            (message['request_id'], user['user_id'])).fetchone()
+        question = con.execute(
+            "SELECT content FROM messages WHERE session_id=? AND request_id=? AND role='user' ORDER BY seq LIMIT 1",
+            (session_id, message['request_id'])).fetchone()
+        if row:
+            message['analysis_id'] = row[0]
+            message['question'] = question[0] if question else ''
     return {
         "session_id": s["session_id"],
         "created_at": s["created_at"],
@@ -273,7 +288,7 @@ def get_session(session_id: str, request: Request):
         "context": {"scode": s["current_scode"], "year": s["current_year"],
                     "snapshot_id": runtime.get_snapshot()},
         "context_version": s["context_version"],
-        "messages": _load_history(s, limit=50),
+        "messages": messages,
     }
 
 
@@ -286,7 +301,8 @@ def get_analysis(analysis_id: str, request: Request):
     return {"analysis_id": a["analysis_id"], "status": a["status"],
             "scode": a["scode"], "year": a["year"],
             "snapshot_id": a["snapshot_id"], "engine": a["engine"],
-            "workflow_version": a["workflow_version"], "draft": a["draft"]}
+            "workflow_version": a["workflow_version"], "draft": a["draft"],
+            "question": a.get("question", "")}
 
 
 @router.get("/references/{ref_id}")

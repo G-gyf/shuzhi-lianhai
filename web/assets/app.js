@@ -403,6 +403,8 @@ function graphSVG(nodes, edges, size = 340) {
 
 /* ---------------- 视图切换 ---------------- */
 function switchView(id) {
+  document.body.classList.toggle('assistant-active', id === 'view-assistant');
+  if (id !== 'view-assistant' && location.hash.startsWith('#analysis=')) history.replaceState(null, '', location.pathname + location.search);
   document.querySelectorAll(".view").forEach((v) => v.classList.remove("on"));
   $(id).classList.add("on");
   window.scrollTo(0, 0);

@@ -101,8 +101,10 @@ def _resolve_mentions(message: str, ctx: dict, page: dict, state: dict) -> tuple
             scodes.extend(it["scode"] for it in items[:n])
         else:
             unresolved.append(f"前{n}家")
-    if not scodes and page.get("scode"):
-        scodes.append(page["scode"])
+    if not scodes:
+        from . import logic
+        names = logic._coname_map()
+        scodes.extend(dict.fromkeys(code for code in re.findall(r"(?<!\d)\d{6}(?!\d)", message) if code in names))
     if not scodes:
         # 消息中出现样本内企业名（长度≥3）→ 直接解析
         from . import logic
@@ -110,6 +112,8 @@ def _resolve_mentions(message: str, ctx: dict, page: dict, state: dict) -> tuple
             if len(coname) >= 3 and coname in message:
                 scodes.append(scode)
                 break
+    if not scodes and page.get("scode"):
+        scodes.append(page["scode"])
     return scodes, unresolved
 
 
@@ -410,6 +414,9 @@ def run(message: str, ctx: dict, page: dict, prefs: dict, history: list[dict],
                     "message": "请先指定企业：打开企业详情后直接提问，或输入企业名称/代码。"}
         scode = scodes[0]
         year = page.get("year") if page.get("scode") == scode else None
+        explicit_year = re.search(r"(?<!\d)20\d{2}(?!\d)", message)
+        if explicit_year:
+            year = int(explicit_year.group(0))
         d = tools.get_company_context(ctx, scode, year)
         if not d.get("ok"):
             answer_blocks.append({"kind": "note", "text": d.get("error", "企业上下文获取失败"), "refs": []})
