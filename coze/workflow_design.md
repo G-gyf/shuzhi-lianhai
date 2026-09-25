@@ -132,6 +132,26 @@ analysis_id 并构建光球。模型不能决定网页路由或拼接外部 URL�
 
 ## 4. 发布
 
+> **路线 B（先试这条）：直接导入现成骨架**
+> `coze/import/Workflow-shuzhi_lianhai-draft-0001.zip` 已由 `coze/build_import_zip.py` 生成，
+> 含开始节点 11 个变量（2 个必填）、3 个大模型节点（提示词已内联）、2 个插件节点（参数与引用已连线）、
+> 结束节点。导入后只需补 3 处（见 4.2），其余再按第 6 章手工加分支。
+>
+> 生成/重建：`python -X utf8 coze/build_import_zip.py --check`
+
+### 4.2 导入后必须手工补的 3 处
+
+| # | 位置 | 为什么不能预置 | 怎么补 |
+|---|---|---|---|
+| 1 | 3 个大模型节点（N02/N03/N07） | 模型名与类型 ID 属于各自工作空间 | 节点里点“模型”，选一个可用模型（建议同样的模型三处一致） |
+| 2 | 2 个插件节点（N05/N06） | 插件 ID / 工具 ID 属于各自工作空间 | N05 选 `数智链海受控业务工具 → get_company_context`；N06 选 `→ search_product_knowledge` |
+| 3 | 试跑入参 | 无法预置运行时的值 | `message` 填一句话，`context_token` 填后端密钥（调试期） |
+
+导入后仍建议按第 6 章补：条件分支（N04 工具路由）、`search_companies` / `compare_companies` 分支节点、
+代码节点（N08 自检）、`search_regional_knowledge`（地区资料）。骨架里只放了主链路，是为了降低导入失败风险。
+
+### 4.3 常规发布流程
+
 1. 在 Coze 工作空间新建“数智链海出海助手工作流”，按上文搭建节点；
 2. 上传 `tool_openapi.yaml` 为插件（认证方式：API Key 传入自定义 Header `X-Context-Token`，
    值绑定工作流变量 `{{context_token}}`）；

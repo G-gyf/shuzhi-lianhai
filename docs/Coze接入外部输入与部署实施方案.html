@@ -814,6 +814,28 @@ python -X utf8 scripts/make_token.py --tools resolve_company,get_company_context
   <div class="step">
     <div class="step-head"><span class="dot dot-blue"></span><b>创建工作流</b><span class="tag">CREATE</span></div>
     <div class="step-body">
+      <div class="callout ok">
+        <div class="icon">✅</div>
+        <div class="body"><strong>路线 B（推荐先试）：直接导入现成骨架</strong><br>
+        文件：<code>coze/import/Workflow-shuzhi_lianhai-draft-0001.zip</code>（已生成：开始节点 11 个变量、
+        3 个大模型节点提示词已内联、2 个插件节点参数与引用已连线、结束节点）<br>
+        入口：<b>资源库 → 工作流 → 右上角「导入」</b> → 选该 ZIP → 打开导入后的工作流。<br>
+        <b>导入后必须手工补 3 处</b>（这些 ID 属于各自工作空间，无法预置在文件里）：<br>
+        ① 三个大模型节点（N02/N03/N07）分别<b>选择模型</b>；<br>
+        ② 插件节点 N05 选 <code>数智链海受控业务工具 → get_company_context</code>、N06 选 <code>→ search_product_knowledge</code>；<br>
+        ③ 试跑入参填 <code>message</code> 与 <code>context_token</code>。<br>
+        重建：<code>python -X utf8 coze/build_import_zip.py --check</code></div>
+      </div>
+      <div class="callout info">
+        <div class="icon">ℹ️</div>
+        <div class="body"><strong>路线 A：按下面 N01—N09 手工搭建</strong>（导入失败、或想一次把条件分支与筛选/对比分支做全时走这条）。
+        两条路线不冲突：导入骨架后，仍按 <a href="#n04" style="color:var(--blue)">N04</a> / <a href="#n08" style="color:var(--blue)">N08</a> 两节补分支与代码节点。</div>
+      </div>
+      <div class="callout warn">
+        <div class="icon">⚠️</div>
+        <div class="body">导入格式按公开资料核对（ZIP 契约 + 节点 YAML），<b>云端导入结果我无法替你验证</b>。
+        若提示导入失败，把报错发我；路线 A 的字段表始终可用，不会卡住进度。</div>
+      </div>
       <p>资源库 → 工作流 → 创建工作流，名称：<b>数智链海出海助手</b>。</p>
       <p><b>工作流描述</b>（必填，限 600 字；作用是让大模型知道“什么情况下调用它”，直接粘贴）：</p>
       <div class="code-wrap">
