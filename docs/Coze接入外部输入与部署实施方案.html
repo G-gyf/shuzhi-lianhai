@@ -685,12 +685,24 @@ print(json.loads(urllib.request.urlopen(req).read())[<span class="str">"coname"<
     <div class="step-body">
       <div class="callout gold">
         <div class="icon">◈</div>
-        <div class="body"><strong>X-Context-Token 填什么？</strong>插件页的「试运行」是<b>绕过工作流</b>直接调插件，
-        没有开始节点变量可引用，所以必须<b>手工粘贴一个真实可用的 token 字符串</b>。
-        用本仓库脚本一键生成（<code>scripts/make_token.py</code>），把它整行复制进参数框即可。</div>
+        <div class="body"><strong>X-Context-Token 到底是什么？</strong>它不是固定值，而是<b>由你自己设定的密钥算出来的一串字符</b>
+        （形如 <code>eyJhbGxvd2Vk...fQ==.9f3c8a41d0b7...</code>），用来证明“这次调用来自我们后端”并绑定用户/地区/数据版本。
+        在设定 <code>TOOL_CONTEXT_SECRET</code> 之前，任何 token 都不存在——所以没有现成字符串可以抄，必须先定密钥、再取值。
+        插件页「试运行」是<b>绕过工作流</b>直接调插件，没有开始节点变量可引用，因此必须手工填这个值。</div>
       </div>
+      <div class="callout success">
+        <div class="icon">✅</div>
+        <div class="body"><strong>最简单的办法（免脚本，推荐先用它跑通）：把密钥本身当作 token。</strong><br>
+        ① Railway → Variables 加两项：<code>TOOL_CONTEXT_SECRET = szlh-2026-debug-7f3a91c4</code>（可自定，够长即可）与
+        <code>ALLOW_STATIC_DEBUG_TOKEN = 1</code>；<br>
+        ② 重新部署；<br>
+        ③ 插件试跑时 <b><code>X-Context-Token</code> 就填 <code>szlh-2026-debug-7f3a91c4</code>（与密钥一字不差）</b>；<br>
+        ④ 联调结束后<b>删除 <code>ALLOW_STATIC_DEBUG_TOKEN</code></b>（生产必须关闭），工作流里改用变量引用。<br>
+        <span class="muted">该开关默认关闭；关闭时把密钥当 token 用会返回 403（已有测试守护）。</span></div>
+      </div>
+      <p><strong>要逐工具验证权限收紧时，再用脚本生成正式 token（可选）：</strong></p>
       <div class="code-wrap">
-        <div class="code-header"><span class="lang">BASH</span><span class="fname">生成试跑令牌</span></div>
+        <div class="code-header"><span class="lang">BASH</span><span class="fname">可选：脚本生成 token</span></div>
         <pre><span class="cmt"># Windows PowerShell</span>
 <span class="var">$env:TOOL_CONTEXT_SECRET</span>=<span class="str">'与 Railway 一致的值'</span>
 python -X utf8 scripts/make_token.py --tools resolve_company,get_company_context `
@@ -701,6 +713,23 @@ python -X utf8 scripts/make_token.py --tools resolve_company,get_company_context
        --tools resolve_company,get_company_context --ttl 604800 \
        --base-url https://shuzhi-lianhai-production.up.railway.app</pre>
       </div>
+      <div class="callout info">
+        <div class="icon">ℹ️</div>
+        <div class="body"><strong>每个插件试跑时到底填什么（照抄下表）：</strong>除 <code>X-Context-Token</code> 外，
+        其余字段按工具的 OpenAPI 必填项填写；<code>?</code> 表示可选。</div>
+      </div>
+      <table>
+        <tr><th>插件（工具）</th><th>必填字段</th><th>试跑时照抄的示例值</th><th>期望结果</th></tr>
+        <tr><td><code>resolve_company</code></td><td><code>query</code></td><td><code>002860</code></td><td><code>matches[0].coname = 星帅尔</code></td></tr>
+        <tr><td><code>search_companies</code></td><td><span class="muted">无必填</span></td><td><code>province=江苏省</code>、<code>industry=光伏</code>、<code>direction=capacity_production</code>、<code>page_size=5</code></td><td><code>total = 45</code>（真实总数）</td></tr>
+        <tr><td><code>get_company_context</code></td><td><code>scode</code></td><td><code>scode=002860</code>、<code>year=2023</code></td><td>返回证据包：<code>coname=星帅尔</code>、<code>signal_refs</code>、<code>rule_candidates</code></td></tr>
+        <tr><td><code>get_evidence</code></td><td><code>evidence_ref</code></td><td>先跑上一个工具，把 <code>signal_refs[0].evidence_ref</code> 整串粘进来（形如 <code>ev:v21_c00010547:1:45ca93e985f8</code>）</td><td>返回原文 <code>text</code> 与 <code>spans</code>；<code>status=ok</code></td></tr>
+        <tr><td><code>compare_companies</code></td><td><code>scodes</code>、<code>year</code></td><td><code>scodes=["002860","300670"]</code>、<code>year=2023</code></td><td>两家同年度对比表 + <code>compare_ref</code></td></tr>
+        <tr><td><code>get_rule_candidates</code></td><td><code>scode</code></td><td><code>scode=002860</code>、<code>year=2023</code>、<code>directions=["market_expansion"]</code>（可选）</td><td>候选服务，含 <code>rule_id</code>/<code>product_ref</code></td></tr>
+        <tr><td><code>search_product_knowledge</code></td><td><span class="muted">无必填</span></td><td><code>service_focus=["settlement"]</code>、<code>actions=["market_expansion"]</code>（可选）</td><td><code>total = 7</code>，卡片带 <code>status</code> 与来源</td></tr>
+        <tr><td><code>search_regional_knowledge</code></td><td><span class="muted">无必填</span></td><td><code>query=结算</code></td><td>A 区 <code>total = 1</code>；B 区为 0（地区隔离）</td></tr>
+        <tr><td><code>tools_dispatch</code>（最小版插件）</td><td><code>tool</code></td><td><code>tool=get_company_context</code>、<code>parameters_json={"scode":"002860","year":2023}</code></td><td><code>result.coname = 星帅尔</code></td></tr>
+      </table>
       <table>
         <tr><th>参数</th><th>说明</th><th>建议取值</th></tr>
         <tr><td><code>--tools</code></td><td>token 允许调用的工具，<b>必须包含你要试跑的那个</b>，否则 403</td><td><code>resolve_company,get_company_context</code></td></tr>

@@ -110,6 +110,29 @@ class TestToolApi(unittest.TestCase):
         r = self._post("/api/v1/tools/resolve_company", {"query": "002860"}, "any.tok")
         self.assertEqual(r.status_code, 503)
 
+    def test_static_debug_token_off_by_default(self):
+        """默认关闭静态调试密钥：把密钥本身当 token 用必须 403。"""
+        os.environ.pop("ALLOW_STATIC_DEBUG_TOKEN", None)
+        r = self._post("/api/v1/tools/resolve_company", {"query": "002860"}, self.secret)
+        self.assertEqual(r.status_code, 403)
+
+    def test_static_debug_token_when_enabled(self):
+        """打开 ALLOW_STATIC_DEBUG_TOKEN=1 后，密钥本身即可作为试跑 token。"""
+        os.environ["ALLOW_STATIC_DEBUG_TOKEN"] = "1"
+        try:
+            r = self._post("/api/v1/tools/resolve_company", {"query": "002860"}, self.secret)
+            self.assertEqual(r.status_code, 200)
+            self.assertEqual(r.json()["matches"][0]["coname"], "星帅尔")
+            # 错误值仍被拒
+            r2 = self._post("/api/v1/tools/resolve_company", {"query": "002860"}, "wrong")
+            self.assertEqual(r2.status_code, 403)
+            # 调试模式下工具全放行（含地区资料检索）
+            r3 = self._post("/api/v1/tools/search_regional_knowledge", {"query": "结算"},
+                            self.secret)
+            self.assertEqual(r3.status_code, 200)
+        finally:
+            os.environ.pop("ALLOW_STATIC_DEBUG_TOKEN", None)
+
 
 if __name__ == "__main__":
     unittest.main()

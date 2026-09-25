@@ -51,7 +51,23 @@
 
 #### 插件页「试运行」时填什么
 
-试运行绕过工作流，没有开始节点变量可引用 → 必须手工粘贴真实 token：
+试运行绕过工作流，没有开始节点变量可引用 → X-Context-Token 必须手工填。
+
+**方式一（最简单，免脚本）**：把密钥本身当作 token
+
+1. Railway Variables 增加：
+   ```
+   TOOL_CONTEXT_SECRET=szlh-2026-debug-7f3a91c4      # 可自定，够长即可
+   ALLOW_STATIC_DEBUG_TOKEN=1                        # 仅调试期打开
+   ```
+2. 重新部署后，插件试跑时 `X-Context-Token` 填 `szlh-2026-debug-7f3a91c4`（与密钥一字不差）。
+3. 联调结束**删除 `ALLOW_STATIC_DEBUG_TOKEN`**（默认关闭；关闭时该值为 403）。
+
+各工具除 token 外的必填字段：`resolve_company.query`、`get_company_context.scode`、
+`get_evidence.evidence_ref`、`compare_companies.scodes+year`、`get_rule_candidates.scode`、
+`tools_dispatch.tool`；`search_companies` / `search_product_knowledge` / `search_regional_knowledge` 无必填。
+
+**方式二（要逐工具验证权限收紧时用）**：脚本生成正式 token
 
 ```bash
 # Windows

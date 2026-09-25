@@ -14,6 +14,7 @@
 """
 from __future__ import annotations
 
+import hmac
 import json
 import os
 
@@ -26,17 +27,33 @@ router = APIRouter(prefix="/api/v1")
 # 非参数键：出现在扁平请求体中时不应作为工具参数传递
 NON_PARAM_KEYS = {"parameters", "parameters_json", "tool"}
 
+# 静态调试密钥模式（仅调试用；默认关闭）
+# 打开后，X-Context-Token 可以直接填 TOOL_CONTEXT_SECRET 的值本身，
+# 便于 Coze 插件页「试运行」时手工粘贴；生产环境必须保持关闭并使用每轮签发的 context_token。
+DEBUG_FLAG = "ALLOW_STATIC_DEBUG_TOKEN"
+
 
 def _secret() -> str:
     return os.environ.get("TOOL_CONTEXT_SECRET", "")
+
+
+def _debug_regions() -> list[str]:
+    raw = os.environ.get("DEBUG_TOKEN_REGIONS", "region_a")
+    return [r.strip() for r in raw.split(",") if r.strip()]
 
 
 def _verify(request: Request) -> dict:
     secret = _secret()
     if not secret:
         raise HTTPException(503, "未配置 TOOL_CONTEXT_SECRET，工具 HTTP 接口不可用。")
-    payload = context_token.verify_context_token(
-        request.headers.get("x-context-token"), secret)
+    token = request.headers.get("x-context-token")
+    if (token and os.environ.get(DEBUG_FLAG) == "1"
+            and hmac.compare_digest(token, secret)):
+        # 静态调试密钥：全工具放行、身份固定为演示经理；响应头标注，便于排查
+        return {"user_id": "u_demo_a", "display_name": "静态调试密钥（试运行）",
+                "regions": _debug_regions(), "snapshot_id": runtime.get_snapshot(),
+                "allowed_tools": None, "debug_static": True}
+    payload = context_token.verify_context_token(token, secret)
     if not payload:
         raise HTTPException(403, "context_token 无效或已过期。")
     return payload
