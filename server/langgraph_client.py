@@ -38,6 +38,20 @@ class LangGraphError(Exception):
         self.message = message
 
 
+# 冷启动说明文案（探活 warming 与调用侧复用，避免两处措辞不一致）
+_WARMING_DETAIL = (
+    "引擎正在冷启动：扣子部署在无访问流量时会缩容至 0 个实例，"
+    "首次访问需重新拉起实例（通常 10—40 秒）。这不是配置错误，稍后重试即可。"
+)
+
+# 判为「瞬时/基础设施」而非「配置或业务错误」的错误码。
+# 调用侧对这类错误会重试一次（冷启动容错），对配置类错误则直接降级并给出修复提示。
+COLD_START_ERROR_CODES = frozenset({
+    "warming", "timeout", "network_error", "instance_gone",
+    "http_502", "http_503", "http_504",
+})
+
+
 def config() -> dict:
     return {
         # strip() 很关键：从环境变量面板复制粘贴常带首尾空格/换行，会直接导致 InvalidURL
@@ -136,15 +150,19 @@ def probe(timeout: int | None = None) -> dict:
       因此线上探活必须带上 LANGGRAPH_TOKEN；
     - 404 且响应含 instance_not_found 表示**实例已被回收**（沙箱长时间无请求或重新部署
       都会导致），这正是「配置在、服务没了」的故障态，必须判为不可用；
-    - 401/403 只说明鉴权有问题，服务本身是活的，单列为 auth_ok=False。
+    - 401/403 只说明鉴权有问题，服务本身是活的，单列为 auth_ok=False；
+    - **超时判为 warming（冷启动中）**：扣子部署空闲缩容到 0 实例，带 token 的探活会
+      在网关处等待实例唤醒而读超时。此时 reachable 仍为 False（此刻确实不可用），
+      但 error_code="warming"、warming=True，供健康检查区分「未就绪」与「已损坏」，
+      并由后端保活任务持续唤醒，避免演示时首次访问撞上冷启动。
 
     本函数**不抛异常**：健康检查与降级告警都不能因为探活失败而中断。
-    返回 {"ok","reachable","auth_ok","status","error_code","detail","checked_at"}。
+    返回 {"ok","reachable","auth_ok","status","error_code","detail","warming","checked_at"}。
     """
     cfg = config()
     out = {
         "ok": False, "reachable": False, "auth_ok": False, "status": None,
-        "error_code": "", "detail": "",
+        "error_code": "", "detail": "", "warming": False,
         "checked_at": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
     }
     try:
@@ -188,11 +206,21 @@ def probe(timeout: int | None = None) -> dict:
             out["error_code"] = f"http_{e.code}"
             out["reachable"] = True
     except urllib.error.URLError as e:
-        out["error_code"] = "network_error"
-        out["detail"] = f"网络不可达：{e.reason}"
+        # 冷启动与「真的连不上」必须分开。
+        # 扣子部署空闲时会缩容到 0 实例：网关仍然在线（无 token 会秒回 401），
+        # 但带 token 的请求要等实例被唤醒，于是表现为「连接建立后读超时」。
+        # 这属于**暂时未就绪**，不是配置错误，也不该让演示判定为「引擎坏了」。
+        if isinstance(getattr(e, "reason", None), TimeoutError):
+            out["error_code"] = "warming"
+            out["warming"] = True
+            out["detail"] = (_WARMING_DETAIL)
+        else:
+            out["error_code"] = "network_error"
+            out["detail"] = f"网络不可达：{e.reason}"
     except TimeoutError:
-        out["error_code"] = "timeout"
-        out["detail"] = "探活超时。"
+        out["error_code"] = "warming"
+        out["warming"] = True
+        out["detail"] = _WARMING_DETAIL
     except Exception as e:  # noqa: BLE001
         out["error_code"] = "probe_failed"
         out["detail"] = f"{type(e).__name__}: {e}"

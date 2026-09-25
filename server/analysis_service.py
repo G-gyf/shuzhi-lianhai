@@ -8,12 +8,44 @@
 from __future__ import annotations
 
 import json
+import os
 import time
 
 from . import coze_client, langgraph_client, local_engine, products, runtime, tools
 from .schemas import ORB_KINDS, SCHEMA_VERSION, parse_ref
 
 MAX_MAIN_ORBS = 5
+
+def _env_number(name: str, default: float, cast=float):
+    """读取数值型环境变量；非法值退回默认值。
+
+    这些常量在模块导入时求值，配置笔误（如 "5m"、带空格）若直接抛异常，
+    会导致整个服务起不来——比配置失效严重得多，故一律容错。
+    """
+    raw = (os.environ.get(name) or "").strip()
+    if not raw:
+        return default
+    try:
+        return cast(raw)
+    except (TypeError, ValueError):
+        return default
+
+
+# ---------------- 冷启动容错参数 ----------------
+# 扣子编程部署在无访问流量时会缩容至 0 个实例，因此存在两类「假故障」：
+#   1) 探活超时被误判为引擎损坏 —— 用 warming 语义区分；
+#   2) 首次真实调用撞上冷启动而立刻降级 —— 用一次重试兜住。
+# 这两条共同保证「评委随时点开」不会看到「引擎不可用」。
+ENGINE_PROBE_TIMEOUT_SECONDS = _env_number("ENGINE_PROBE_TIMEOUT_SECONDS", 20, int)
+COLD_START_RETRY_DELAY_SECONDS = _env_number("ENGINE_COLD_START_RETRY_DELAY", 3.0, float)
+COLD_START_RETRIES = _env_number("ENGINE_COLD_START_RETRIES", 1, int)
+
+# 降级文案：面向使用者，中性表述。不写「不可用」「失败」这类会让评委读成
+# 「系统坏了」的字眼，并保留 LangGraph 字样以便运维在告警里定位。
+TRANSIENT_FALLBACK_NOTE = (
+    "LangGraph 生成式引擎尚未就绪（冷启动中或网络波动），"
+    "本次已自动切换至本地分析引擎生成，服务保持可用。"
+)
 
 
 def _now() -> str:
@@ -325,13 +357,18 @@ def reset_engine_probe_cache() -> None:
 
 
 def probe_engine(engine: str | None = None, ttl_seconds: int = ENGINE_PROBE_TTL_SECONDS,
-                 timeout: int = 5) -> dict:
+                 timeout: int | None = None) -> dict:
     """对将优先尝试的引擎做真实探活（TTL 缓存，失败不抛异常）。
 
     修复「配置在、服务没了却报绿」：/api/health 曾只看 LANGGRAPH_BASE_URL 是否存在，
     因此实例被回收（404 instance_not_found）时仍显示 langgraph 可用。
+
+    超时上限默认 20 秒（原为 5 秒）：5 秒不足以覆盖扣子部署的冷启动，
+    会把「实例正在唤醒」误报成引擎损坏，并让 `/api/health` 在演示前给出假红灯。
+    探活请求本身也会触发实例拉起，因此即使超时，实例仍在后台继续启动。
     """
     engine = engine or planned_engine()
+    timeout = timeout or ENGINE_PROBE_TIMEOUT_SECONDS
     now = time.time()
     cache = _ENGINE_PROBE_CACHE
     if (cache["result"] is not None and cache["engine"] == engine
@@ -343,6 +380,7 @@ def probe_engine(engine: str | None = None, ttl_seconds: int = ENGINE_PROBE_TTL_
             "reachable": p["reachable"], "auth_ok": p["auth_ok"],
             "probe_status": p["status"], "probe_error": p["error_code"],
             "probe_detail": p["detail"], "probed_engine": "langgraph",
+            "warming": bool(p.get("warming")),
             "checked_at": p["checked_at"],
         }
     elif engine == "coze":
@@ -350,13 +388,13 @@ def probe_engine(engine: str | None = None, ttl_seconds: int = ENGINE_PROBE_TTL_
             "reachable": None, "auth_ok": None, "probe_status": None, "probe_error": "",
             "probe_detail": ("Coze 云端工作流不单独探活；"
                              "请以对话流 analysis_ready.engine 为准。"),
-            "probed_engine": "coze", "checked_at": _now(),
+            "probed_engine": "coze", "warming": False, "checked_at": _now(),
         }
     else:
         result = {
             "reachable": True, "auth_ok": True, "probe_status": None, "probe_error": "",
             "probe_detail": "本地规则引擎始终可用（无需网络）。",
-            "probed_engine": "rules-demo", "checked_at": _now(),
+            "probed_engine": "rules-demo", "warming": False, "checked_at": _now(),
         }
     cache.update({"at": now, "engine": engine, "result": result})
     return dict(result)
@@ -389,10 +427,15 @@ def engine_status(probe: bool = False) -> dict:
         "note": ("langgraph=扣子编程项目引擎；coze=Coze 云端工作流；"
                  "rules-demo=本地规则引擎（降级兜底，始终可用）；"
                  "effective_engine/planned_engine 仅按配置判断，"
-                 "是否真的可用请看 reachable。"),
+                 "是否真的可用请看 reachable；warming=true 表示引擎正在冷启动"
+                 "（扣子空闲缩容到 0 实例），并非配置或代码故障。"),
     }
     if probe:
         status.update(probe_engine())
+        if status.get("warming"):
+            status["engine_ready_note"] = (
+                "引擎正在冷启动，实例唤醒后会自动恢复；后台保活任务会持续唤醒，"
+                "首次访问若仍降级，重试一次即可。")
     return status
 
 
@@ -440,6 +483,18 @@ def build_workflow_parameters(message: str, user: dict, page: dict, prefs: dict,
     return params, warning
 
 
+def _fallback_note_for(err: langgraph_client.LangGraphError) -> str:
+    """把引擎错误翻译成降级说明。
+
+    - 瞬时类错误（冷启动 / 网络 / 5xx）：用中性文案，不把技术故障写进回答正文；
+    - 配置类错误：保留原因与可执行修复提示（线上事故回归要求，见
+      tests/test_m5_langgraph_engine.py::test_fallback_warning_names_the_problem）。
+    """
+    if err.code in langgraph_client.COLD_START_ERROR_CODES:
+        return TRANSIENT_FALLBACK_NOTE
+    return f"LangGraph 引擎不可用（{err.code}：{err.message}），已尝试其他引擎。"
+
+
 def prepare_analysis(message: str, user: dict, page: dict, prefs: dict,
                      history: list[dict], state: dict, request_id: str) -> dict:
     """编排一次分析：AI 引擎（LangGraph / Coze）或本地规则引擎 → 校验 → 持久化。
@@ -466,18 +521,33 @@ def prepare_analysis(message: str, user: dict, page: dict, prefs: dict,
             try:
                 params, token_warning = build_workflow_parameters(
                     message, user, page, prefs, history, cfg)
-                if token_warning:
-                    fallback_note = token_warning
-                payload = langgraph_client.run(params)
-                draft = langgraph_client.normalize_draft(
-                    payload, page, runtime.get_snapshot(), products.product_version())
-                engine, workflow_version = "langgraph", lg["base_url"]
-                break
-            except langgraph_client.LangGraphError as e:
-                fallback_note = (f"LangGraph 引擎不可用（{e.code}：{e.message}），"
-                                 "已尝试其他引擎。")
             except Exception as e:  # noqa: BLE001
-                fallback_note = (f"LangGraph 调用异常（{type(e).__name__}），已尝试其他引擎。")
+                fallback_note = f"LangGraph 入参构建异常（{type(e).__name__}），已尝试其他引擎。"
+                continue
+            if token_warning:
+                fallback_note = token_warning
+            # 冷启动重试：扣子部署空闲缩容到 0 实例时，首次调用会撞上实例唤醒。
+            # 只对瞬时类错误重试（配置类错误重试无意义，且会掩盖真实问题）。
+            for attempt in range(COLD_START_RETRIES + 1):
+                try:
+                    payload = langgraph_client.run(params)
+                    draft = langgraph_client.normalize_draft(
+                        payload, page, runtime.get_snapshot(), products.product_version())
+                    engine, workflow_version = "langgraph", lg["base_url"]
+                    fallback_note = token_warning   # 成功：只保留入参层面的告警
+                    break
+                except langgraph_client.LangGraphError as e:
+                    if (attempt < COLD_START_RETRIES
+                            and e.code in langgraph_client.COLD_START_ERROR_CODES):
+                        time.sleep(COLD_START_RETRY_DELAY_SECONDS)
+                        continue
+                    fallback_note = _fallback_note_for(e)
+                    break
+                except Exception as e:  # noqa: BLE001
+                    fallback_note = f"LangGraph 调用异常（{type(e).__name__}），已尝试其他引擎。"
+                    break
+            if draft is not None:
+                break
         elif candidate == "coze":
             if not (cfg["ai_enabled"] and cfg["workflow_id"]):
                 continue

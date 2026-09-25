@@ -32,6 +32,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 
+import asyncio
+import os
+
 from . import chat, extensions, graph, logic, runtime, tool_api
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -42,11 +45,62 @@ app.add_middleware(
     allow_origins=["*"], allow_methods=["*"], allow_headers=["*"],
 )
 
+# 生成式引擎保活：扣子编程部署在无访问流量时会缩容至 0 个实例（官方文档明示），
+# 缩容后首次访问要等实例重新拉起，演示时表现为「点开就转圈/直接降级」。
+# 本后台任务周期性唤醒实例，把冷启动从演示路径上挪走。
+
+
+def _env_number(name: str, default: float) -> float:
+    """读取数值型环境变量。
+
+    非法值一律退回默认值：这几个变量在**模块导入时**求值，
+    若因配置笔误（如把 240 写成 5m、或带多余空格）抛异常，
+    整个服务会起不来——比配置失效严重得多。
+    """
+    raw = (os.environ.get(name) or "").strip()
+    if not raw:
+        return default
+    try:
+        return float(raw)
+    except ValueError:
+        return default
+
+
+KEEPALIVE_ENABLED = (os.environ.get("ENGINE_KEEPALIVE", "1") or "").strip().lower() \
+    not in ("0", "false", "no", "off")
+KEEPALIVE_INTERVAL_SECONDS = _env_number("ENGINE_KEEPALIVE_INTERVAL", 240.0)
+KEEPALIVE_INITIAL_DELAY_SECONDS = _env_number("ENGINE_KEEPALIVE_INITIAL_DELAY", 5.0)
+
+
+async def _engine_keepalive_loop() -> None:
+    """每 KEEPALIVE_INTERVAL_SECONDS 秒对生成式引擎做一次真实探活。
+
+    探活请求会走完整链路（含鉴权），足以让缩容到 0 的实例保持热态；
+    同时顺带刷新 engine_status 的探活缓存，让 /api/health 更及时。
+
+    任何异常都不外抛：保活失败绝不能影响业务服务本身。
+    """
+    from . import analysis_service
+    try:
+        await asyncio.sleep(KEEPALIVE_INITIAL_DELAY_SECONDS)   # 让服务先完成启动
+        while True:
+            try:
+                if analysis_service.planned_engine() != "rules-demo":
+                    # ttl=0：绕过缓存，确保每次都真实发一次请求
+                    await asyncio.to_thread(analysis_service.probe_engine, None, 0)
+            except Exception:                # noqa: BLE001  保活失败静默
+                pass
+            await asyncio.sleep(KEEPALIVE_INTERVAL_SECONDS)
+    except asyncio.CancelledError:           # 服务关停：正常退出
+        return
+
 
 @app.on_event("startup")
-def _startup():
+async def _startup():
     runtime.init_runtime()
     extensions._seed()
+    if KEEPALIVE_ENABLED:
+        asyncio.create_task(_engine_keepalive_loop())
 
 
 @app.get("/api/meta")
@@ -139,6 +193,10 @@ def api_health(probe: int = 1):
       此前只判断配置是否存在，实例被回收时仍报绿（线上事故回归）。
     - `probe=0`：只回报配置、不发网络请求，供脚本快速读取 snapshot_id。
 
+    `engine.warming=true` 表示引擎正在冷启动（扣子部署空闲缩容到 0 实例后重新拉起），
+    属于**暂时未就绪**而非故障；`engine_ready` 仍如实为 false，但前端应提示
+    「引擎唤醒中」而不是报错。探活超时上限见 ENGINE_PROBE_TIMEOUT_SECONDS。
+
     `snapshot_id` 保持顶层字段：scripts/make_token.py 依赖它对齐快照。
     """
     from . import analysis_service
@@ -146,6 +204,7 @@ def api_health(probe: int = 1):
     return {"status": "ok", "kb": "kb-2023",
             "snapshot_id": runtime.get_snapshot(),
             "engine_ready": engine.get("reachable"),
+            "engine_warming": bool(engine.get("warming")),
             "engine": engine}
 
 

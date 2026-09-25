@@ -21,8 +21,42 @@ async function jget(url) {
   return r.json();
 }
 
+/* 生成式引擎预热。
+   扣子编程部署在无访问流量时会缩容至 0 个实例，缩容后首次访问要等实例重新拉起，
+   演示时表现为「打开页面第一次提问直接降级」。这里在页面加载时就后台发一次探活，
+   把冷启动时间藏在用户浏览名单/企业详情的时间里。
+   刻意不 await：冷启动时探活最长会占到 ENGINE_PROBE_TIMEOUT_SECONDS（默认 20 秒），
+   不能阻塞首屏渲染与名单加载。 */
+window.__DSH_ENGINE = null;   // null=未知；{ready, warming}
+
+function applyEngineBadge() {
+  const st = window.__DSH_ENGINE;
+  if (!st) return;                    // 未知：保留基础状态文案
+  const el = $("health");
+  if (st.ready) return;               // 已就绪：保留基础状态文案
+  if (st.warming) {
+    el.textContent = "● 数据服务已连接 · AI 引擎唤醒中";
+    el.title = "数据服务已连接；生成式 AI 引擎正在冷启动（空闲缩容后重新拉起），"
+             + "稍后自动恢复，期间由本地分析引擎作答。";
+  } else {
+    el.title = "数据服务已连接；当前使用本地分析引擎。";
+  }
+}
+
+function warmEngine() {
+  fetch(API + "/api/health?probe=1")
+    .then((r) => (r.ok ? r.json() : null))
+    .then((h) => {
+      if (!h || !h.engine) return;
+      window.__DSH_ENGINE = { ready: !!h.engine_ready, warming: !!h.engine_warming };
+      applyEngineBadge();
+    })
+    .catch(() => { /* 预热失败不影响业务页面 */ });
+}
+
 /* ---------------- 初始化 ---------------- */
 async function init() {
+  warmEngine();
   try {
     const m = await jget("/api/meta");
     const p = $("f-province"), y = $("f-year"), ind = $("f-industry");
@@ -32,6 +66,7 @@ async function init() {
     m.industries.forEach((v) => ind.add(new Option(v, v)));
     $("health").textContent = "● 数据服务已连接";
     $("health").title = "覆盖 " + m.provinces.length + " 个省份；样本内光伏 " + m.pv_overlap + " 家。外部分类名单 " + m.pv_full + " 家，非完成率。";
+    applyEngineBadge();   // 预热结果若已先返回（引擎唤醒中/本地引擎），在此补上提示
     await loadSegments();
     await loadRadar();
   } catch (e) {
