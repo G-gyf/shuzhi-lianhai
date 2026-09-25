@@ -20,7 +20,7 @@ CLAIM_COLS = ["chunk_id", "scode", "year", "claim_number", "program_label", "evi
 
 def main():
     from server.geo import geo_extract
-    ch = pd.read_csv(EL / "classified_all.csv", dtype={"scode": str})
+    ch = pd.read_csv(EL / "classified_all.csv", dtype={"scode": str}, low_memory=False)
     ch["scode"] = ch["scode"].str.zfill(6)
     ch["industry"] = "电气设备"
     excluded = ch[ch["program_label"] == "unresolved"].copy()
@@ -43,6 +43,7 @@ def main():
         con.execute("CREATE INDEX IF NOT EXISTS idx_claims_scode ON claims(scode)")
         con.execute("CREATE INDEX IF NOT EXISTS idx_claims_chunk ON claims(chunk_id)")
         assert con.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
+    con.close()  # Windows 文件替换前必须释放 SQLite 句柄
     temp.replace(DB)
     print(json.dumps(meta, ensure_ascii=False, indent=2))
 

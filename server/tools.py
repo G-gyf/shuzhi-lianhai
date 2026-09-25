@@ -315,13 +315,19 @@ def get_evidence(ctx, evidence_ref):
           {"scodes": "string[]", "year": "int", "fields": "string[]?"})
 def compare_companies(ctx, scodes, year, fields=None):
     """企业对比：同一年度、缺失明确标识；数量受 AI_MAX_COMPARE_COMPANIES 限制。"""
+    example = '["002860", "300670"]'
     if not isinstance(scodes, list) or not scodes:
-        return fail("scodes 不能为空", "bad_input")
+        return fail(f"scodes 不能为空。请在 scodes 数组中填入 2—3 个 6 位企业代码，例如 {example}。",
+                    "bad_input")
     if year is None:
-        return fail("对比必须指定统一年份（同年度口径）", "bad_input")
-    scodes = list(dict.fromkeys(str(s).zfill(6) for s in scodes))[:MAX_COMPARE]
+        return fail("对比必须指定统一年份（同年度口径）。请在 year 字段填入年份，例如 2023。",
+                    "bad_input")
+    raw = [str(s).strip() for s in scodes]
+    scodes = list(dict.fromkeys(s.zfill(6) for s in raw if s))[:MAX_COMPARE]
     if len(scodes) < 2:
-        return fail("对比至少需要两家企业", "bad_input")
+        return fail(f"对比至少需要两家企业（当前收到 {len(raw)} 个值：{raw}）。"
+                    f"请在 scodes 数组里补足两家企业的 6 位代码，例如 {example}。",
+                    "bad_input")
 
     panel = logic._panel()
     rows, missing = [], []
