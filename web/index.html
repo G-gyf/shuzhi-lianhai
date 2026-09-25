@@ -7,12 +7,26 @@
 <link rel="stylesheet" href="assets/style.css?v=13">
 <link rel="stylesheet" href="assets/chat.css?v=21">
 <link rel="stylesheet" href="assets/workspace.css?v=22">
+<link rel="stylesheet" href="assets/interface.css?v=3">
 </head>
 <body>
 
 <header>
   <div class="hd">
-    <div class="logo">数智链海<small>MINIMUM LOOP · kb-2023</small></div>
+    <div class="logo">
+      <span class="brand-mark" aria-hidden="true">
+        <svg viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <circle cx="24" cy="24" r="18" stroke="currentColor" stroke-opacity=".28" stroke-width=".7"/>
+          <path d="M24 3v4M24 41v4M3 24h4M41 24h4" stroke="currentColor" stroke-opacity=".6"/>
+          <path d="M24 9 37 16.5v15L24 39 11 31.5v-15L24 9Z" stroke="currentColor" stroke-width="1.2"/>
+          <path d="m16 21 5-5 7 7-5 5-7-7Zm5 5 5-5 7 7-5 5-7-7Z" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
+          <path d="M14 34c6-3 14-3 20 0" stroke="currentColor" stroke-opacity=".45" stroke-width=".8"/>
+          <circle cx="24" cy="9" r="1.6" fill="currentColor"/><circle cx="37" cy="31.5" r="1.4" fill="currentColor"/><circle cx="11" cy="31.5" r="1.4" fill="currentColor"/>
+        </svg>
+      </span>
+      <span class="brand-name">数智链海<em>GLOBAL INTELLIGENCE</em></span>
+      <span class="bank-brand"><img src="assets/icbc-logo.png" alt="中国工商银行" width="190" height="40"></span>
+    </div>
     <div class="filters">
       <select id="f-province"><option value="">全部省份</option></select>
       <select id="f-year"><option value="">全部年份</option></select>
@@ -30,14 +44,18 @@
 <main>
   <!-- 视图 1：雷达名单 -->
   <div class="view on" id="view-radar">
+    <section class="radar-intro" aria-label="出海需求雷达概览">
+      <div><div class="eyebrow">CROSS-BORDER INTELLIGENCE</div><h1>洞察出海动向，发现服务机会<span>。</span></h1><p>从企业披露到金融服务，让每一条线索都有据可循。</p></div>
+      <div class="intro-badge"><span class="signal-dot"></span>历史样本 · 2018—2023<span class="intro-divider">/</span>证据驱动分析</div>
+    </section>
     <div class="card">
-      <h3>产业链出海热度 <span class="hint">电力全链 · 点击环节下钻名单 · 零新增数据</span></h3>
+      <h3><span class="section-index">01</span>产业链出海热度 <span class="hint">点击产业环节，探索相关企业</span></h3>
       <div id="chain-strip"></div>
       <p class="muted" id="chain-active" style="margin-top:8px"></p>
     </div>
     <div class="card">
-      <h3>辖区出海线索名单 <span class="hint">窗口期优先 → 落地层 > 筹备层 → 强度分降序 · 点击行查看企业详情</span></h3>
-      <div style="overflow-x:auto">
+      <h3><span class="section-index">02</span>辖区出海线索名单 <span class="hint">窗口优先 · 落地优先 · 强度降序，可在顶部切换排序</span></h3>
+      <div class="radar-scroll" tabindex="0" role="region" aria-label="企业线索列表，可横向滚动查看更多列">
         <table class="radar">
           <thead><tr>
             <th>#</th><th>企业</th><th>省份</th><th>年份</th><th>窗口类型</th><th>分层</th><th>出海方向</th><th>目标国/地区</th><th>海外客户占比</th><th>部署/意图</th><th>强度分</th>
@@ -155,7 +173,7 @@
 </div>
 
 <script src="config.js"></script>
-<script src="assets/app.js?v=21"></script>
+<script src="assets/app.js?v=22"></script>
 <script src="assets/orbs.js?v=22"></script>
 <script src="assets/drawer.js?v=21"></script>
 <script src="assets/chat-protocol.js?v=21"></script>

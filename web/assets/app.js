@@ -30,7 +30,8 @@ async function init() {
     m.years.forEach((v) => y.add(new Option(String(v), String(v))));
     ind.innerHTML = "";
     m.industries.forEach((v) => ind.add(new Option(v, v)));
-    $("health").textContent = "● 知识库 kb-2023 在线（" + m.provinces.length + " 省份 · 样本内光伏 " + m.pv_overlap + " 家；外部分类名单 " + m.pv_full + " 家，非完成率）";
+    $("health").textContent = "● 数据服务已连接";
+    $("health").title = "覆盖 " + m.provinces.length + " 个省份；样本内光伏 " + m.pv_overlap + " 家。外部分类名单 " + m.pv_full + " 家，非完成率。";
     await loadSegments();
     await loadRadar();
   } catch (e) {
@@ -88,9 +89,8 @@ async function loadRadar() {
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td class="muted">${i + 1}</td>
-      <td><b style="color:var(--head)">${esc(it.coname)}</b>
-          <span class="tag" style="margin-left:6px">${esc(it.segment)}</span>
-          <br><span class="muted">${esc(it.scode)}</span></td>
+      <td><b class="company-name">${esc(it.coname)}</b>
+          <div class="company-meta"><span class="muted">${esc(it.scode)}</span><span class="tag">${esc(it.segment)}</span></div></td>
       <td>${esc(it.province)}</td>
       <td class="muted">${it.year}</td>
       <td><span class="tag w-${it.window_type}">${esc(it.window_label)}</span></td>
