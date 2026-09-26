@@ -108,10 +108,10 @@ def resolve_company(ctx, query: str, visible_scodes=None):
 @register("search_companies",
           "按地区/年份/产业/方向筛选企业（真实总数与分页）",
           {"province": "string?", "industry": "string?", "year": "int?",
-           "direction": "string?", "page": "int", "page_size": "int",
+           "direction": "string?", "stage": "T0|T1|T2?", "page": "int", "page_size": "int",
            "sort": "window|score"})
 def search_companies(ctx, province=None, industry=None, year=None,
-                     direction=None, page=1, page_size=20, sort="window"):
+                     direction=None, page=1, page_size=20, sort="window", stage=None):
     """企业筛选：返回真实 total、items 与筛选解释；“最近”=最新可用数据年度。"""
     g = logic.agg()
     g = g[g["window_type"].notna()].copy()
@@ -126,6 +126,14 @@ def search_companies(ctx, province=None, industry=None, year=None,
     if year is not None:
         g = g[g["year"] == int(year)]
         explanation["year"] = int(year)
+    if stage:
+        stage = {"筹备": "T0", "筹备期": "T0", "prep": "T0",
+                 "落地": "T1", "落地期": "T1", "landing": "T1",
+                 "存量": "T2", "存量期": "T2"}.get(stage, stage)
+        if stage not in ("T0", "T1", "T2"):
+            return fail("未知出海阶段，请使用 T0、T1 或 T2。", "bad_input")
+        g = g[g["stage"] == stage]
+        explanation["stage"] = stage
     if direction:
         g = g[g["directions"].map(lambda ds: direction in ds)]
         explanation["direction"] = DIRECTION_CN.get(direction, direction)

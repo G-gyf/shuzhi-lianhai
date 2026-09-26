@@ -67,3 +67,25 @@ button,select,a,[tabindex]{outline-offset:4px}:focus-visible{outline:2px solid v
 @media(max-width:420px){.chainbar{grid-template-columns:80px minmax(0,1fr);gap:8px 12px}.chainbar .cv{grid-column:1/-1;text-align:left;padding-left:0}.radar-intro h1{font-size:22px}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{animation:none!important;transition:none!important;scroll-behavior:auto!important}}
 @media print{body{background:#fff}body:before{display:none}.card,.brief .sec{box-shadow:none;background:#fff;color:#222}}
+
+/* Fit the ten-column radar into typical desktop widths without hiding data. */
+@media(min-width:1000px){
+#view-radar .card{padding:18px}
+table.radar{min-width:0;table-layout:fixed}
+table.radar th,table.radar td{padding:12px 6px;font-size:12px;min-width:0!important;max-width:none!important}
+table.radar th:nth-child(1){width:3%}
+table.radar th:nth-child(2),table.radar td:nth-child(2){width:15%}
+table.radar th:nth-child(3),table.radar td:nth-child(3){width:7%;padding-left:4px;padding-right:4px}
+table.radar th:nth-child(4){width:5%}
+table.radar th:nth-child(5),table.radar td:nth-child(5){width:7%}
+table.radar th:nth-child(6),table.radar td:nth-child(6){width:16%;padding-left:4px;padding-right:4px}
+table.radar th:nth-child(7){width:18%}
+table.radar th:nth-child(8){width:15%}
+table.radar th:nth-child(9){width:8%}
+table.radar th:nth-child(10){width:6%}
+table.radar .tag,table.radar .dirchip{font-size:10px;padding:2px 4px;margin-right:2px}
+table.radar .company-name{font-size:13px;white-space:normal;overflow-wrap:anywhere}
+table.radar .company-meta{gap:5px;flex-wrap:wrap}
+table.radar td:nth-child(6){white-space:normal}
+table.radar td:nth-child(6) .tag{white-space:normal}
+}

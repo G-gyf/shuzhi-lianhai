@@ -506,6 +506,15 @@ def prepare_analysis(message: str, user: dict, page: dict, prefs: dict,
 
     返回 {"clarify": ...} 或 {"analysis": {...}, "issues": [...]}。
     """
+    # Resolve explicit scope before handing context to either external or local engines.
+    import re
+    page = dict(page or {})
+    explicit_year = re.search(r"(?<!\d)20\d{2}(?!\d)", message)
+    if explicit_year:
+        page["year"] = int(explicit_year.group())
+    search_request = local_engine.detect_intent(message, page, history) == "search"
+    if search_request:
+        page = {"view": "radar", "year": page.get("year")}
     ctx = tools.build_context(user)
     cfg = coze_client.config()
     lg = langgraph_client.config()
@@ -514,6 +523,10 @@ def prepare_analysis(message: str, user: dict, page: dict, prefs: dict,
     engine, workflow_version, fallback_note = "rules-demo", "local-rules-v1", None
 
     order = ["langgraph", "coze"] if prefer != "coze" else ["coze", "langgraph"]
+    # List filtering is a database operation, not a model judgement.
+    if search_request:
+        draft = local_engine.run(message, ctx, page, prefs, history, state, request_id)
+        order = []
     for candidate in order:
         if candidate == "langgraph":
             if not (lg["base_url"] and (cfg["ai_enabled"] or prefer == "langgraph")):
@@ -616,7 +629,7 @@ def _supplement_evidence_orbs(clean: dict, ctx: dict, page: dict,
     - 引用取自确定性的 `signal_refs`，且逐个再过一次 `_ref_ok()`，保证点得开。
     """
     c = clean.get("context") or {}
-    scode = c.get("scode") or page.get("scode")
+    scode = c.get("scode")
     year = c.get("year") or page.get("year")
     if not scode:
         return []

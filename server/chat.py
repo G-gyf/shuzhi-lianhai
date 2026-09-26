@@ -85,6 +85,10 @@ def _update_context(session: dict, page: dict | None) -> dict:
     con = runtime.get_conn()
     scode, year = session.get("current_scode"), session.get("current_year")
     if page:
+        if "scode" in page and page["scode"] is None:
+            scode = None
+        if "year" in page and page["year"] is None:
+            year = None
         if page.get("scode"):
             s = str(page["scode"]).zfill(6)
             if s in logic._coname_map():

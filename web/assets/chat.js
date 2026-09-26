@@ -28,7 +28,7 @@ window.DSH_CHAT = (()=>{
     content().innerHTML='<div class="report-empty"><div class="core-orb" aria-hidden="true"></div><span class="eyebrow">ASK · EXPLORE · ACT</span><h2>让线索，变成可核查的判断。</h2><p>提出一个问题，助手会把企业事实、服务建议与依据整理在这里。每一个光球，都通向可以展开的详情。</p><div class="empty-steps"><span>01 提出问题</span><span>02 查看判断</span><span>03 点开依据</span></div></div>';
     notice('准备就绪');$('report-copy').disabled=true;
   }
-  function syncMeta(c){$('chat-meta').textContent=c.scode?`当前对象 ${c.scode}${c.year?' · '+c.year+' 年':''}`:'未限定企业 · 可按地区或行业探索';}
+  function syncMeta(c){$('chat-meta').textContent=c.scode?`默认参考 ${c.scode}${c.year?' · '+c.year+' 年':''}`:'全库探索 · 可指定企业、年度或行业';}
   function busy(value){
     $('chat-send').disabled=value||restoring;$('chat-cancel').hidden=!value;
     $('chat-retry').disabled=value||restoring||!lastQuestion;
@@ -44,6 +44,7 @@ window.DSH_CHAT = (()=>{
   }
   function newConversation(){
     stop();generation++;restoring=false;sessionId=null;lastAnalysis=null;lastQuestion='';lastContext={};
+    window.DSH_CHAT_CONTEXT={scode:null,year:null,view:'assistant'};
     localStorage.removeItem(sessionKey());clearRoute();window.DSHDrawer.close();
     $('chat-body').replaceChildren();$('chat-input').value='';intro();syncMeta(context());busy(false);show();$('chat-input').focus();
   }
@@ -194,7 +195,7 @@ window.DSH_CHAT = (()=>{
   async function init(){
     intro();syncMeta(context());
     $('chat-toggle').onclick=show;$('btn-assistant').onclick=show;$('chat-close').onclick=()=>switchView(origin);
-    $('chat-new').onclick=newConversation;$('chat-retry').onclick=retryLast;$('report-copy').onclick=copyReport;
+    $('chat-new').onclick=newConversation;$('chat-explore').onclick=newConversation;$('chat-retry').onclick=retryLast;$('report-copy').onclick=copyReport;
     $('chat-form').onsubmit=e=>{e.preventDefault();send();};$('chat-cancel').onclick=()=>stop();
     $('chat-input').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&!e.isComposing){e.preventDefault();send();}});
     document.querySelectorAll('[data-prompt]').forEach(b=>b.onclick=()=>{$('chat-input').value=b.dataset.prompt;$('chat-input').focus();});

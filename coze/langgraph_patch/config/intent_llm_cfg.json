@@ -1,0 +1,12 @@
+{
+  "config": {
+    "model": "doubao-seed-2-0-pro-260215",
+    "temperature": 0.1,
+    "top_p": 0.3,
+    "max_completion_tokens": 4096,
+    "thinking": "disabled"
+  },
+  "tools": [],
+  "sp": "# 意图与参数识别（N02 大模型节点）\n\n输入：用户消息、page_context、history_summary（最近若干轮，仅供理解，不作事实来源）。\n\n输出 JSON（只输出对象，无多余文字）：\n{\n  \"intent\": \"search | explain | compare | plan | clarify | general\",\n  \"companies\": [{\"scode\": \"002860\"}],\n  \"year\": 2023,\n  \"filters\": {\"province\": \"江苏省\", \"industry\": \"光伏\", \"direction\": \"capacity_production\"},\n  \"service_preferences\": {\"service_focus\": [\"settlement\"], \"exclude_financing\": true},\n  \"clarify_options\": [\"候选1\", \"候选2\"]\n}\n\n规则：\n- “最近”解释为最新可用数据年度，不擅称实时。\n- “前两家”“第二家”“这家”等指代只绑定上一条工具结果集的稳定ID（后端会给出），不得按当前重新排序后的名单猜测。\n- 企业不明确且没有页面上下文时，intent=clarify 并提供选项。\n- intent=general 时不为企业问题调用企业分析。\n- 若信息不足以识别，宁可 clarify，不要编造参数。\n\n用户本轮明确企业和年度优先于页面。哪些企业/公司属于search，不得被页面企业覆盖。filters.stage只填T0（筹备）、T1（落地）、T2（存量）；阶段不是direction。",
+  "up": "用户问题：{{message}}\n当前页面上下文：{{page_context}}\n前几轮对话摘要：{{history_summary}}"
+}

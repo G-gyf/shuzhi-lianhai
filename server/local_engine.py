@@ -40,7 +40,7 @@ def detect_intent(message: str, page: dict, history: list[dict]) -> str:
     m = message or ""
     if re.search(r"比较|对比|哪个更|优先拜访谁|区别", m):
         return "compare"
-    if re.search(r"找|名单|筛选|有哪些|搜", m) and re.search(
+    if re.search(r"找|名单|筛选|哪些|搜", m) and re.search(
             r"企业|公司|光伏|江苏|浙江|广东|山东|省|地区|行业|方向", m):
         if not re.search(r"这家|该企业|当前|它", m):
             return "search"
@@ -314,10 +314,16 @@ def run(message: str, ctx: dict, page: dict, prefs: dict, history: list[dict],
             params["direction"] = "investment_ma"
         elif re.search(r"市场开拓|开拓", message):
             params["direction"] = "market_expansion"
-        if re.search(r"\b20(18|19|20|21|22|23)\b", message):
-            params["year"] = int(re.search(r"\b20(18|19|20|21|22|23)\b", message).group(0))
+        if re.search(r"(?<!\d)20\d{2}(?!\d)", message):
+            params["year"] = int(re.search(r"(?<!\d)20\d{2}(?!\d)", message).group(0))
         elif re.search(r"最近", message):
             params["year"] = max(logic_years())
+        if "year" not in params and page.get("year"):
+            params["year"] = page["year"]
+        for word, stage in [("筹备", "T0"), ("落地", "T1"), ("存量", "T2")]:
+            if word in message:
+                params["stage"] = stage
+                break
         r = tools.search_companies(ctx, **params)
         items = r["items"]
         listing = "、".join(
@@ -325,7 +331,7 @@ def run(message: str, ctx: dict, page: dict, prefs: dict, history: list[dict],
             for it in items[:8])
         answer_blocks.append({
             "kind": "fact",
-            "text": (f"共 {r['total']} 个企业-年符合条件" +
+            "text": (f"筛选范围：{params.get('year', '全部')}年度 · {params.get('industry', '全部行业')} · {params.get('stage', '全部阶段')}。共 {r['total']} 个企业-年符合条件" +
                      (f"（{params.get('province')}）" if params.get("province") else "") +
                      f"。前 {min(len(items), 8)} 家：{listing}。" +
                      (f" 可翻页；‘最近’按最新可用数据年度（{r['filter_explanation'].get('year', '最新年度')}）解释，不擅称实时。"
@@ -483,7 +489,7 @@ def logic_years():
 def _draft(context, blocks, recs, questions, orbs, warnings, state, request_id, intent):
     import time
     now = time.strftime("%Y-%m-%dT%H:%M:%S%z")
-    warnings.append("当前为本地规则引擎演示输出（Coze 未接入或调用失败时的降级路径）；"
+    warnings.append("当前结果由数据库检索与本地规则生成；"
                     "事实引用来自确定性数据库，分析组合由规则生成，未经生成式模型加工。")
     # state 兼容两种形态：{"last_search": {...}}（会话状态）或直接为结果集 {"items": [...]}
     last_search = state.get("last_search") if isinstance(state, dict) and "last_search" in state \

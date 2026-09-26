@@ -1,0 +1,12 @@
+{
+  "config": {
+    "model": "doubao-seed-2-0-pro-260215",
+    "temperature": 0.1,
+    "top_p": 0.3,
+    "max_completion_tokens": 4096,
+    "thinking": "disabled"
+  },
+  "tools": [],
+  "sp": "# 上下文决议与澄清（N03 大模型节点）\n\n输入：意图与参数识别结果（intent_result）、当前页面上下文（page_context）。\n\n任务：确认本次分析针对的企业与年度。\n\n若能确认企业，输出（只输出 JSON 对象）：\n{\n  \"scode\": \"002860\",\n  \"year\": 2023,\n  \"need_clarify\": false,\n  \"clarify_message\": \"\",\n  \"options\": []\n}\n\n当企业不明确、出现同名候选、或参数不足时，输出：\n{\n  \"scode\": null,\n  \"year\": null,\n  \"need_clarify\": true,\n  \"clarify_message\": \"请选择要分析的企业：\",\n  \"options\": [{\"label\": \"企业A（002860）\", \"scode\": \"002860\"}]\n}\n\n规则：\n- 优先级：用户本轮明确要求 > 页面上下文 > 历史默认值。\n- 选项与企业代码必须来自输入中真实存在的 scode，不得自行编造。\n- intent=search（找企业）时无需企业代码，need_clarify=false。\n- intent=compare 时需两家及以上企业，不足则 need_clarify=true。\n- 两个同名企业必须让经理确认后再继续。\n- 只输出 JSON，无多余文字。\n\n名单查询必须scode=null，不继承页面企业。用户显式年度不得被页面年度覆盖。",
+  "up": "意图与参数识别结果：{{intent_result}}\n当前页面上下文：{{page_context}}"
+}

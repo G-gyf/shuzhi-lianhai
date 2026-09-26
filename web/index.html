@@ -7,7 +7,7 @@
 <link rel="stylesheet" href="assets/style.css?v=13">
 <link rel="stylesheet" href="assets/chat.css?v=21">
 <link rel="stylesheet" href="assets/workspace.css?v=22">
-<link rel="stylesheet" href="assets/interface.css?v=5">
+<link rel="stylesheet" href="assets/interface.css?v=6">
 </head>
 <body>
 
@@ -142,8 +142,8 @@
     <div class="workspace-grid">
       <aside class="conversation" id="chat-panel" aria-label="提问与对话记录">
         <div class="conversation-head"><b>与你一起分析</b><button class="work-btn" id="chat-new" title="开启新的会话，不删除已保存的分析">＋ 新对话</button></div>
-        <div class="conversation-context"><span id="chat-meta">可从企业详情带入分析对象</span>
-          <select id="chat-identity" aria-label="演示身份"><option value="demo-token-region-a">演示经理·A区</option><option value="demo-token-region-b">演示经理·B区</option></select></div>
+        <div class="conversation-context"><span id="chat-meta">全库探索 · 可指定企业、年度或行业</span><button type="button" class="work-btn" id="chat-explore" title="清除当前企业和年度，开始全库新对话">全库探索 ↗</button>
+          <select id="chat-identity" aria-label="地区资料演示身份" title="仅用于演示地区资料与会话隔离，不限制公开企业查询"><option value="demo-token-region-a">地区资料演示·A区</option><option value="demo-token-region-b">地区资料演示·B区</option></select></div>
         <div class="chat-body" id="chat-body" role="log" aria-label="对话记录"></div>
         <div class="starter-prompts" id="chat-prompts"><button data-prompt="这家公司值得关注什么？">解释这家企业</button><button data-prompt="找江苏省2023年有产能部署的光伏企业">发现客户机会</button><button data-prompt="重点谈结算，不考虑融资，制定拜访方案">定制服务方案</button></div>
         <form class="chat-input" id="chat-form">
@@ -189,6 +189,6 @@
 <script src="assets/orbs.js?v=22"></script>
 <script src="assets/drawer.js?v=21"></script>
 <script src="assets/chat-protocol.js?v=21"></script>
-<script src="assets/chat.js?v=22"></script>
+<script src="assets/chat.js?v=23"></script>
 </body>
 </html>
